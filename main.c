@@ -11,18 +11,19 @@
 #include "keyboard.h"
 
 SDL_Window *window = NULL;
-SDL_Renderer *renderer = NULL;
+SDL_GLContext context = NULL;
 int quit = GL_FALSE;
 
 int main()
 {
 	SDL_Event e;
-	if (init() < 0 || load_project_textures() < 0) {
+	atexit(deinit);
+	if (init() < 0) {
 		printf("Something went wrong in init! Aborting.\n");
 		return -1;
 	}
 
-	screen_surface = SDL_GetWindowSurface(window);
+	//screen_surface = SDL_GetWindowSurface(window);
 	while (!quit && SDL_WaitEvent(&e) != 0) { //Loop until there's a quit event, or an error.
 		switch (e.type) {
 		case SDL_QUIT: quit = GL_TRUE;
@@ -30,11 +31,8 @@ int main()
 		case SDL_KEYDOWN: keypressed(e.key.keysym.scancode);
 			break;
 		}
-		SDL_RenderClear(renderer);
-		SDL_RenderCopy(renderer, texture, NULL, NULL);
-		SDL_RenderPresent(renderer);
+		render();
 	}
 
-	deinit();
 	return 0;
 }

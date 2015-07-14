@@ -3,5 +3,6 @@
 
 int init();
 void deinit();
+void render();
 
 #endif

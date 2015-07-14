@@ -3,7 +3,8 @@
 #include "image_load.h"
 #include "global_images.h"
 
-extern SDL_Renderer *renderer;
+//This should be extern, defined elsewhere. I'm just putting it here because this is dead/dormant code, and I want to compile.
+SDL_Renderer *renderer;
 
 SDL_Texture * load_texture(char *image_path) {
 	SDL_Surface *loaded_surface = NULL;
