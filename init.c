@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <GL/glew.h>
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
+//#include <SDL2/SDL_opengl.h>
 #include <SDL2_image/SDL_image.h>
 #include "global_images.h"
 #include "init.h"
@@ -11,16 +11,19 @@
 #define TRUE 1
 
 extern SDL_Window *window;
-extern SDL_GLContext context;
+static SDL_GLContext context = NULL;
 
-GLuint shader_program;
+GLuint shader_program = 0;
 GLuint gVBO = 0;
 GLuint gIBO = 0;
+GLuint gVAO = 0;
 GLint gVertexPos2DLocation = -1;
 
 int init_shader();
 void printLog(GLuint handle, int is_program);
 void render();
+void checkErrors(char *label);
+int init_shader_data(GLuint program, GLuint *vbo, GLuint *ibo, GLint *attribute);
 
 int init()
 {
@@ -41,7 +44,7 @@ int init()
 	}
 
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
 	context = SDL_GL_CreateContext(window);
@@ -51,6 +54,7 @@ int init()
 	}
 	glewExperimental = TRUE;
 	GLenum glewError = glewInit();
+	checkErrors("After glewInit");
 	if (glewError != GLEW_OK) {
 		printf("Error initializing GLEW! %s\n", glewGetErrorString(glewError));
 		return -1;
@@ -65,6 +69,12 @@ int init()
 		printf("Unable to initialize shaders!\n");
 		return -1;
 	}
+	if (init_shader_data(shader_program, &gVBO, &gIBO, &gVertexPos2DLocation) < 0) {
+		printf("Unable to initialize shader data!\n");
+		return -1;
+	}
+	glGenVertexArrays(1, &gVAO);
+	glBindVertexArray(gVAO);
 
 	return error;
 }
@@ -73,6 +83,7 @@ void deinit()
 {
 	SDL_DestroyTexture(texture);
 	SDL_DestroyWindow(window);
+	SDL_GL_DeleteContext(context);
 	IMG_Quit();
 	SDL_Quit();
 }
@@ -97,6 +108,7 @@ int init_shader(GLuint *program, const GLchar *vshader_source[], const GLchar *f
 	const GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(fshader, 1, fshader_source, NULL);
 	glCompileShader(fshader);
+
 	success = FALSE;
 	glGetShaderiv(fshader, GL_COMPILE_STATUS, &success);
 	if (success != TRUE) {
@@ -113,26 +125,30 @@ int init_shader(GLuint *program, const GLchar *vshader_source[], const GLchar *f
 		printLog(*program, TRUE);
 		return -1;
 	}
-	gVertexPos2DLocation = glGetAttribLocation(*program, "LVertexPos2D");
-	if (gVertexPos2DLocation == -1) {
+	return 0;
+}
+
+int init_shader_data(GLuint program, GLuint *vbo, GLuint *ibo, GLint *attribute)
+{
+	*attribute = glGetAttribLocation(program, "LVertexPos2D");
+	if (*attribute == -1) {
 		printf("LVertexPos2D is not a valid glsl program variable!\n");
 		return -1;
 	}
-	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
-	GLfloat vertexData[] = 
-	{
-		-0.5f, -0.5f,
-		 0.5f, -0.5f,
-		 0.5f,  0.5f,
-		-0.5f,  0.5f
+	glClearColor(0.0f, 0.0f, 0.25f, 1.0f);
+	GLfloat vertices[] = {
+		-0.5, -0.5,
+		 0.5, -0.5,
+		 0.5, 0.5,
+		-0.5, 0.5
 	};
-	GLuint indexData[] = {0, 1, 2, 3};
-	glGenBuffers(1, &gVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, gVBO);
-	glBufferData(GL_ARRAY_BUFFER, 2 * 4 * sizeof(GLfloat), vertexData, GL_STATIC_DRAW);
-	glGenBuffers(1, &gIBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gIBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 4 * sizeof(GLuint), indexData, GL_STATIC_DRAW);
+	GLuint indices[] = {0, 1, 2, 3};
+	glGenBuffers(1, vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, *vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+	glGenBuffers(1, ibo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 	return 0;
 }
 
@@ -158,17 +174,31 @@ void printLog(GLuint handle, int is_program)
 	}
 }
 
+void checkErrors(char *label)
+{
+	int error = glGetError();
+	if (error != GL_NO_ERROR) {
+		printf("%s: %d\n", label, error);
+	}
+}
+
 void render()
 {
-	glClear(GL_COLOR_BUFFER_BIT);
 	glUseProgram(shader_program);
+	checkErrors("After glUseProgram");
+	glClear(GL_COLOR_BUFFER_BIT);
+
 	glEnableVertexAttribArray(gVertexPos2DLocation);
+	checkErrors("After glEnableVertexAttribArray");
 	glBindBuffer(GL_ARRAY_BUFFER, gVBO);
-	glVertexAttribPointer(gVertexPos2DLocation, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), NULL);
+	glVertexAttribPointer(gVertexPos2DLocation, 2, GL_FLOAT, GL_FALSE, 0, NULL);
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gIBO);
 	glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, NULL);
+	checkErrors("After glDrawElements");
+
 	glDisableVertexAttribArray(gVertexPos2DLocation);
+	checkErrors("After glDisableVertexAttribArray");
 	glUseProgram(0);
 }
 

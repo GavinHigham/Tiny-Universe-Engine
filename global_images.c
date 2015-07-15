@@ -5,4 +5,3 @@
 //Global images should be defined here.
 
 SDL_Texture *texture;
-SDL_Surface *screen_surface = NULL;

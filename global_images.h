@@ -5,7 +5,6 @@
 
 //Global images should be declared here, as extern, and then defined in the .c source.
 
-extern SDL_Surface *screen_surface;
 extern SDL_Texture *texture;
 
 #endif
