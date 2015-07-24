@@ -10,11 +10,11 @@ EXE = main
 all: $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(EXE)
 
-shaders.o: shaders
+shaders.o: shaders.c
 
-shaders: $(SHADERS) $(SHADER_GENERATORS)
-	awk -f generate_shader_header.awk $(SHADERS) > shaders.h
+shaders.c: $(SHADERS) $(SHADER_GENERATORS)
 	awk -f generate_shader_source.awk $(SHADERS) > shaders.c
+	awk -f generate_shader_header.awk $(SHADERS) > shaders.h
 
 clean:
 	rm $(OBJECTS) && rm $(EXE)
