@@ -52,7 +52,7 @@ int init()
 		return -1;
 	}
 
-	if (init_shader(&shader_program, vshader_source, fshader_source) != 0) {
+	if (init_shader(&shader_program, simple_vs_source, simple_fs_source) != 0) {
 		printf("Unable to initialize shaders!\n");
 		return -1;
 	}
