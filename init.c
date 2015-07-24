@@ -6,6 +6,7 @@
 #include "global_images.h"
 #include "init.h"
 #include "default_settings.h"
+#include "shaders.h"
 
 #define FALSE 0
 #define TRUE 1
@@ -19,20 +20,20 @@ GLuint gIBO = 0;
 GLuint gVAO = 0;
 GLint gVertexPos2DLocation = -1;
 
+int init_gl();
+int init_glew();
 int init_shader();
 void printLog(GLuint handle, int is_program);
-void render();
-void checkErrors(char *label);
 int init_shader_data(GLuint program, GLuint *vbo, GLuint *ibo, GLint *attribute);
 
 int init()
 {
 	int error = 0;
-	if ((error = SDL_Init(SDL_INIT_VIDEO)) < 0) {
+	if ((error = SDL_Init(SDL_INIT_EVERYTHING)) != 0) {
 		printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
 		return error;
 	}
-	window = SDL_CreateWindow("SDL Tutorial", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
+	window = SDL_CreateWindow("SDL Tutorial", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL);
 	if (window == NULL) {
 		printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
 		return -1;
@@ -43,33 +44,19 @@ int init()
 		return -1;
 	}
 
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-
-	context = SDL_GL_CreateContext(window);
-	if (context == NULL) {
-		printf("OpenGL context could not be created! SDL Error: %s\n", SDL_GetError());
+	if (init_gl() != 0) {
 		return -1;
 	}
-	glewExperimental = TRUE;
-	GLenum glewError = glewInit();
-	checkErrors("After glewInit");
-	if (glewError != GLEW_OK) {
-		printf("Error initializing GLEW! %s\n", glewGetErrorString(glewError));
+
+	if (init_glew() != 0) {
 		return -1;
 	}
-	if (SDL_GL_SetSwapInterval(1) < 0) {
-		printf("Warning: Unable to set VSync! SDL Error: %s\n", SDL_GetError());
-	}
 
-	const GLchar *vshader_source[] = {"#version 140\nin vec2 LVertexPos2D; void main() { gl_Position = vec4(LVertexPos2D.x, LVertexPos2D.y, 0, 1); }"};
-	const GLchar *fshader_source[] = {"#version 140\nout vec4 LFragment; void main() { LFragment = vec4(1.0, 1.0, 1.0, 1.0); }"};
-	if (init_shader(&shader_program, vshader_source, fshader_source) < 0) {
+	if (init_shader(&shader_program, vshader_source, fshader_source) != 0) {
 		printf("Unable to initialize shaders!\n");
 		return -1;
 	}
-	if (init_shader_data(shader_program, &gVBO, &gIBO, &gVertexPos2DLocation) < 0) {
+	if (init_shader_data(shader_program, &gVBO, &gIBO, &gVertexPos2DLocation) != 0) {
 		printf("Unable to initialize shader data!\n");
 		return -1;
 	}
@@ -77,6 +64,35 @@ int init()
 	glBindVertexArray(gVAO);
 
 	return error;
+}
+
+int init_gl()
+{
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+
+	context = SDL_GL_CreateContext(window);
+	if (context == NULL) {
+		printf("OpenGL context could not be created! SDL Error: %s\n", SDL_GetError());
+		return -1;
+	}
+	if (SDL_GL_SetSwapInterval(1) < 0) {
+		printf("Warning: Unable to set VSync! SDL Error: %s\n", SDL_GetError());
+	}
+	return 0;
+}
+
+int init_glew()
+{
+	glewExperimental = TRUE;
+	GLenum glewError = glewInit();
+	checkErrors("After glewInit");
+	if (glewError != GLEW_OK) {
+		printf("Error initializing GLEW! %s\n", glewGetErrorString(glewError));
+		return -1;
+	}
+	return 0;
 }
 
 void deinit()
@@ -136,19 +152,8 @@ int init_shader_data(GLuint program, GLuint *vbo, GLuint *ibo, GLint *attribute)
 		return -1;
 	}
 	glClearColor(0.0f, 0.0f, 0.25f, 1.0f);
-	GLfloat vertices[] = {
-		-0.5, -0.5,
-		 0.5, -0.5,
-		 0.5, 0.5,
-		-0.5, 0.5
-	};
-	GLuint indices[] = {0, 1, 2, 3};
 	glGenBuffers(1, vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, *vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 	glGenBuffers(1, ibo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 	return 0;
 }
 
@@ -181,25 +186,3 @@ void checkErrors(char *label)
 		printf("%s: %d\n", label, error);
 	}
 }
-
-void render()
-{
-	glUseProgram(shader_program);
-	checkErrors("After glUseProgram");
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	glEnableVertexAttribArray(gVertexPos2DLocation);
-	checkErrors("After glEnableVertexAttribArray");
-	glBindBuffer(GL_ARRAY_BUFFER, gVBO);
-	glVertexAttribPointer(gVertexPos2DLocation, 2, GL_FLOAT, GL_FALSE, 0, NULL);
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gIBO);
-	glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, NULL);
-	checkErrors("After glDrawElements");
-
-	glDisableVertexAttribArray(gVertexPos2DLocation);
-	checkErrors("After glDisableVertexAttribArray");
-	glUseProgram(0);
-}
-
-

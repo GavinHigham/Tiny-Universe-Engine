@@ -3,6 +3,6 @@
 
 int init();
 void deinit();
-void render();
+void checkErrors(char *label);
 
 #endif
