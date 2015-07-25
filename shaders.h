@@ -1,7 +1,8 @@
 #ifndef SHADERS_H
 #define SHADERS_H
+#include "shader_program.h"
 
-extern const char *simple_vs_source[];
-extern const char *simple_fs_source[];
+extern struct shader_prog simple_program;
+enum simple_attr {LVertexPos2D};
 
 #endif

@@ -2,26 +2,27 @@
 #include <GL/glew.h>
 #include "render.h"
 #include "init.h"
+#include "shaders.h"
+#include "shader_program.h"
 
-extern GLuint shader_program, gVBO, gIBO;
-extern GLint gVertexPos2DLocation;
+extern GLuint gVBO, gIBO;
 
 void render()
 {
-	glUseProgram(shader_program);
+	glUseProgram(simple_program.handle);
 	checkErrors("After glUseProgram");
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	glEnableVertexAttribArray(gVertexPos2DLocation);
+	glEnableVertexAttribArray(simple_program.attr[LVertexPos2D]);
 	checkErrors("After glEnableVertexAttribArray");
 	glBindBuffer(GL_ARRAY_BUFFER, gVBO);
-	glVertexAttribPointer(gVertexPos2DLocation, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+	glVertexAttribPointer(simple_program.attr[LVertexPos2D], 2, GL_FLOAT, GL_FALSE, 0, NULL);
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gIBO);
 	glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, NULL);
 	checkErrors("After glDrawElements");
 
-	glDisableVertexAttribArray(gVertexPos2DLocation);
+	glDisableVertexAttribArray(simple_program.attr[LVertexPos2D]);
 	checkErrors("After glDisableVertexAttribArray");
 	glUseProgram(0);
 }

@@ -7,6 +7,7 @@
 #include "init.h"
 #include "default_settings.h"
 #include "shaders.h"
+#include "shader_program.h"
 
 #define FALSE 0
 #define TRUE 1
@@ -14,17 +15,16 @@
 extern SDL_Window *window;
 static SDL_GLContext context = NULL;
 
-GLuint shader_program = 0;
 GLuint gVBO = 0;
 GLuint gIBO = 0;
 GLuint gVAO = 0;
-GLint gVertexPos2DLocation = -1;
 
 int init_gl();
 int init_glew();
-int init_shader();
+int init_shader_prog(struct shader_prog *program);
+int init_shader_attributes(struct shader_prog *program);
 void printLog(GLuint handle, int is_program);
-int init_shader_data(GLuint program, GLuint *vbo, GLuint *ibo, GLint *attribute);
+int init_shader_data(GLuint *vbo, GLuint *ibo);
 
 int init()
 {
@@ -52,11 +52,17 @@ int init()
 		return -1;
 	}
 
-	if (init_shader(&shader_program, simple_vs_source, simple_fs_source) != 0) {
+	if (init_shader_prog(&simple_program) != 0) {
 		printf("Unable to initialize shaders!\n");
 		return -1;
 	}
-	if (init_shader_data(shader_program, &gVBO, &gIBO, &gVertexPos2DLocation) != 0) {
+
+	if (init_shader_attributes(&simple_program) != 0) {
+		printf("Unable to retrieve shader attributes!\n");
+		return -1;
+	}
+	
+	if (init_shader_data(&gVBO, &gIBO) != 0) {
 		printf("Unable to initialize shader data!\n");
 		return -1;
 	}
@@ -104,12 +110,12 @@ void deinit()
 	SDL_Quit();
 }
 
-int init_shader(GLuint *program, const GLchar *vshader_source[], const GLchar *fshader_source[])
+int init_shader_prog(struct shader_prog *program)
 {
-	*program = glCreateProgram();
+	program->handle = glCreateProgram();
 	//Vertex shader part
 	GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vshader, 1, vshader_source, NULL);
+	glShaderSource(vshader, 1, program->vs_source, NULL);
 	glCompileShader(vshader);
 
 	GLint success = FALSE;
@@ -119,10 +125,10 @@ int init_shader(GLuint *program, const GLchar *vshader_source[], const GLchar *f
 		printLog(vshader, FALSE);
 		return -1;
 	}
-	glAttachShader(*program, vshader);
+	glAttachShader(program->handle, vshader);
 	//Fragment shader part
 	const GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fshader, 1, fshader_source, NULL);
+	glShaderSource(fshader, 1, program->fs_source, NULL);
 	glCompileShader(fshader);
 
 	success = FALSE;
@@ -132,25 +138,32 @@ int init_shader(GLuint *program, const GLchar *vshader_source[], const GLchar *f
 		printLog(fshader, FALSE);
 		return -1;
 	}
-	glAttachShader(*program, fshader);
-	glLinkProgram(*program);
+	glAttachShader(program->handle, fshader);
+	glLinkProgram(program->handle);
 	success = TRUE;
-	glGetProgramiv(*program, GL_LINK_STATUS, &success);
+	glGetProgramiv(program->handle, GL_LINK_STATUS, &success);
 	if (success != TRUE) {
-		printf("Unable to link program %d!\n", *program);
-		printLog(*program, TRUE);
+		printf("Unable to link program %d!\n", program->handle);
+		printLog(program->handle, TRUE);
 		return -1;
 	}
 	return 0;
 }
 
-int init_shader_data(GLuint program, GLuint *vbo, GLuint *ibo, GLint *attribute)
+int init_shader_attributes(struct shader_prog *program)
 {
-	*attribute = glGetAttribLocation(program, "LVertexPos2D");
-	if (*attribute == -1) {
-		printf("LVertexPos2D is not a valid glsl program variable!\n");
-		return -1;
+	for (int i = 0; i < program->attr_cnt; i++) {
+		program->attr[i] = glGetAttribLocation(program->handle, program->attr_names[i]);
+		if (program->attr[i] == -1) {
+			printf("%s is not a valid glsl program variable!\n", program->attr_names[i]);
+			return -1;
+		}
 	}
+	return 0;
+}
+
+int init_shader_data(GLuint *vbo, GLuint *ibo)
+{
 	glClearColor(0.0f, 0.0f, 0.25f, 1.0f);
 	glGenBuffers(1, vbo);
 	glGenBuffers(1, ibo);
