@@ -17,6 +17,7 @@ static SDL_GLContext context = NULL;
 
 GLuint gVBO = 0;
 GLuint gIBO = 0;
+GLuint gCBO = 0;
 GLuint gVAO = 0;
 
 int init_gl();
@@ -24,7 +25,7 @@ int init_glew();
 int init_shader_prog(struct shader_prog *program);
 int init_shader_attributes(struct shader_prog *program);
 void printLog(GLuint handle, int is_program);
-int init_shader_data(GLuint *vbo, GLuint *ibo);
+int init_shader_data(GLuint *vbo, GLuint *ibo, GLuint *cbo);
 
 int init()
 {
@@ -62,7 +63,7 @@ int init()
 		return -1;
 	}
 	
-	if (init_shader_data(&gVBO, &gIBO) != 0) {
+	if (init_shader_data(&gVBO, &gIBO, &gCBO) != 0) {
 		printf("Unable to initialize shader data!\n");
 		return -1;
 	}
@@ -147,6 +148,8 @@ int init_shader_prog(struct shader_prog *program)
 		printLog(program->handle, TRUE);
 		return -1;
 	}
+	glDeleteShader(vshader);
+	glDeleteShader(fshader);
 	return 0;
 }
 
@@ -162,10 +165,11 @@ int init_shader_attributes(struct shader_prog *program)
 	return 0;
 }
 
-int init_shader_data(GLuint *vbo, GLuint *ibo)
+int init_shader_data(GLuint *vbo, GLuint *ibo, GLuint *cbo)
 {
 	glClearColor(0.0f, 0.0f, 0.25f, 1.0f);
 	glGenBuffers(1, vbo);
+	glGenBuffers(1, cbo);
 	glGenBuffers(1, ibo);
 	return 0;
 }

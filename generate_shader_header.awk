@@ -6,7 +6,7 @@ FNR == 1 {
 	programs[name] = name
 	shaders[name, ext] = name
 }
-$1 == "in" {attributes = attributes substr($3, 1, length($3)-1) ", "}
+($1 == "in" && ext == "vs") {attributes = attributes substr($3, 1, length($3)-1) ", "}
 END {
 	for (prog in programs)
 		if (((prog, "vs") in shaders) && ((prog, "fs") in shaders)) {

@@ -10,7 +10,7 @@ FNR == 1 {
 	shaders[name, ext] = shaders[name, ext] "const char *" name"_"ext"_source[] = {\n"
 }
 {
-	if ($1 == "in")
+	if ($1 == "in" && ext == "vs")
 		attributes = attributes "\"" substr($3, 1, length($3)-1) "\", "
 	gsub(/"/, "\\\"")
 	shaders[name, ext] = shaders[name, ext] "\"" $0 "\\n\"\n"
