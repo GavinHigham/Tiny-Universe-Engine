@@ -1,3 +1,4 @@
+//GENERATED FILE, CHANGES WILL BE LOST ON NEXT RUN OF MAKE.
 #ifndef SHADERS_H
 #define SHADERS_H
 #include "shader_program.h"

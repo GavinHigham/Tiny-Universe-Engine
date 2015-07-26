@@ -1,3 +1,4 @@
+//GENERATED FILE, CHANGES WILL BE LOST ON NEXT RUN OF MAKE.
 #include "shaders.h"
 #include "shader_program.h"
 
@@ -19,7 +20,6 @@ const char *simple_fs_source[] = {
 "	LFragment = fColor;//vec4(1.0, 1.0, 1.0, 1.0);\n"
 "}\n"
 };
-
 const GLchar *simple_attribute_names[] = {"LVertexPos2D", "vColor"};
 static const int simple_attribute_count = sizeof(simple_attribute_names)/sizeof(simple_attribute_names[0]);
 GLint simple_attributes[simple_attribute_count];

@@ -1,10 +1,15 @@
-BEGIN {print "#ifndef SHADERS_H\n#define SHADERS_H\n#include \"shader_program.h\"\n"}
+BEGIN {
+	print "//GENERATED FILE, CHANGES WILL BE LOST ON NEXT RUN OF MAKE."
+	print "#ifndef SHADERS_H"
+	print "#define SHADERS_H"
+	print "#include \"shader_program.h\"\n"
+}
 FNR == 1 {
 	split(FILENAME, arr, /[\/\.]/)
 	name = arr[length(arr)-1]
 	ext  = arr[length(arr)]
-	programs[name] = name
-	shaders[name, ext] = name
+	programs[name]
+	shaders[name, ext]
 }
 ($1 == "in" && ext == "vs") {attributes = attributes substr($3, 1, length($3)-1) ", "}
 END {

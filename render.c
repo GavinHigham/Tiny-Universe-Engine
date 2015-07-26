@@ -4,6 +4,7 @@
 #include "init.h"
 #include "shaders.h"
 #include "shader_program.h"
+#include "keyboard.h"
 
 extern GLuint gVBO, gIBO, gCBO;
 
@@ -32,17 +33,21 @@ void render()
 
 void update(float dt)
 {
-	static float elapsed_ms;
-	elapsed_ms = fmod(elapsed_ms + dt, 2*M_PI);
+	static float rot;
+	if (keys[KEY_LEFT])
+		rot += dt;
+	if (keys[KEY_RIGHT])
+		rot -= dt;
+	rot = fmod(rot, 2*M_PI);
 	GLfloat vertices[] = {
-		cos(elapsed_ms)/2,          sin(elapsed_ms)/2,
-		cos(elapsed_ms+(M_PI/2))/2, sin(elapsed_ms+(M_PI/2))/2,
-		cos(elapsed_ms+M_PI)/2,     sin(elapsed_ms+M_PI)/2,
-		cos(elapsed_ms-(M_PI/2))/2, sin(elapsed_ms-(M_PI/2))/2
+		cos(rot)/2,          sin(rot)/2,
+		cos(rot+(M_PI/2))/2, sin(rot+(M_PI/2))/2,
+		cos(rot+M_PI)/2,     sin(rot+M_PI)/2,
+		cos(rot-(M_PI/2))/2, sin(rot-(M_PI/2))/2
 	};
 	GLfloat colors[] = {
-		1.0, 0.0, 0.0,
 		0.0, 1.0, 0.0,
+		1.0, 0.0, 0.0,
 		0.0, 0.0, 1.0,
 		1.0, 1.0, 1.0
 	};

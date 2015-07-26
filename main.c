@@ -38,6 +38,8 @@ int main()
 		switch (e.type) {
 		case SDL_KEYDOWN: keypressed(e.key.keysym.scancode);
 			break;
+		case SDL_KEYUP: keyreleased(e.key.keysym.scancode);
+			break;
 		case SDL_USEREVENT:
 			update(1.0/FPS); //Later on, I will send the actual elapsed time per frame.
 			render();
