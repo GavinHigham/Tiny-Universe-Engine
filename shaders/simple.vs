@@ -1,8 +1,10 @@
 #version 140
+
+uniform mat4 projection_matrix;
 in vec2 LVertexPos2D;
 in vec3 vColor;
 out vec4 fColor;
 void main() {
-	gl_Position = vec4(LVertexPos2D.x, LVertexPos2D.y, 0, 1);
+	gl_Position = projection_matrix*vec4(LVertexPos2D, -2, 1);
 	fColor = vec4(vColor, 1.0);
 }

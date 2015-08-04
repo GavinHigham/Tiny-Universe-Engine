@@ -87,6 +87,11 @@ int init_gl()
 	if (SDL_GL_SetSwapInterval(1) < 0) {
 		printf("Warning: Unable to set VSync! SDL Error: %s\n", SDL_GetError());
 	}
+
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glClearDepth(0.0);
+	glDepthFunc(GL_GREATER);
 	return 0;
 }
 
@@ -159,6 +164,18 @@ int init_shader_attributes(struct shader_prog *program)
 		program->attr[i] = glGetAttribLocation(program->handle, program->attr_names[i]);
 		if (program->attr[i] == -1) {
 			printf("%s is not a valid glsl program variable!\n", program->attr_names[i]);
+			return -1;
+		}
+	}
+	return 0;
+}
+
+int init_shader_uniforms(struct shader_prog *program)
+{
+	for (int i = 0; i < program->unif_cnt; i++) {
+		program->unif[i] = glGetUniformLocation(program->handle, program->unif_names[i]);
+		if (program->unif[i] == -1) {
+			printf("%s is not a valid glsl uniform variable!\n", program->unif_names[i]);
 			return -1;
 		}
 	}

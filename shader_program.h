@@ -7,8 +7,11 @@ struct shader_prog {
 	const GLchar **fs_source;
 	GLuint handle;
 	int attr_cnt;
+	int unif_cnt;
 	GLint *attr;
+	GLint *unif;
 	const GLchar **attr_names;
+	const GLchar **unif_names;
 };
 
 #endif

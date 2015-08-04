@@ -5,5 +5,6 @@
 
 extern struct shader_prog simple_program;
 enum simple_attr {LVertexPos2D, vColor};
+enum simple_unif {projection_matrix};
 
 #endif

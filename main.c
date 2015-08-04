@@ -14,14 +14,13 @@
 #define FALSE 0
 #define TRUE 1
 
-#define FPS 60.0
-#define FRAME_TIME_MS 1000.0/FPS
+#define FPS 60
+#define FRAME_TIME_MS 1000/FPS
 
 SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
 static int quit = GL_FALSE;
 int SDLCALL quit_event(void *userdata, SDL_Event *e);
-Uint32 renderloop_timer(Uint32 interval, void *param);
 
 int main()
 {
@@ -33,18 +32,26 @@ int main()
 	}
 	//renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
 	SDL_AddEventWatch(quit_event, NULL);
-	SDL_AddTimer(FRAME_TIME_MS, renderloop_timer, NULL);
-	while (!quit && SDL_WaitEvent(&e)) { //Loop until there's an error, or a desire to quit.
-		switch (e.type) {
-		case SDL_KEYDOWN: keypressed(e.key.keysym.scancode);
-			break;
-		case SDL_KEYUP: keyreleased(e.key.keysym.scancode);
-			break;
-		case SDL_USEREVENT:
-			update(1.0/FPS); //Later on, I will send the actual elapsed time per frame.
-			render();
-			SDL_GL_SwapWindow(window);
-			break;
+	Uint32 last_swap_timestamp = SDL_GetTicks();
+	int wake_early_ms = 2;
+	while (!quit) { //Loop until quit
+		while (SDL_PollEvent(&e)) { //Exhaust our event queue before updating and rendering
+			switch (e.type) {
+			case SDL_KEYDOWN: keypressed(e.key.keysym.scancode);
+				break;
+			case SDL_KEYUP: keyreleased(e.key.keysym.scancode);
+				break;
+			}
+		}
+		Uint32 ms_since_update = (SDL_GetTicks() - last_swap_timestamp);
+		if (ms_since_update >= FRAME_TIME_MS) {
+				//Since user input is handled above, game state is "locked" when we enter this block.
+				last_swap_timestamp = SDL_GetTicks();
+				SDL_GL_SwapWindow(window); //Display a new screen to the user every 16 ms, on the dot.
+				update(ms_since_update/1000.0); //At 16 ms intervals, begin an update. HOPEFULLY DOESN'T TAKE MORE THAN 16 MS.
+				render(); //This will be a picture of the state as of (hopefully exactly) 16 ms ago.
+		} else if ((FRAME_TIME_MS - ms_since_update) > wake_early_ms) { //If there's more than wake_early_ms milliseconds left...
+			SDL_Delay(FRAME_TIME_MS - ms_since_update - wake_early_ms); //Sleep up until wake_early_ms milliseconds left. (Busywait the rest)
 		}
 	}
 
@@ -61,22 +68,4 @@ int SDLCALL quit_event(void *userdata, SDL_Event *e)
     	quit_application();
     }
     return 0;
-}
-
-Uint32 renderloop_timer(Uint32 interval, void *param)
-{
-	//Taken from example code at http://wiki.libsdl.org/SDL_AddTimer
-    SDL_Event event;
-    SDL_UserEvent userevent;
-	
-    userevent.type = SDL_USEREVENT;
-    userevent.code = 0;
-    userevent.data1 = NULL;
-    userevent.data2 = NULL;
-	
-    event.type = SDL_USEREVENT;
-    event.user = userevent;
-	
-    SDL_PushEvent(&event);
-    return(interval);
 }
