@@ -2,11 +2,12 @@
 #include "keyboard.h"
 #include "main.h"
 
+#define NUM_HANDLED_KEYS 4
 #define TRUE 1
 #define FALSE 0
 
 extern SDL_Window *window;
-int keys[] = {0, 0};
+int keys[NUM_HANDLED_KEYS] = {FALSE};
 
 void keypressed(SDL_Scancode physical_key)
 {
@@ -19,6 +20,12 @@ void keypressed(SDL_Scancode physical_key)
 		break;
 	case SDL_SCANCODE_RIGHT:
 		keys[KEY_RIGHT] = TRUE;
+		break;
+	case SDL_SCANCODE_UP:
+		keys[KEY_UP] = TRUE;
+		break;
+	case SDL_SCANCODE_DOWN:
+		keys[KEY_DOWN] = TRUE;
 		break;
 	default: break;
 	}
@@ -37,6 +44,12 @@ void keyreleased(SDL_Scancode physical_key)
 		break;
 	case SDL_SCANCODE_RIGHT:
 		keys[KEY_RIGHT] = FALSE;
+		break;
+	case SDL_SCANCODE_UP:
+		keys[KEY_UP] = FALSE;
+		break;
+	case SDL_SCANCODE_DOWN:
+		keys[KEY_DOWN] = FALSE;
 		break;
 	default: break;
 	}

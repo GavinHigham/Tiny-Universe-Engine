@@ -14,8 +14,9 @@
 #define FALSE 0
 #define TRUE 1
 
-#define FPS 60
-#define FRAME_TIME_MS 1000/FPS
+#define FPS 60.0
+#define MS_PER_SECOND 1000.0
+#define FRAME_TIME_MS MS_PER_SECOND/FPS
 
 SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
@@ -48,7 +49,7 @@ int main()
 				//Since user input is handled above, game state is "locked" when we enter this block.
 				last_swap_timestamp = SDL_GetTicks();
 				SDL_GL_SwapWindow(window); //Display a new screen to the user every 16 ms, on the dot.
-				update(ms_since_update/1000.0); //At 16 ms intervals, begin an update. HOPEFULLY DOESN'T TAKE MORE THAN 16 MS.
+				update(ms_since_update/MS_PER_SECOND); //At 16 ms intervals, begin an update. HOPEFULLY DOESN'T TAKE MORE THAN 16 MS.
 				render(); //This will be a picture of the state as of (hopefully exactly) 16 ms ago.
 		} else if ((FRAME_TIME_MS - ms_since_update) > wake_early_ms) { //If there's more than wake_early_ms milliseconds left...
 			SDL_Delay(FRAME_TIME_MS - ms_since_update - wake_early_ms); //Sleep up until wake_early_ms milliseconds left. (Busywait the rest)

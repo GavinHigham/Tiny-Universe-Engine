@@ -24,6 +24,7 @@ int init_gl();
 int init_glew();
 int init_shader_prog(struct shader_prog *program);
 int init_shader_attributes(struct shader_prog *program);
+int init_shader_uniforms(struct shader_prog *program);
 void printLog(GLuint handle, int is_program);
 int init_shader_data(GLuint *vbo, GLuint *ibo, GLuint *cbo);
 
@@ -62,6 +63,11 @@ int init()
 		printf("Unable to retrieve shader attributes!\n");
 		return -1;
 	}
+
+	if (init_shader_uniforms(&simple_program) != 0) {
+		printf("Unable to retrieve shader uniforms!\n");
+		return -1;
+	}
 	
 	if (init_shader_data(&gVBO, &gIBO, &gCBO) != 0) {
 		printf("Unable to initialize shader data!\n");
@@ -89,9 +95,11 @@ int init_gl()
 	}
 
 	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);
+	//glEnable(GL_CULL_FACE);
 	glClearDepth(0.0);
 	glDepthFunc(GL_GREATER);
+	glClearColor(0.0f, 0.0f, 0.25f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	return 0;
 }
 
@@ -163,7 +171,7 @@ int init_shader_attributes(struct shader_prog *program)
 	for (int i = 0; i < program->attr_cnt; i++) {
 		program->attr[i] = glGetAttribLocation(program->handle, program->attr_names[i]);
 		if (program->attr[i] == -1) {
-			printf("%s is not a valid glsl program variable!\n", program->attr_names[i]);
+			printf("%s is not a valid glsl program variable! It may have been optimized out.\n", program->attr_names[i]);
 			return -1;
 		}
 	}
@@ -175,7 +183,7 @@ int init_shader_uniforms(struct shader_prog *program)
 	for (int i = 0; i < program->unif_cnt; i++) {
 		program->unif[i] = glGetUniformLocation(program->handle, program->unif_names[i]);
 		if (program->unif[i] == -1) {
-			printf("%s is not a valid glsl uniform variable!\n", program->unif_names[i]);
+			printf("%s is not a valid glsl uniform variable! It may have been optimized out.\n", program->unif_names[i]);
 			return -1;
 		}
 	}
@@ -184,7 +192,6 @@ int init_shader_uniforms(struct shader_prog *program)
 
 int init_shader_data(GLuint *vbo, GLuint *ibo, GLuint *cbo)
 {
-	glClearColor(0.0f, 0.0f, 0.25f, 1.0f);
 	glGenBuffers(1, vbo);
 	glGenBuffers(1, cbo);
 	glGenBuffers(1, ibo);
