@@ -2,11 +2,14 @@
 
 uniform mat4 projection_matrix;
 uniform mat4 model_view_matrix;
-in vec3 vertex_pos;
+in vec3 vPos;
 in vec3 vColor;
+in vec3 vNormal;
 out vec4 fColor;
+out vec3 fNormal;
 void main() {
-	vec4 new_vertex = model_view_matrix * vec4(vertex_pos, 1);
+	vec4 new_vertex = model_view_matrix * vec4(vPos, 1);
 	gl_Position = projection_matrix * new_vertex;
 	fColor = vec4(vColor, 1.0);
+	fNormal = vec3((vec4(vNormal, 1) - model_view_matrix[3]) * model_view_matrix);
 }

@@ -106,6 +106,20 @@ AM4 trans(AM4 a, float x, float y, float z)
 	return a;
 }
 
+AM4 ident()
+{
+	AM4 tmp = {
+		.A = {
+			1, 0, 0,
+			0, 1, 0,
+			0, 0, 1
+		},
+		.T = {0},
+		.type = 0
+	};
+	return tmp;
+}
+
 void buffer_AM4(float *buf, int len, AM4 a)
 {
 	assert(len == 16);

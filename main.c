@@ -38,9 +38,9 @@ int main()
 	while (!quit) { //Loop until quit
 		while (SDL_PollEvent(&e)) { //Exhaust our event queue before updating and rendering
 			switch (e.type) {
-			case SDL_KEYDOWN: keypressed(e.key.keysym.scancode);
+			case SDL_KEYDOWN: keyevent(e.key.keysym, (SDL_EventType)e.type);
 				break;
-			case SDL_KEYUP: keyreleased(e.key.keysym.scancode);
+			case SDL_KEYUP: keyevent(e.key.keysym, (SDL_EventType)e.type);
 				break;
 			}
 		}

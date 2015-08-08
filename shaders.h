@@ -4,7 +4,7 @@
 #include "shader_program.h"
 
 extern struct shader_prog simple_program;
-enum simple_attr {vertex_pos, vColor};
-enum simple_unif {projection_matrix, model_view_matrix};
+enum simple_attr {vNormal, vColor, vPos};
+enum simple_unif {projection_matrix, model_view_matrix, sun_light};
 
 #endif

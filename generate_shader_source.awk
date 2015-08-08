@@ -10,19 +10,26 @@ FNR == 1 {
 	programs[name]
 	shaders[name, ext] = "const char *" name"_"ext"_source[] = {\n"
 }
-($1 == "in" && ext == "vs") {attributes = attributes "\"" substr($3, 1, length($3)-1) "\", "}
-($1 == "uniform" && ext == "vs") {uniforms = uniforms "\"" substr($3, 1, length($3)-1) "\", "}
+#uniforms and attributes are not handled on a per-shader/per-program basis :/
+($1 == "in" && ext == "vs") {attributes[substr($3, 1, length($3)-1)]}
+($1 == "uniform") {uniforms[substr($3, 1, length($3)-1)]}
 {
 	gsub(/"/, "\\\"")
 	shaders[name, ext] = shaders[name, ext] "\"" $0 "\\n\"\n"
 }
 END {
+	for (attribute in attributes) {
+		attr_string = attr_string "\"" attribute "\", "
+	}
+	for (uniform in uniforms) {
+		unif_string = unif_string "\"" uniform "\", "
+	}
 	for (prog in programs)
 		if (((prog, "vs") in shaders) && ((prog, "fs") in shaders)) {
 			print shaders[prog, "vs"] "};"
 			print shaders[prog, "fs"] "};"
-			print "const GLchar *"prog"_attribute_names[] = {"substr(attributes, 1, length(attributes)-2)"};"
-			print "const GLchar *"prog"_uniform_names[] = {"substr(uniforms, 1, length(uniforms)-2)"};"
+			print "const GLchar *"prog"_attribute_names[] = {"substr(attr_string, 1, length(attr_string)-2)"};"
+			print "const GLchar *"prog"_uniform_names[] = {"substr(unif_string, 1, length(unif_string)-2)"};"
 			print "static const int "prog"_attribute_count = sizeof("prog"_attribute_names)/sizeof("prog"_attribute_names[0]);"
 			print "static const int "prog"_uniform_count = sizeof("prog"_uniform_names)/sizeof("prog"_uniform_names[0]);"
 			print "GLint "prog"_attributes["prog"_attribute_count];"

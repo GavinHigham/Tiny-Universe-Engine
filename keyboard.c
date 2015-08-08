@@ -2,55 +2,50 @@
 #include "keyboard.h"
 #include "main.h"
 
-#define NUM_HANDLED_KEYS 4
+#define NUM_HANDLED_KEYS 6
 #define TRUE 1
 #define FALSE 0
 
 extern SDL_Window *window;
 int keys[NUM_HANDLED_KEYS] = {FALSE};
 
-void keypressed(SDL_Scancode physical_key)
+void keyevent(SDL_Keysym keysym, SDL_EventType type)
 {
-	switch (physical_key) {
+	static int fullscreen = 0;
+	int keystate;
+	if (type == SDL_KEYDOWN) {
+		keystate = TRUE; //Key is down.
+	} else {
+		keystate = FALSE; //Key is up.
+	}
+	switch (keysym.scancode) {
 	case SDL_SCANCODE_ESCAPE:
 		quit_application();
 		break;
 	case SDL_SCANCODE_LEFT:
-		keys[KEY_LEFT] = TRUE;
+		keys[KEY_LEFT] = keystate;
 		break;
 	case SDL_SCANCODE_RIGHT:
-		keys[KEY_RIGHT] = TRUE;
+		keys[KEY_RIGHT] = keystate;
 		break;
 	case SDL_SCANCODE_UP:
-		keys[KEY_UP] = TRUE;
+		keys[KEY_UP] = keystate;
 		break;
 	case SDL_SCANCODE_DOWN:
-		keys[KEY_DOWN] = TRUE;
+		keys[KEY_DOWN] = keystate;
 		break;
-	default: break;
-	}
-}
-
-void keyreleased(SDL_Scancode physical_key)
-{
-	static int fullscreen = 0;
-	switch (physical_key) {
+	case SDL_SCANCODE_EQUALS:
+		keys[KEY_EQUALS] = keystate;
+		break;
+	case SDL_SCANCODE_MINUS:
+		keys[KEY_MINUS] = keystate;
+		break;
 	case SDL_SCANCODE_F:
-		fullscreen ^= SDL_WINDOW_FULLSCREEN_DESKTOP;
-		SDL_SetWindowFullscreen(window, fullscreen);
-		break;
-	case SDL_SCANCODE_LEFT:
-		keys[KEY_LEFT] = FALSE;
-		break;
-	case SDL_SCANCODE_RIGHT:
-		keys[KEY_RIGHT] = FALSE;
-		break;
-	case SDL_SCANCODE_UP:
-		keys[KEY_UP] = FALSE;
-		break;
-	case SDL_SCANCODE_DOWN:
-		keys[KEY_DOWN] = FALSE;
-		break;
+		if (!keystate) {
+			fullscreen ^= SDL_WINDOW_FULLSCREEN_DESKTOP;
+			SDL_SetWindowFullscreen(window, fullscreen);
+		}
+	break;
 	default: break;
 	}
 }

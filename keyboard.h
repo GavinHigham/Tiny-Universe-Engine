@@ -4,8 +4,7 @@
 #include <SDL2/SDL.h>
 
 extern int keys[];
-enum keys {KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN};
-void keypressed(SDL_Scancode physical_key);
-void keyreleased(SDL_Scancode physical_key);
+enum keys {KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN, KEY_EQUALS, KEY_MINUS};
+void keyevent(SDL_Keysym keysym, SDL_EventType type);
 
 #endif

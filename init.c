@@ -8,6 +8,7 @@
 #include "default_settings.h"
 #include "shaders.h"
 #include "shader_program.h"
+#include "render.h"
 
 #define FALSE 0
 #define TRUE 1
@@ -26,7 +27,6 @@ int init_shader_prog(struct shader_prog *program);
 int init_shader_attributes(struct shader_prog *program);
 int init_shader_uniforms(struct shader_prog *program);
 void printLog(GLuint handle, int is_program);
-int init_shader_data(GLuint *vbo, GLuint *ibo, GLuint *cbo);
 
 int init()
 {
@@ -69,12 +69,10 @@ int init()
 		return -1;
 	}
 	
-	if (init_shader_data(&gVBO, &gIBO, &gCBO) != 0) {
-		printf("Unable to initialize shader data!\n");
-		return -1;
-	}
 	glGenVertexArrays(1, &gVAO);
 	glBindVertexArray(gVAO);
+
+	init_render(); //Located in render.c
 
 	return error;
 }
@@ -94,12 +92,6 @@ int init_gl()
 		printf("Warning: Unable to set VSync! SDL Error: %s\n", SDL_GetError());
 	}
 
-	glEnable(GL_DEPTH_TEST);
-	//glEnable(GL_CULL_FACE);
-	glClearDepth(0.0);
-	glDepthFunc(GL_GREATER);
-	glClearColor(0.0f, 0.0f, 0.25f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	return 0;
 }
 
@@ -187,14 +179,6 @@ int init_shader_uniforms(struct shader_prog *program)
 			return -1;
 		}
 	}
-	return 0;
-}
-
-int init_shader_data(GLuint *vbo, GLuint *ibo, GLuint *cbo)
-{
-	glGenBuffers(1, vbo);
-	glGenBuffers(1, cbo);
-	glGenBuffers(1, ibo);
 	return 0;
 }
 
