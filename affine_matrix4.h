@@ -7,6 +7,8 @@ typedef struct am4 {
 	char type;
 } AM4;
 
+#define AM4_IDENT {{1, 0, 0,  0, 1, 0,  0, 0, 1}}
+
 AM4 apply_withbranch(AM4 a, AM4 b);
 AM4 apply(AM4 a, AM4 b);
 AM4 rot(AM4 a, float ux, float uy, float uz, float angle);

@@ -9,6 +9,7 @@
 #include "keyboard.h"
 #include "default_settings.h"
 #include "affine_matrix4.h"
+#include "matrix3.h"
 
 #define FOV M_PI/2.0
 #define PRIMITIVE_RESTART_INDEX 0xFFFF
@@ -17,6 +18,9 @@ struct render_context {
 	GLuint vbo, cbo, nbo, ibo;
 };
 static struct render_context current_context;
+static AM4 MVR = AM4_IDENT;
+static AM4 MVM;
+static MAT3 NMVM;
 static GLfloat mvm_buf[16];
 static float light_time = 0;
 GLfloat distance = -3.0;
@@ -213,7 +217,8 @@ void make_projection_matrix(GLfloat fov, GLfloat a, GLfloat n, GLfloat f, GLfloa
 
 void draw_cube(struct render_context rc)
 {	
-	glUniform3f(simple_program.unif[sun_light], 7*cos(light_time), 7*sin(light_time), 10);
+	//glUniform3f(simple_program.unif[sun_light], 7*cos(light_time), 7*sin(light_time), 10);
+	glUniform3f(simple_program.unif[sun_light], 10, 10, 10);
 
 	buffer_normal_cube(current_context);
 
@@ -248,6 +253,7 @@ void render()
 	make_projection_matrix(FOV, (float)SCREEN_WIDTH/(float)SCREEN_HEIGHT, -1, -10, proj_mat, sizeof(proj_mat)/sizeof(proj_mat[0]));
 	glUniformMatrix4fv(simple_program.unif[projection_matrix], 1, GL_TRUE, proj_mat);
 	glUniformMatrix4fv(simple_program.unif[model_view_matrix], 1, GL_TRUE, mvm_buf);
+	glUniformMatrix3fv(simple_program.unif[normal_model_view_matrix], 1, GL_TRUE, NMVM.A);
 
 	draw_cube(current_context);
 
@@ -256,7 +262,7 @@ void render()
 
 void update(float dt)
 {
-	light_time += dt * 3;
+	light_time += dt * 2;
 	static float rotx, roty;
 	if (keys[KEY_LEFT])
 		roty += dt;
@@ -272,6 +278,8 @@ void update(float dt)
 		distance -= dt;
 	rotx = fmod(rotx, 2*M_PI);
 	roty = fmod(roty, 2*M_PI);
-	AM4 mvm = trans(rot(rot(ident(), 1, 0, 0, rotx), 0, 1, 0, roty), 0, 0, distance);
-	buffer_AM4(mvm_buf, sizeof(mvm_buf)/sizeof(mvm_buf[0]), mvm);
+	MVR = rot(rot(MVR, 1, 0, 0, -rotx), 0, 1, 0, -roty);
+	MVM = trans(MVR, 0, 0, distance);
+	buffer_AM4(mvm_buf, sizeof(mvm_buf)/sizeof(mvm_buf[0]), MVM);
+	NMVM = mat3_from_array(MVM.A);
 }

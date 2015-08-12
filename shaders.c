@@ -7,6 +7,7 @@ const char *simple_vs_source[] = {
 "\n"
 "uniform mat4 projection_matrix;\n"
 "uniform mat4 model_view_matrix;\n"
+"uniform mat3 normal_model_view_matrix;\n"
 "in vec3 vPos;\n"
 "in vec3 vColor;\n"
 "in vec3 vNormal;\n"
@@ -16,7 +17,7 @@ const char *simple_vs_source[] = {
 "	vec4 new_vertex = model_view_matrix * vec4(vPos, 1);\n"
 "	gl_Position = projection_matrix * new_vertex;\n"
 "	fColor = vec4(vColor, 1.0);\n"
-"	fNormal = vec3((vec4(vNormal, 1) - model_view_matrix[3]) * model_view_matrix);\n"
+"	fNormal = normal_model_view_matrix * vNormal;\n"
 "}\n"
 };
 const char *simple_fs_source[] = {
@@ -34,7 +35,7 @@ const char *simple_fs_source[] = {
 "}\n"
 };
 const GLchar *simple_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *simple_uniform_names[] = {"projection_matrix", "model_view_matrix", "sun_light"};
+const GLchar *simple_uniform_names[] = {"normal_model_view_matrix", "projection_matrix", "model_view_matrix", "sun_light"};
 static const int simple_attribute_count = sizeof(simple_attribute_names)/sizeof(simple_attribute_names[0]);
 static const int simple_uniform_count = sizeof(simple_uniform_names)/sizeof(simple_uniform_names[0]);
 GLint simple_attributes[simple_attribute_count];
