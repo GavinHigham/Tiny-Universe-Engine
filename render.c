@@ -17,17 +17,18 @@
 struct render_context {
 	GLuint vbo, cbo, nbo, ibo;
 };
+
+#include "models.h"
+
 static struct render_context current_context;
-static AM4 MVR = AM4_IDENT;
 static AM4 MVM;
-static MAT3 NMVM;
 static GLfloat mvm_buf[16];
 static float light_time = 0;
-GLfloat distance = -3.0;
+GLfloat distance = -8.0;
 
-void buffer_cube();
-void buffer_normal_cube();
+int buffer_normal_cube();
 
+//Set up everything needed to start rendering frames.
 void init_render()
 {
 	glEnable(GL_DEPTH_TEST);
@@ -44,43 +45,10 @@ void init_render()
 	glGenBuffers(1, &current_context.ibo);
 }
 
-void buffer_cube(struct render_context rc) {
-	GLfloat vertices[] = {
-		 1.0,  1.0, -1.0,
-		 1.0,  1.0,  1.0,
-		-1.0,  1.0,  1.0,
-		-1.0,  1.0, -1.0,
-		-1.0, -1.0, -1.0,
-		-1.0, -1.0,  1.0,
-		 1.0, -1.0,  1.0,
-		 1.0, -1.0, -1.0
-	};
-	GLfloat colors[] = {
-		0.0, 1.0, 0.0,
-		1.0, 0.0, 0.0,
-		0.0, 0.0, 1.0,
-		1.0, 1.0, 0.0,
-		0.0, 1.0, 1.0,
-		1.0, 0.0, 1.0,
-		0.0, 0.0, 0.0,
-		1.0, 1.0, 1.0
-	};
-	GLuint indices[] = {
-		0, 1, 6, 7, 4, 3, 2, 1, //Need to stop and draw a second fan here.
-		PRIMITIVE_RESTART_INDEX, //Primitive restart index.
-		5, 1, 2, 3, 4, 7, 6, 1
-	};
-	glBindBuffer(GL_ARRAY_BUFFER, rc.vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, rc.cbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, rc.ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-}
-
-void buffer_normal_cube(struct render_context rc)
+//Buffer all the data needed to render a cube with correct normals, and some colors.
+int buffer_normal_cube(struct render_context rc)
 {
-		GLfloat vertices[] = {
+	GLfloat vertices[] = {
 		//Top face
 		 1.0,  1.0, -1.0,
 		 1.0,  1.0,  1.0,
@@ -144,35 +112,36 @@ void buffer_normal_cube(struct render_context rc)
 		1.0, 0.0, 1.0
 	};
 	GLfloat normals[] = {
+		//Top face
 		 0.0,  1.0,  0.0,
 		 0.0,  1.0,  0.0,
 		 0.0,  1.0,  0.0,
 		 0.0,  1.0,  0.0,
-
+		//Back face
 		 0.0,  0.0, -1.0,
 		 0.0,  0.0, -1.0,
 		 0.0,  0.0, -1.0,
 		 0.0,  0.0, -1.0,
-
+		//Right face
 		 1.0,  0.0,  0.0,
 		 1.0,  0.0,  0.0,
 		 1.0,  0.0,  0.0,
 		 1.0,  0.0,  0.0,
-
+		//Bottom face
  		 0.0, -1.0,  0.0,
  		 0.0, -1.0,  0.0,
  		 0.0, -1.0,  0.0,
  		 0.0, -1.0,  0.0,
-
+ 		//Front face
 		 0.0,  0.0,  1.0,
 		 0.0,  0.0,  1.0,
 		 0.0,  0.0,  1.0,
 		 0.0,  0.0,  1.0,
-
-		 1.0,  0.0,  0.0,
-		 1.0,  0.0,  0.0,
-		 1.0,  0.0,  0.0,
-		 1.0,  0.0,  0.0,
+		//Left face
+		-1.0,  0.0,  0.0,
+		-1.0,  0.0,  0.0,
+		-1.0,  0.0,  0.0,
+		-1.0,  0.0,  0.0,
 	};
 	GLuint indices[] = {
 		0, 3, 2, 1,
@@ -195,8 +164,11 @@ void buffer_normal_cube(struct render_context rc)
 	glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, rc.ibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+	return sizeof(indices)/sizeof(indices[0]);
 }
 
+//Create a projection matrix with "fov" field of view, "a" aspect ratio, n and f near and far planes.
+//Stick it into buffer buf, ready to send to OpenGL.
 void make_projection_matrix(GLfloat fov, GLfloat a, GLfloat n, GLfloat f, GLfloat *buf, int buf_len)
 {
 	assert(buf_len == 16);
@@ -215,12 +187,13 @@ void make_projection_matrix(GLfloat fov, GLfloat a, GLfloat n, GLfloat f, GLfloa
 	memcpy(buf, tmp, sizeof(tmp));
 }
 
-void draw_cube(struct render_context rc)
+void draw_cube(struct render_context rc, int index_count, GLfloat x, GLfloat y, GLfloat z)
 {	
+	AM4 lMVM = AM4_trans(MVM, x, y, z);
+	AM4_to_array(mvm_buf, sizeof(mvm_buf)/sizeof(mvm_buf[0]), lMVM);
+	glUniformMatrix4fv(simple_program.unif[model_view_matrix], 1, GL_TRUE, mvm_buf);
 	//glUniform3f(simple_program.unif[sun_light], 7*cos(light_time), 7*sin(light_time), 10);
 	glUniform3f(simple_program.unif[sun_light], 10, 10, 10);
-
-	buffer_normal_cube(current_context);
 
 	glPrimitiveRestartIndex(PRIMITIVE_RESTART_INDEX); //Used to draw two triangle fans with one draw call.
 	//vertex_pos
@@ -237,7 +210,8 @@ void draw_cube(struct render_context rc)
 	glVertexAttribPointer(simple_program.attr[vNormal], 3, GL_FLOAT, GL_FALSE, 0, NULL);
 	//indices
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, rc.ibo);
-	glDrawElements(GL_TRIANGLE_FAN, 29, GL_UNSIGNED_INT, NULL);
+	//glDrawElements(GL_TRIANGLE_FAN, index_count, GL_UNSIGNED_INT, NULL);
+	glDrawElements(GL_TRIANGLES, index_count, GL_UNSIGNED_INT, NULL);
 	checkErrors("After glDrawElements");
 	//Clean up?
 	glDisableVertexAttribArray(simple_program.attr[vPos]);
@@ -252,10 +226,13 @@ void render()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	make_projection_matrix(FOV, (float)SCREEN_WIDTH/(float)SCREEN_HEIGHT, -1, -10, proj_mat, sizeof(proj_mat)/sizeof(proj_mat[0]));
 	glUniformMatrix4fv(simple_program.unif[projection_matrix], 1, GL_TRUE, proj_mat);
-	glUniformMatrix4fv(simple_program.unif[model_view_matrix], 1, GL_TRUE, mvm_buf);
-	glUniformMatrix3fv(simple_program.unif[normal_model_view_matrix], 1, GL_TRUE, NMVM.A);
 
-	draw_cube(current_context);
+	//int num_indices = buffer_normal_cube(current_context);
+	int num_indices = buffer_ship(current_context);
+	draw_cube(current_context, num_indices, 0, 0, distance);
+	// for (int i = 0; i < 7; i++)
+	// 	for (int j = 0; j < 7; j++)
+	// 		draw_cube(current_context, num_indices, 3*(i-3), 3*(j-3), distance);
 
 	glUseProgram(0);
 }
@@ -264,22 +241,24 @@ void update(float dt)
 {
 	light_time += dt * 2;
 	static float rotx, roty;
+	static AM4 MVR = AM4_IDENT;
 	if (keys[KEY_LEFT])
-		roty += dt;
+		roty = dt;
 	if (keys[KEY_RIGHT])
-		roty -= dt;
+		roty = -dt;
 	if (keys[KEY_UP])
-		rotx += dt;
+		rotx = dt;
 	if (keys[KEY_DOWN])
-		rotx -= dt;
+		rotx = -dt;
 	if (keys[KEY_EQUALS])
 		distance += dt;
 	if (keys[KEY_MINUS])
 		distance -= dt;
-	rotx = fmod(rotx, 2*M_PI);
-	roty = fmod(roty, 2*M_PI);
-	MVR = rot(rot(MVR, 1, 0, 0, -rotx), 0, 1, 0, -roty);
-	MVM = trans(MVR, 0, 0, distance);
-	buffer_AM4(mvm_buf, sizeof(mvm_buf)/sizeof(mvm_buf[0]), MVM);
-	NMVM = mat3_from_array(MVM.A);
+	if (rotx != 0)
+		MVR = AM4_rot(MVR, 1, 0, 0, -rotx);
+	if (roty != 0)
+		MVR = AM4_rot(MVR, 0, 1, 0, -roty);
+	MVM = MVR;
+	rotx = 0;
+	roty = 0;
 }

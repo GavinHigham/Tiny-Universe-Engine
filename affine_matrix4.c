@@ -15,7 +15,7 @@
  6  7  8
 */
 
-AM4 apply_withbranch(AM4 a, AM4 b)
+AM4 AM4_mult_b(AM4 a, AM4 b)
 {
 	AM4 tmp = {
 		{
@@ -47,7 +47,7 @@ AM4 apply_withbranch(AM4 a, AM4 b)
 	return tmp;
 }
 
-AM4 apply(AM4 a, AM4 b)
+AM4 AM4_mult(AM4 a, AM4 b)
 {
 	AM4 tmp = {
 		{
@@ -74,9 +74,9 @@ AM4 apply(AM4 a, AM4 b)
 	return tmp;
 }
 
-AM4 rot(AM4 a, float ux, float uy, float uz, float angle)
+AM4 AM4_rot(AM4 a, float ux, float uy, float uz, float angle)
 {
-	AM4 b = rotAM4(ux, uy, uz, angle);
+	AM4 b = AM4_rotmat(ux, uy, uz, angle);
 	AM4 tmp = {
 		.A = {
 			//Top row
@@ -98,7 +98,7 @@ AM4 rot(AM4 a, float ux, float uy, float uz, float angle)
 	return tmp;
 }
 
-AM4 trans(AM4 a, float x, float y, float z)
+AM4 AM4_trans(AM4 a, float x, float y, float z)
 {
 	a.T[0] += x;
 	a.T[1] += y;
@@ -106,21 +106,7 @@ AM4 trans(AM4 a, float x, float y, float z)
 	return a;
 }
 
-AM4 ident()
-{
-	AM4 tmp = {
-		.A = {
-			1, 0, 0,
-			0, 1, 0,
-			0, 0, 1
-		},
-		.T = {0},
-		.type = 0
-	};
-	return tmp;
-}
-
-void buffer_AM4(float *buf, int len, AM4 a)
+void AM4_to_array(float *buf, int len, AM4 a)
 {
 	assert(len == 16);
 	float tmp[] = {
@@ -132,7 +118,7 @@ void buffer_AM4(float *buf, int len, AM4 a)
 	memcpy(buf, tmp, sizeof(tmp));
 };
 
-AM4 rotAM4(float ux, float uy, float uz, float angle)
+AM4 AM4_rotmat(float ux, float uy, float uz, float angle)
 {
 	float s = sin(angle);
 	float c = cos(angle);
@@ -149,17 +135,17 @@ AM4 rotAM4(float ux, float uy, float uz, float angle)
 	return tmp;
 }
 
-AM4 rotAM4_lomult(float ux, float uy, float uz, float angle)
+AM4 AM4_rotmat_lomult(float ux, float uy, float uz, float angle)
 {
 	float s = sin(angle);
 	float c = cos(angle);
 	float c1 = 1-c;
-	float uxc1 = ux*c1; //Costs one multiply, saves five
-	float uyc1 = uy*c1; //Costs one multiply, saves three
+	float uxc1 = ux*c1;    //Costs one multiply, saves five
+	float uyc1 = uy*c1;    //Costs one multiply, saves three
 	float uyzc1 = uz*uyc1; //Costs one multiply, saves two
-	float uxs = ux * s; //Costs one multiply, saves two
-	float uys = uy * s; //Costs one multiply, saves two
-	float uzs = uz * s; //Costs one multiply, saves two
+	float uxs = ux * s;    //Costs one multiply, saves two
+	float uys = uy * s;    //Costs one multiply, saves two
+	float uzs = uz * s;    //Costs one multiply, saves two
 	AM4 tmp = {
 		.A = {
 			c + ux*uxc1, uy*uxc1 - uzs, uz*uxc1 + uys, 
@@ -172,7 +158,7 @@ AM4 rotAM4_lomult(float ux, float uy, float uz, float angle)
 	return tmp;
 }
 
-void printAM4(AM4 a)
+void AM4_print(AM4 a)
 {
 	printf("%f %f %f\n", a.A[0], a.A[1], a.A[2]);
 	printf("%f %f %f\n", a.A[3], a.A[4], a.A[5]);

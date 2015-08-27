@@ -18,6 +18,7 @@
 #define MS_PER_SECOND 1000.0
 #define FRAME_TIME_MS MS_PER_SECOND/FPS
 
+int tight_loop_iter_ave = 0;
 SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
 static int quit = GL_FALSE;
@@ -35,7 +36,9 @@ int main()
 	SDL_AddEventWatch(quit_event, NULL);
 	Uint32 last_swap_timestamp = SDL_GetTicks();
 	int wake_early_ms = 2;
+	int tight_loop_iter = 0;
 	while (!quit) { //Loop until quit
+		tight_loop_iter++;
 		while (SDL_PollEvent(&e)) { //Exhaust our event queue before updating and rendering
 			switch (e.type) {
 			case SDL_KEYDOWN: keyevent(e.key.keysym, (SDL_EventType)e.type);
@@ -51,6 +54,9 @@ int main()
 				SDL_GL_SwapWindow(window); //Display a new screen to the user every 16 ms, on the dot.
 				update(ms_since_update/MS_PER_SECOND); //At 16 ms intervals, begin an update. HOPEFULLY DOESN'T TAKE MORE THAN 16 MS.
 				render(); //This will be a picture of the state as of (hopefully exactly) 16 ms ago.
+				//Get a rolling average of the number of tight loop iterations per frame.
+				tight_loop_iter_ave = (tight_loop_iter_ave + tight_loop_iter)/2;
+				tight_loop_iter = 0;
 		} else if ((FRAME_TIME_MS - ms_since_update) > wake_early_ms) { //If there's more than wake_early_ms milliseconds left...
 			SDL_Delay(FRAME_TIME_MS - ms_since_update - wake_early_ms); //Sleep up until wake_early_ms milliseconds left. (Busywait the rest)
 		}

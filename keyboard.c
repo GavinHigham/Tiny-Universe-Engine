@@ -8,6 +8,7 @@
 
 extern SDL_Window *window;
 int keys[NUM_HANDLED_KEYS] = {FALSE};
+extern int tight_loop_iter_ave;
 
 void keyevent(SDL_Keysym keysym, SDL_EventType type)
 {
@@ -45,7 +46,9 @@ void keyevent(SDL_Keysym keysym, SDL_EventType type)
 			fullscreen ^= SDL_WINDOW_FULLSCREEN_DESKTOP;
 			SDL_SetWindowFullscreen(window, fullscreen);
 		}
-	break;
+		break;
+	case SDL_SCANCODE_R:
+		printf("Average # of tight loop iterations after sleep: %d\n", tight_loop_iter_ave);
 	default: break;
 	}
 }

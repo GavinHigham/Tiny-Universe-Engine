@@ -9,14 +9,14 @@ typedef struct am4 {
 
 #define AM4_IDENT {{1, 0, 0,  0, 1, 0,  0, 0, 1}}
 
-AM4 apply_withbranch(AM4 a, AM4 b);
-AM4 apply(AM4 a, AM4 b);
-AM4 rot(AM4 a, float ux, float uy, float uz, float angle);
-AM4 trans(AM4 a, float x, float y, float z);
-AM4 ident();
-void buffer_AM4(float *buf, int len, AM4 a);
-AM4 rotAM4(float ux, float uy, float uz, float angle);
-AM4 rotAM4_lomult(float ux, float uy, float uz, float angle);
-void printAM4(AM4 a);
+AM4 AM4_mult_b(AM4 a, AM4 b);
+AM4 AM4_mult(AM4 a, AM4 b);
+AM4 AM4_rot(AM4 a, float ux, float uy, float uz, float angle);
+AM4 AM4_trans(AM4 a, float x, float y, float z);
+void AM4_to_array(float *buf, int len, AM4 a);
+AM4 AM4_rotmat(float ux, float uy, float uz, float angle);
+AM4 AM4_rotmat_lomult(float ux, float uy, float uz, float angle);
+//AM4 AM4_rotinv(AM4 a);
+void AM4_print(AM4 a);
 
 #endif

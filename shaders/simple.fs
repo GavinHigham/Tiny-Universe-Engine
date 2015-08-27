@@ -6,7 +6,7 @@ in vec3 fNormal;
 
 void main() {
 	float diffuse = dot(normalize(sun_light), fNormal);
-	float roughness = 0.2;
 	float ambient = 0.1;
-	LFragment = vec4((0.8*vec3(fColor)+roughness)*(diffuse + ambient), fColor.a);
+	LFragment = vec4(vec3(fColor)*((1-ambient)*diffuse + ambient), fColor.a);
+	//LFragment = vec4(fNormal, fColor.a);
 }
