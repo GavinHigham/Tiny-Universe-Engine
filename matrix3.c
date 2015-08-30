@@ -138,3 +138,27 @@ MAT3 mat3_scalemat(float x, float y, float z)
 	};
 	return tmp;
 }
+
+MAT3 mat3_transp(MAT3 a)
+{
+	MAT3 tmp = {
+		{
+			a.A[0], a.A[3], a.A[6],
+			a.A[1], a.A[4], a.A[7],
+			a.A[2], a.A[5], a.A[8]
+		}
+	};
+	return tmp;
+}
+
+void mat3_v3_to_array(float *buf, int len, MAT3 a, V3 b)
+{
+	assert(len == 16);
+	float tmp[] = {
+		a.A[0], a.A[1], a.A[2], b.A[0],
+		a.A[3], a.A[4], a.A[5], b.A[1],
+		a.A[6], a.A[7], a.A[8], b.A[2],
+		     0,      0,      0,      1
+	};
+	memcpy(buf, tmp, sizeof(tmp));
+}

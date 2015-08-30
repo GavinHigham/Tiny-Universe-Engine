@@ -1,9 +1,13 @@
 #ifndef MATRIX3_H
 #define MATRIX3_H
 
+#include "vector3.h"
+
 typedef struct matrix3 {
 	float A[9];
 } MAT3;
+
+#define MAT3_IDENT {{1, 0, 0,  0, 1, 0,  0, 0, 1}}
 
 //Create a new mat3 from an array of floats. Row-major order.
 MAT3 mat3_from_array(float *array);
@@ -27,5 +31,7 @@ MAT3 mat3_rotmatz(float angle);
 MAT3 mat3_scale(MAT3 a, float x, float y, float z);
 //Produce a matrix that will scale by x, y, z.
 MAT3 mat3_scalemat(float x, float y, float z);
+MAT3 mat3_transp(MAT3 a);
+void mat3_v3_to_array(float *buf, int len, MAT3 a, V3 b);
 
 #endif

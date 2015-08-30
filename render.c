@@ -10,6 +10,7 @@
 #include "default_settings.h"
 #include "affine_matrix4.h"
 #include "matrix3.h"
+#include "vector3.h"
 
 #define FOV M_PI/2.0
 #define PRIMITIVE_RESTART_INDEX 0xFFFF
@@ -21,8 +22,8 @@ struct render_context {
 #include "models.h"
 
 static struct render_context current_context;
-static AM4 MVM;
-static GLfloat mvm_buf[16];
+static MAT3 MVM_r = MAT3_IDENT;
+static V3 MVM_t = {{0, 0, -8}};
 static float light_time = 0;
 GLfloat distance = -8.0;
 
@@ -189,11 +190,14 @@ void make_projection_matrix(GLfloat fov, GLfloat a, GLfloat n, GLfloat f, GLfloa
 
 void draw_cube(struct render_context rc, int index_count, GLfloat x, GLfloat y, GLfloat z)
 {	
-	AM4 lMVM = AM4_trans(MVM, x, y, z);
-	AM4_to_array(mvm_buf, sizeof(mvm_buf)/sizeof(mvm_buf[0]), lMVM);
-	glUniformMatrix4fv(simple_program.unif[model_view_matrix], 1, GL_TRUE, mvm_buf);
-	//glUniform3f(simple_program.unif[sun_light], 7*cos(light_time), 7*sin(light_time), 10);
-	glUniform3f(simple_program.unif[sun_light], 10, 10, 10);
+	GLfloat mvm_buf[16];
+
+	mat3_v3_to_array(mvm_buf, sizeof(mvm_buf)/sizeof(mvm_buf[0]), MVM_r, MVM_t);
+	glUniformMatrix4fv(simple_program.unif[MVM], 1, GL_TRUE, mvm_buf);
+	mat3_v3_to_array(mvm_buf, sizeof(mvm_buf)/sizeof(mvm_buf[0]), mat3_transp(MVM_r), (V3){{0, 0, 0}});
+	glUniformMatrix4fv(simple_program.unif[NMVM], 1, GL_TRUE, mvm_buf);
+	glUniform3f(simple_program.unif[sun_light], 10*cos(light_time), 0, 10*sin(light_time) - distance);
+	//glUniform3f(simple_program.unif[sun_light], 10, 10, 10);
 
 	glPrimitiveRestartIndex(PRIMITIVE_RESTART_INDEX); //Used to draw two triangle fans with one draw call.
 	//vertex_pos
@@ -228,20 +232,19 @@ void render()
 	glUniformMatrix4fv(simple_program.unif[projection_matrix], 1, GL_TRUE, proj_mat);
 
 	//int num_indices = buffer_normal_cube(current_context);
-	int num_indices = buffer_ship(current_context);
+	int num_indices = buffer_newship(current_context);
 	draw_cube(current_context, num_indices, 0, 0, distance);
-	// for (int i = 0; i < 7; i++)
-	// 	for (int j = 0; j < 7; j++)
-	// 		draw_cube(current_context, num_indices, 3*(i-3), 3*(j-3), distance);
+	// for (int i = 0; i < 10; i++)
+	// 	for (int j = 0; j < 10; j++)
+	// 		draw_cube(current_context, num_indices, 5*(i-5), 5*(j-5), distance);
 
 	glUseProgram(0);
 }
 
 void update(float dt)
 {
-	light_time += dt * 2;
+	light_time += dt;
 	static float rotx, roty;
-	static AM4 MVR = AM4_IDENT;
 	if (keys[KEY_LEFT])
 		roty = dt;
 	if (keys[KEY_RIGHT])
@@ -250,15 +253,19 @@ void update(float dt)
 		rotx = dt;
 	if (keys[KEY_DOWN])
 		rotx = -dt;
-	if (keys[KEY_EQUALS])
-		distance += dt;
-	if (keys[KEY_MINUS])
-		distance -= dt;
-	if (rotx != 0)
-		MVR = AM4_rot(MVR, 1, 0, 0, -rotx);
-	if (roty != 0)
-		MVR = AM4_rot(MVR, 0, 1, 0, -roty);
-	MVM = MVR;
+	if (keys[KEY_EQUALS]) {
+		MVM_t.A[2] += dt;
+	}
+	if (keys[KEY_MINUS]) {
+		MVM_t.A[2] -= dt;
+	}
+	if (rotx != 0) {
+		MVM_r = mat3_rot(MVM_r, 1, 0, 0, -rotx);
+	}
+	if (roty != 0) {
+		MVM_r = mat3_rot(MVM_r, 0, 1, 0, -roty);
+	}
+
 	rotx = 0;
 	roty = 0;
 }
