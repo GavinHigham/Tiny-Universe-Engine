@@ -2,7 +2,6 @@
 #include "keyboard.h"
 #include "main.h"
 
-#define NUM_HANDLED_KEYS 6
 #define TRUE 1
 #define FALSE 0
 

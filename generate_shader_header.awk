@@ -2,7 +2,14 @@ BEGIN {
 	print "//GENERATED FILE, CHANGES WILL BE LOST ON NEXT RUN OF MAKE."
 	print "#ifndef SHADERS_H"
 	print "#define SHADERS_H"
-	print "#include \"shader_program.h\"\n"
+	print "#include <GL/glew.h>\n"
+
+	print "struct shader_info {"
+	print "	const GLchar **vs_source;"
+	print "	const GLchar **fs_source;"
+	print "	const GLchar **attr_names;"
+	print "	const GLchar **unif_names;"
+	print "};"
 }
 FNR == 1 {
 	split(FILENAME, arr, /[\/\.]/)
@@ -15,21 +22,33 @@ FNR == 1 {
 ($1 == "in" && ext == "vs") {attributes[substr($3, 1, length($3)-1)]}
 ($1 == "uniform") {uniforms[substr($3, 1, length($3)-1)]}
 END {
+	print "struct shader_prog {"
+	print "\tGLuint handle;"
+	print "\tunion {"
+	print "\t\tstruct {"
 	for (attribute in attributes) {
-		attr_string = attr_string attribute ", "
+		print "\t\t\tGLint " attribute ";"
+		attr_len++
 	}
+	print "\t\t};"
+	print "\t\tGLint attr[" attr_len "];"
+	print "\t};"
+	print "\tunion {"
+	print "\t\tstruct {"
 	for (uniform in uniforms) {
-		unif_string = unif_string uniform ", "
+		print "\t\t\tGLint " uniform ";"
+		unif_len++
 	}
+	print "\t\t};"
+	print "\t\tGLint unif[" unif_len "];"
+	print "\t};"
+	print "};"
 	for (prog in programs)
 		if (((prog, "vs") in shaders) && ((prog, "fs") in shaders)) {
 			print "extern struct shader_prog "prog"_program;"
-			if (length(attr_string) > 0) {
-				print "enum "prog"_attr {"substr(attr_string, 1, length(attr_string)-2)"};"
-			}
-			if (length(unif_string) > 0) {
-				print "enum "prog"_unif {"substr(unif_string, 1, length(unif_string)-2)"};"
-			}
+			numprogs++
 		}
+	print "extern struct shader_prog *shader_programs["numprogs"];"
+	print "extern struct shader_info *shader_infos["numprogs"];"
 	print "\n#endif"
 }

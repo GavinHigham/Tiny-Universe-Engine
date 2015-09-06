@@ -3,8 +3,8 @@
 
 #include <SDL2/SDL.h>
 
-extern int keys[];
-enum keys {KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN, KEY_EQUALS, KEY_MINUS};
+enum keys {KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN, KEY_EQUALS, KEY_MINUS, NUM_HANDLED_KEYS};
+extern int keys[NUM_HANDLED_KEYS];
 void keyevent(SDL_Keysym keysym, SDL_EventType type);
 
 #endif

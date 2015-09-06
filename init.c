@@ -7,7 +7,6 @@
 #include "init.h"
 #include "default_settings.h"
 #include "shaders.h"
-#include "shader_program.h"
 #include "render.h"
 
 #define FALSE 0
@@ -23,9 +22,10 @@ GLuint gVAO = 0;
 
 int init_gl();
 int init_glew();
-int init_shader_prog(struct shader_prog *program);
-int init_shader_attributes(struct shader_prog *program);
-int init_shader_uniforms(struct shader_prog *program);
+int init_shader_program(struct shader_prog *program, struct shader_info info);
+int init_shader_attributes(struct shader_prog *program, struct shader_info info);
+int init_shader_uniforms(struct shader_prog *program, struct shader_info info);
+int init_shaders(struct shader_prog **programs, struct shader_info **infos, int numprogs);
 void printLog(GLuint handle, int is_program);
 
 int init()
@@ -46,27 +46,31 @@ int init()
 		return -1;
 	}
 
-	if (init_gl() != 0) {
+	if (init_gl()) {
 		return -1;
 	}
 
-	if (init_glew() != 0) {
+	if (init_glew()) {
 		return -1;
 	}
 
-	if (init_shader_prog(&simple_program) != 0) {
-		printf("Unable to initialize shaders!\n");
+	if (init_shaders(shader_programs, shader_infos, sizeof(shader_programs)/sizeof(shader_programs[0]))) {
+		printf("Something went wrong with shader initialization!\n");
 		return -1;
 	}
 
-	if (init_shader_attributes(&simple_program) != 0) {
-		printf("Unable to retrieve shader attributes!\n");
-		return -1;
-	}
-
-	if (init_shader_uniforms(&simple_program) != 0) {
-		printf("Unable to retrieve shader uniforms!\n");
-		return -1;
+	SDL_GameControllerEventState(SDL_ENABLE);
+	/* Open the first available controller. */
+	SDL_GameController *controller = NULL;
+	for (int i = 0; i < SDL_NumJoysticks(); ++i) {
+	    if (SDL_IsGameController(i)) {
+	        controller = SDL_GameControllerOpen(i);
+	        if (controller) {
+	            break;
+	        } else {
+	            fprintf(stderr, "Could not open gamecontroller %i: %s\n", i, SDL_GetError());
+	        }
+	    }
 	}
 	
 	glGenVertexArrays(1, &gVAO);
@@ -116,12 +120,12 @@ void deinit()
 	SDL_Quit();
 }
 
-int init_shader_prog(struct shader_prog *program)
+int init_shader_program(struct shader_prog *program, struct shader_info info)
 {
 	program->handle = glCreateProgram();
 	//Vertex shader part
 	GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vshader, 1, program->vs_source, NULL);
+	glShaderSource(vshader, 1, info.vs_source, NULL);
 	glCompileShader(vshader);
 
 	GLint success = FALSE;
@@ -134,7 +138,7 @@ int init_shader_prog(struct shader_prog *program)
 	glAttachShader(program->handle, vshader);
 	//Fragment shader part
 	const GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fshader, 1, program->fs_source, NULL);
+	glShaderSource(fshader, 1, info.fs_source, NULL);
 	glCompileShader(fshader);
 
 	success = FALSE;
@@ -158,26 +162,57 @@ int init_shader_prog(struct shader_prog *program)
 	return 0;
 }
 
-int init_shader_attributes(struct shader_prog *program)
+int init_shader_attributes(struct shader_prog *program, struct shader_info info)
 {
-	for (int i = 0; i < program->attr_cnt; i++) {
-		program->attr[i] = glGetAttribLocation(program->handle, program->attr_names[i]);
-		if (program->attr[i] == -1) {
-			printf("%s is not a valid glsl program variable! It may have been optimized out.\n", program->attr_names[i]);
-			return -1;
+	for (int i = 0; i < sizeof(program->attr)/sizeof(program->attr[0]); i++) {
+		if (program->attr[i] != -1) {
+			program->attr[i] = glGetAttribLocation(program->handle, info.attr_names[i]);
+			if (program->attr[i] == -1) {
+				printf("%s is not a valid glsl program variable! It may have been optimized out.\n", info.attr_names[i]);
+				return -1;
+			}
 		}
 	}
 	return 0;
 }
 
-int init_shader_uniforms(struct shader_prog *program)
+int init_shader_uniforms(struct shader_prog *program, struct shader_info info)
 {
-	for (int i = 0; i < program->unif_cnt; i++) {
-		program->unif[i] = glGetUniformLocation(program->handle, program->unif_names[i]);
-		if (program->unif[i] == -1) {
-			printf("%s is not a valid glsl uniform variable! It may have been optimized out.\n", program->unif_names[i]);
-			return -1;
+	for (int i = 0; i < sizeof(program->unif)/sizeof(program->unif[0]); i++) {
+		if (program->unif[i] != -1) {
+			program->unif[i] = glGetUniformLocation(program->handle, info.unif_names[i]);
+			if (program->unif[i] == -1) {
+				printf("%s is not a valid glsl uniform variable! It may have been optimized out.\n", info.unif_names[i]);
+				return -1;
+			}
 		}
+	}
+	return 0;
+}
+
+int init_shader(struct shader_prog *program, struct shader_info info)
+{
+	if (init_shader_program(program, info)) {
+		printf("Could not compile shader program.\n");
+		return -1;
+	}
+	if (init_shader_attributes(program, info)) {
+		printf("Could not retrieve shader attributes.\n");
+		return -1;
+	}
+	if (init_shader_uniforms(program, info)) {
+		printf("Could not retrieve shader uniforms.\n");
+		return -1;
+	}
+	return 0;
+}
+
+int init_shaders(struct shader_prog **programs, struct shader_info **infos, int numprogs)
+{
+	for (int i = 0; i < numprogs; i++) {
+		int result = init_shader(programs[i], *infos[i]);
+		if (result)
+			return result;
 	}
 	return 0;
 }

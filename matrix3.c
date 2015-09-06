@@ -54,6 +54,17 @@ MAT3 mat3_mult(MAT3 a, MAT3 b)
 	};
 	return tmp;
 }
+V3 mat3_multvec(MAT3 a, V3 b)
+{
+	V3 tmp = {
+		.A = {
+			a.A[0]*b.x + a.A[1]*b.y + a.A[2]*b.z,
+			a.A[3]*b.x + a.A[4]*b.y + a.A[5]*b.z,
+			a.A[6]*b.x + a.A[7]*b.y + a.A[8]*b.z
+		}
+	};
+	return tmp;
+}
 //Rotate a about <ux, uy, uz> by "angle" radians. 
 MAT3 mat3_rot(MAT3 a, float ux, float uy, float uz, float angle)
 {
@@ -151,14 +162,27 @@ MAT3 mat3_transp(MAT3 a)
 	return tmp;
 }
 
+MAT3 mat3_lookat(V3 p, V3 q, V3 u)
+{
+	V3 z = v3_normalize(v3_sub(p, q)); //Swapped p and q from the book.
+	V3 x = v3_normalize(v3_cross(u, z));
+	V3 y = v3_cross(z, x);
+	MAT3 tmp = {{
+		x.x, y.x, z.x,
+		x.y, y.y, z.y,
+		x.z, y.z, z.z
+	}};
+	return tmp;
+}
+
 void mat3_v3_to_array(float *buf, int len, MAT3 a, V3 b)
 {
 	assert(len == 16);
 	float tmp[] = {
-		a.A[0], a.A[1], a.A[2], b.A[0],
-		a.A[3], a.A[4], a.A[5], b.A[1],
-		a.A[6], a.A[7], a.A[8], b.A[2],
-		     0,      0,      0,      1
+		a.A[0], a.A[1], a.A[2], b.x,
+		a.A[3], a.A[4], a.A[5], b.y,
+		a.A[6], a.A[7], a.A[8], b.z,
+		     0,      0,      0,    1
 	};
 	memcpy(buf, tmp, sizeof(tmp));
 }

@@ -5,167 +5,58 @@
 #include "render.h"
 #include "init.h"
 #include "shaders.h"
-#include "shader_program.h"
 #include "keyboard.h"
 #include "default_settings.h"
 #include "affine_matrix4.h"
 #include "matrix3.h"
 #include "vector3.h"
+#include "buffer_group.h"
+#include "models.h"
+#include "controller.h"
+#include "deferred_framebuffer.h"
 
 #define FOV M_PI/2.0
 #define PRIMITIVE_RESTART_INDEX 0xFFFF
 
-struct render_context {
-	GLuint vbo, cbo, nbo, ibo;
-};
+#define DEFERRED_MODE FALSE
 
-#include "models.h"
 
-static struct render_context current_context;
-static MAT3 MVM_r = MAT3_IDENT;
-static V3 MVM_t = {{0, 0, -8}};
-static float light_time = 0;
-GLfloat distance = -8.0;
-
-int buffer_normal_cube();
+static struct buffer_group newship_buffers;
+static struct buffer_group ball_buffers;
+static struct buffer_group thrust_flare_buffers;
+static struct buffer_group thrust_flare_forward_buffers;
+static AM4 eye_frame = {.a = MAT3_IDENT, .T = {0, 0, 0}};;
+static AM4 ship_frame = {.a = MAT3_IDENT, .T = {0, 0, -8}};
+static V3 light_pos_vec = {{{0, 0, 0}}};
+static int thrusting = 0;
+static struct deferred_framebuffer gbuffer;
+//static GLuint deferred_buffer = 0;
 
 //Set up everything needed to start rendering frames.
 void init_render()
 {
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
-	glEnable(GL_PRIMITIVE_RESTART);
 	glClearDepth(0.0);
 	glDepthFunc(GL_GREATER);
 	glClearColor(0.0f, 0.0f, 0.25f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	glGenBuffers(1, &current_context.vbo);
-	glGenBuffers(1, &current_context.cbo);
-	glGenBuffers(1, &current_context.nbo);
-	glGenBuffers(1, &current_context.ibo);
-}
-
-//Buffer all the data needed to render a cube with correct normals, and some colors.
-int buffer_normal_cube(struct render_context rc)
-{
-	GLfloat vertices[] = {
-		//Top face
-		 1.0,  1.0, -1.0,
-		 1.0,  1.0,  1.0,
-		-1.0,  1.0,  1.0,
-		-1.0,  1.0, -1.0,
-		//Back face
-		 1.0,  1.0, -1.0,
-		-1.0,  1.0, -1.0,
-		-1.0, -1.0, -1.0,
-		 1.0, -1.0, -1.0,
-		//Right face
-		 1.0,  1.0, -1.0,
-		 1.0, -1.0, -1.0,
-		 1.0, -1.0,  1.0,
-		 1.0,  1.0,  1.0,
-		//Bottom face
-		-1.0, -1.0,  1.0,
-		-1.0, -1.0, -1.0,
-		 1.0, -1.0, -1.0,
-		 1.0, -1.0,  1.0,
-		//Front face
-		-1.0, -1.0,  1.0,
-		 1.0, -1.0,  1.0,
-		 1.0,  1.0,  1.0,
-		-1.0,  1.0,  1.0,
-		//Left face
-		-1.0, -1.0,  1.0,
-		-1.0,  1.0,  1.0,
-		-1.0,  1.0, -1.0,
-		-1.0, -1.0, -1.0,
-	};
-	GLfloat colors[] = {
-		1.0, 0.0, 0.0,
-		1.0, 0.0, 0.0,
-		1.0, 0.0, 0.0,
-		1.0, 0.0, 0.0,
-
-		0.0, 1.0, 0.0,
-		0.0, 1.0, 0.0,
-		0.0, 1.0, 0.0,
-		0.0, 1.0, 0.0,
-
-		0.0, 0.0, 1.0,
-		0.0, 0.0, 1.0,
-		0.0, 0.0, 1.0,
-		0.0, 0.0, 1.0,
-
-		1.0, 1.0, 0.0,
-		1.0, 1.0, 0.0,
-		1.0, 1.0, 0.0,
-		1.0, 1.0, 0.0,
-
-		0.0, 1.0, 1.0,
-		0.0, 1.0, 1.0,
-		0.0, 1.0, 1.0,
-		0.0, 1.0, 1.0,
-
-		1.0, 0.0, 1.0,
-		1.0, 0.0, 1.0,
-		1.0, 0.0, 1.0,
-		1.0, 0.0, 1.0
-	};
-	GLfloat normals[] = {
-		//Top face
-		 0.0,  1.0,  0.0,
-		 0.0,  1.0,  0.0,
-		 0.0,  1.0,  0.0,
-		 0.0,  1.0,  0.0,
-		//Back face
-		 0.0,  0.0, -1.0,
-		 0.0,  0.0, -1.0,
-		 0.0,  0.0, -1.0,
-		 0.0,  0.0, -1.0,
-		//Right face
-		 1.0,  0.0,  0.0,
-		 1.0,  0.0,  0.0,
-		 1.0,  0.0,  0.0,
-		 1.0,  0.0,  0.0,
-		//Bottom face
- 		 0.0, -1.0,  0.0,
- 		 0.0, -1.0,  0.0,
- 		 0.0, -1.0,  0.0,
- 		 0.0, -1.0,  0.0,
- 		//Front face
-		 0.0,  0.0,  1.0,
-		 0.0,  0.0,  1.0,
-		 0.0,  0.0,  1.0,
-		 0.0,  0.0,  1.0,
-		//Left face
-		-1.0,  0.0,  0.0,
-		-1.0,  0.0,  0.0,
-		-1.0,  0.0,  0.0,
-		-1.0,  0.0,  0.0,
-	};
-	GLuint indices[] = {
-		0, 3, 2, 1,
-		PRIMITIVE_RESTART_INDEX,
-		4, 7, 6, 5,
-		PRIMITIVE_RESTART_INDEX,
-		8, 11, 10, 9,
-		PRIMITIVE_RESTART_INDEX,
-		12, 13, 14, 15,
-		PRIMITIVE_RESTART_INDEX,
-		16, 17, 18, 19,
-		PRIMITIVE_RESTART_INDEX,
-		20, 21, 22, 23
-	};
-	glBindBuffer(GL_ARRAY_BUFFER, rc.vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, rc.cbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, rc.nbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, rc.ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-	return sizeof(indices)/sizeof(indices[0]);
+	checkErrors("Before creating framebuffer");
+	gbuffer = new_deferred_framebuffer(SCREEN_WIDTH, SCREEN_HEIGHT);
+	checkErrors("After creating framebuffer");
+	newship_buffers = new_buffer_group(buffer_newship);
+	ball_buffers = new_buffer_group(buffer_ball);
+	thrust_flare_buffers = new_buffer_group(buffer_thrust_flare);
+	thrust_flare_forward_buffers = new_buffer_group(buffer_thrust_flare_forward);
+	checkErrors("Before setting program");
+	glUseProgram(deferred_program.handle);
+	GLfloat proj_mat[16];
+	make_projection_matrix(FOV, (float)SCREEN_WIDTH/(float)SCREEN_HEIGHT, -1, -1000, proj_mat, sizeof(proj_mat)/sizeof(proj_mat[0]));
+	checkErrors("Before sending projection matrix");
+	glUniformMatrix4fv(deferred_program.projection_matrix, 1, GL_TRUE, proj_mat);
+	checkErrors("After sending projection matrix");
+	glUseProgram(0);
+	checkErrors("After init");
 }
 
 //Create a projection matrix with "fov" field of view, "a" aspect ratio, n and f near and far planes.
@@ -188,84 +79,152 @@ void make_projection_matrix(GLfloat fov, GLfloat a, GLfloat n, GLfloat f, GLfloa
 	memcpy(buf, tmp, sizeof(tmp));
 }
 
-void draw_cube(struct render_context rc, int index_count, GLfloat x, GLfloat y, GLfloat z)
+void draw(struct shader_prog *program, struct buffer_group bg, AM4 model_view_matrix)
 {	
 	GLfloat mvm_buf[16];
-
-	mat3_v3_to_array(mvm_buf, sizeof(mvm_buf)/sizeof(mvm_buf[0]), MVM_r, MVM_t);
-	glUniformMatrix4fv(simple_program.unif[MVM], 1, GL_TRUE, mvm_buf);
-	mat3_v3_to_array(mvm_buf, sizeof(mvm_buf)/sizeof(mvm_buf[0]), mat3_transp(MVM_r), (V3){{0, 0, 0}});
-	glUniformMatrix4fv(simple_program.unif[NMVM], 1, GL_TRUE, mvm_buf);
-	glUniform3f(simple_program.unif[sun_light], 10*cos(light_time), 0, 10*sin(light_time) - distance);
-	//glUniform3f(simple_program.unif[sun_light], 10, 10, 10);
-
-	glPrimitiveRestartIndex(PRIMITIVE_RESTART_INDEX); //Used to draw two triangle fans with one draw call.
+	checkErrors("Before setting uniforms.");
+	model_view_matrix = AM4_mult(AM4_inverse(eye_frame), model_view_matrix);
+	AM4_to_array(mvm_buf, sizeof(mvm_buf)/sizeof(mvm_buf[0]), model_view_matrix);
+	glUniformMatrix4fv(program->MVM, 1, GL_TRUE, mvm_buf);
+	mat3_v3_to_array(mvm_buf, sizeof(mvm_buf)/sizeof(mvm_buf[0]), mat3_transp(model_view_matrix.a), (V3){{{0, 0, 0}}});
+	glUniformMatrix4fv(program->NMVM, 1, GL_TRUE, mvm_buf);
+	glUniform3f(program->light_pos, light_pos_vec.x, light_pos_vec.y, light_pos_vec.z);
+	checkErrors("Before glDrawElements");
 	//vertex_pos
-	glEnableVertexAttribArray(simple_program.attr[vPos]);
-	glBindBuffer(GL_ARRAY_BUFFER, rc.vbo);
-	glVertexAttribPointer(simple_program.attr[vPos], 3, GL_FLOAT, GL_FALSE, 0, NULL);
+	glEnableVertexAttribArray(program->vPos);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
+	glVertexAttribPointer(program->vPos, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+	checkErrors("After enabling vPos");
 	//vColor
-	glEnableVertexAttribArray(simple_program.attr[vColor]);
-	glBindBuffer(GL_ARRAY_BUFFER, rc.cbo);
-	glVertexAttribPointer(simple_program.attr[vColor], 3, GL_FLOAT, GL_FALSE, 0, NULL);
+	glEnableVertexAttribArray(program->vColor);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
+	glVertexAttribPointer(program->vColor, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+	checkErrors("After enabling vColor");
 	//vNormal
-	glEnableVertexAttribArray(simple_program.attr[vNormal]);
-	glBindBuffer(GL_ARRAY_BUFFER, rc.nbo);
-	glVertexAttribPointer(simple_program.attr[vNormal], 3, GL_FLOAT, GL_FALSE, 0, NULL);
+	glEnableVertexAttribArray(program->vNormal);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
+	glVertexAttribPointer(program->vNormal, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+	checkErrors("After enabling vNormal");
 	//indices
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, rc.ibo);
-	//glDrawElements(GL_TRIANGLE_FAN, index_count, GL_UNSIGNED_INT, NULL);
-	glDrawElements(GL_TRIANGLES, index_count, GL_UNSIGNED_INT, NULL);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
+	glDrawElements(GL_TRIANGLES, bg.index_count, GL_UNSIGNED_INT, NULL);
 	checkErrors("After glDrawElements");
 	//Clean up?
-	glDisableVertexAttribArray(simple_program.attr[vPos]);
-	glDisableVertexAttribArray(simple_program.attr[vColor]);
+	glDisableVertexAttribArray(program->vPos);
+	glDisableVertexAttribArray(program->vColor);
+	glDisableVertexAttribArray(program->vNormal);
 }
 
-void render()
+void draw_deferred(struct shader_prog *program, struct buffer_group bg, AM4 model_view_matrix)
 {
-	GLfloat proj_mat[16];
+	GLfloat mvm_buf[16];
+	checkErrors("Before setting uniforms.");
+	model_view_matrix = AM4_mult(AM4_inverse(eye_frame), model_view_matrix);
+	AM4_to_array(mvm_buf, sizeof(mvm_buf)/sizeof(mvm_buf[0]), model_view_matrix);
+	glUniformMatrix4fv(program->MVM, 1, GL_TRUE, mvm_buf);
+	mat3_v3_to_array(mvm_buf, sizeof(mvm_buf)/sizeof(mvm_buf[0]), mat3_transp(model_view_matrix.a), (V3){{{0, 0, 0}}});
+	glUniformMatrix4fv(program->NMVM, 1, GL_TRUE, mvm_buf);
+	checkErrors("Before glDrawElements");
+	//vertex_pos
+	glEnableVertexAttribArray(program->vPos);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
+	glVertexAttribPointer(program->vPos, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+	checkErrors("After enabling vPos");
+	//indices
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
+	glDrawElements(GL_TRIANGLES, bg.index_count, GL_UNSIGNED_INT, NULL);
+	checkErrors("After glDrawElements");
+	//Clean up?
+	glDisableVertexAttribArray(program->vPos);
+}
 
-	glUseProgram(simple_program.handle);
+void render_to_deferred(struct shader_prog *program)
+{
+	checkErrors("Before rendering to deferred");
+	glUseProgram(program->handle);
+	glDepthMask(GL_TRUE);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	make_projection_matrix(FOV, (float)SCREEN_WIDTH/(float)SCREEN_HEIGHT, -1, -10, proj_mat, sizeof(proj_mat)/sizeof(proj_mat[0]));
-	glUniformMatrix4fv(simple_program.unif[projection_matrix], 1, GL_TRUE, proj_mat);
+	glEnable(GL_DEPTH_TEST);
+	glDisable(GL_BLEND);
 
-	//int num_indices = buffer_normal_cube(current_context);
-	int num_indices = buffer_newship(current_context);
-	draw_cube(current_context, num_indices, 0, 0, distance);
-	// for (int i = 0; i < 10; i++)
-	// 	for (int j = 0; j < 10; j++)
-	// 		draw_cube(current_context, num_indices, 5*(i-5), 5*(j-5), distance);
+	checkErrors("Before drawing.");
+	//glUniform1f(program->alpha, 1.0);
+	//glUniform1f(program->emit, 0.0);
+	draw(program, newship_buffers, ship_frame);
+	//glUniform1f(program->emit, 1.0);
+	draw(program, ball_buffers, (AM4){.a = MAT3_IDENT, .t = light_pos_vec});
+	if (thrusting == 1) {
+		//glUniform1f(program->alpha, 0.8);
+		draw(program, thrust_flare_buffers, ship_frame);
+	} else if (thrusting == 2) {
+		//glUniform1f(program->alpha, 0.8);
+		draw(program, thrust_flare_forward_buffers, ship_frame);
+	}
+	checkErrors("After drawing.");
+	glDepthMask(GL_FALSE);
+	glDisable(GL_DEPTH_TEST);
 
 	glUseProgram(0);
 }
 
+void render_from_deferred()
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glClearColor(0.0f, 0.0f, 0.25f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, gbuffer.fbo);
+
+	GLsizei HalfWidth = (GLsizei)(SCREEN_WIDTH / 2.0f);
+	GLsizei HalfHeight = (GLsizei)(SCREEN_HEIGHT / 2.0f);
+
+	glReadBuffer(GL_COLOR_ATTACHMENT0 + GBUFFER_TEXTURE_TYPE_POSITION);
+	glBlitFramebuffer(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0, HalfWidth, HalfHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+
+	glReadBuffer(GL_COLOR_ATTACHMENT0 + GBUFFER_TEXTURE_TYPE_DIFFUSE);
+	glBlitFramebuffer(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, HalfHeight, HalfWidth, SCREEN_HEIGHT, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+
+	glReadBuffer(GL_COLOR_ATTACHMENT0 + GBUFFER_TEXTURE_TYPE_NORMAL);
+	glBlitFramebuffer(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, HalfWidth, HalfHeight, SCREEN_WIDTH, SCREEN_HEIGHT, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+
+	// glReadBuffer(GL_COLOR_ATTACHMENT0 + GBUFFER_TEXTURE_TYPE_TEXCOORD);
+	// glBlitFramebuffer(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, HalfWidth, 0, SCREEN_WIDTH, HalfHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+	checkErrors("After rendering from deferred."); 
+}
+
+void render()
+{
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, gbuffer.fbo);
+	render_to_deferred(&deferred_program);
+	glEnable(GL_BLEND);
+	glBlendEquation(GL_FUNC_ADD);
+	glBlendFunc(GL_ONE, GL_ONE);
+
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, gbuffer.fbo);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glUseProgram(lighting_program.handle);
+	draw_deferred(&lighting_program, ball_buffers, (AM4)AM4_IDENT);
+	//render_from_deferred();
+}
+
 void update(float dt)
 {
+	static float light_time = 0;
+	static AM4 velocity = AM4_IDENT;
 	light_time += dt;
-	static float rotx, roty;
-	if (keys[KEY_LEFT])
-		roty = dt;
-	if (keys[KEY_RIGHT])
-		roty = -dt;
-	if (keys[KEY_UP])
-		rotx = dt;
-	if (keys[KEY_DOWN])
-		rotx = -dt;
-	if (keys[KEY_EQUALS]) {
-		MVM_t.A[2] += dt;
-	}
-	if (keys[KEY_MINUS]) {
-		MVM_t.A[2] -= dt;
-	}
-	if (rotx != 0) {
-		MVM_r = mat3_rot(MVM_r, 1, 0, 0, -rotx);
-	}
-	if (roty != 0) {
-		MVM_r = mat3_rot(MVM_r, 0, 1, 0, -roty);
-	}
+	light_pos_vec = v3_new(0, 0, 0);//v3_new(10*cos(light_time), 0, 10*sin(light_time)-8);
 
-	rotx = 0;
-	roty = 0;
+	float ts = 1/30000000.0;
+	float rs = 1/600000.0;
+	if (axes[LEFTY] < 0)
+		thrusting = 1;
+	else if (axes[LEFTY] > 0)
+		thrusting = 2;
+	else
+		thrusting = 0;
+	velocity.a = mat3_rot(mat3_rotmat(0, 0, 1, -axes[RIGHTX]*rs), 1, 0, 0, axes[RIGHTY]*rs);
+	velocity.t = v3_add(velocity.t, mat3_multvec(ship_frame.a, (V3){{{axes[LEFTX]*ts, 0, axes[LEFTY]*ts}}}));
+	ship_frame.a = mat3_mult(ship_frame.a, velocity.a);
+	ship_frame.t = v3_add(ship_frame.t, velocity.t);
+	//eye_frame.a = mat3_lookat(eye_frame.t, ship_frame.t, (V3){{{0, 1, 0}}});
 }

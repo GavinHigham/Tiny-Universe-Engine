@@ -10,6 +10,7 @@
 #include "global_images.h"
 #include "keyboard.h"
 #include "render.h"
+#include "controller.h"
 
 #define FALSE 0
 #define TRUE 1
@@ -44,6 +45,8 @@ int main()
 			case SDL_KEYDOWN: keyevent(e.key.keysym, (SDL_EventType)e.type);
 				break;
 			case SDL_KEYUP: keyevent(e.key.keysym, (SDL_EventType)e.type);
+				break;
+			case SDL_CONTROLLERAXISMOTION: axisevent(e);
 				break;
 			}
 		}

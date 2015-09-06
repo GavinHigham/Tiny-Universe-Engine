@@ -18,7 +18,7 @@
 AM4 AM4_mult_b(AM4 a, AM4 b)
 {
 	AM4 tmp = {
-		{
+		.A = {
 			//First row
 			a.A[0] * b.A[0] + a.A[1] * b.A[3] + a.A[2] * b.A[6],
 			a.A[0] * b.A[1] + a.A[1] * b.A[4] + a.A[2] * b.A[7],
@@ -34,14 +34,14 @@ AM4 AM4_mult_b(AM4 a, AM4 b)
 		}
 	};
 	if (b.type & TRANSLATION) {
-		tmp.T[0] = a.A[0] * b.T[0] + a.A[1] * b.T[1] + a.A[2] * b.T[2] + a.T[0];
-		tmp.T[1] = a.A[3] * b.T[0] + a.A[4] * b.T[1] + a.A[5] * b.T[2] + a.T[1];
-		tmp.T[2] = a.A[6] * b.T[0] + a.A[7] * b.T[1] + a.A[8] * b.T[2] + a.T[2];
+		tmp.x = a.A[0] * b.x + a.A[1] * b.y + a.A[2] * b.z + a.x;
+		tmp.y = a.A[3] * b.x + a.A[4] * b.y + a.A[5] * b.z + a.y;
+		tmp.z = a.A[6] * b.x + a.A[7] * b.y + a.A[8] * b.z + a.z;
 	}
 	else {
-		tmp.T[0] = 0;
-		tmp.T[1] = 0;
-		tmp.T[2] = 0;
+		tmp.x = 0;
+		tmp.y = 0;
+		tmp.z = 0;
 	}
 	tmp.type = a.type | b.type;
 	return tmp;
@@ -50,7 +50,7 @@ AM4 AM4_mult_b(AM4 a, AM4 b)
 AM4 AM4_mult(AM4 a, AM4 b)
 {
 	AM4 tmp = {
-		{
+		.A = {
 			//Top row
 			a.A[0] * b.A[0] + a.A[1] * b.A[3] + a.A[2] * b.A[6],
 			a.A[0] * b.A[1] + a.A[1] * b.A[4] + a.A[2] * b.A[7],
@@ -64,10 +64,10 @@ AM4 AM4_mult(AM4 a, AM4 b)
 			a.A[6] * b.A[1] + a.A[7] * b.A[4] + a.A[8] * b.A[7],
 			a.A[6] * b.A[2] + a.A[7] * b.A[5] + a.A[8] * b.A[8]
 		},
-		{
-			tmp.T[0] = a.A[0] * b.T[0] + a.A[1] * b.T[1] + a.A[2] * b.T[2] + a.T[0],
-			tmp.T[1] = a.A[3] * b.T[0] + a.A[4] * b.T[1] + a.A[5] * b.T[2] + a.T[1],
-			tmp.T[2] = a.A[6] * b.T[0] + a.A[7] * b.T[1] + a.A[8] * b.T[2] + a.T[2]
+		.T = {
+			tmp.x = a.A[0] * b.x + a.A[1] * b.y + a.A[2] * b.z + a.x,
+			tmp.y = a.A[3] * b.x + a.A[4] * b.y + a.A[5] * b.z + a.y,
+			tmp.z = a.A[6] * b.x + a.A[7] * b.y + a.A[8] * b.z + a.z
 		},
 		(a.type | b.type)
 	};
@@ -92,7 +92,7 @@ AM4 AM4_rot(AM4 a, float ux, float uy, float uz, float angle)
 			a.A[6] * b.A[1] + a.A[7] * b.A[4] + a.A[8] * b.A[7],
 			a.A[6] * b.A[2] + a.A[7] * b.A[5] + a.A[8] * b.A[8]
 		},
-		.T = {a.T[0], a.T[1], a.T[2]},
+		.T = {a.x, a.y, a.z},
 		.type = ROTATION
 	};
 	return tmp;
@@ -100,9 +100,9 @@ AM4 AM4_rot(AM4 a, float ux, float uy, float uz, float angle)
 
 AM4 AM4_trans(AM4 a, float x, float y, float z)
 {
-	a.T[0] += x;
-	a.T[1] += y;
-	a.T[2] += z;
+	a.x += x;
+	a.y += y;
+	a.z += z;
 	return a;
 }
 
@@ -110,9 +110,9 @@ void AM4_to_array(float *buf, int len, AM4 a)
 {
 	assert(len == 16);
 	float tmp[] = {
-		a.A[0], a.A[1], a.A[2], a.T[0],
-		a.A[3], a.A[4], a.A[5], a.T[1],
-		a.A[6], a.A[7], a.A[8], a.T[2],
+		a.A[0], a.A[1], a.A[2], a.x,
+		a.A[3], a.A[4], a.A[5], a.y,
+		a.A[6], a.A[7], a.A[8], a.z,
 		     0,      0,      0,      1
 	};
 	memcpy(buf, tmp, sizeof(tmp));
@@ -158,10 +158,51 @@ AM4 AM4_rotmat_lomult(float ux, float uy, float uz, float angle)
 	return tmp;
 }
 
+AM4 AM4_lookat(V3 p, V3 q, V3 u)
+{
+	V3 z = v3_normalize(v3_sub(q, p));
+	V3 y = v3_normalize(u);
+	V3 x = v3_cross(y, z);
+	AM4 tmp = {
+		.A = {
+			x.A[0], y.A[0], z.A[0],
+			x.A[1], y.A[1], z.A[1],
+			x.A[2], y.A[2], z.A[2]
+		},
+		.T = {
+			p.x, p.y, p.z
+		}
+	};
+	return tmp;
+}
+
+/*
+ 0  1  2
+ 3  4  5
+ 6  7  8
+*/
+
+AM4 AM4_inverse(AM4 a)
+{
+	AM4 tmp = {
+		.A = {
+			a.A[0], a.A[3], a.A[6],
+			a.A[1], a.A[4], a.A[7],
+			a.A[2], a.A[5], a.A[8]
+		},
+		.T = {
+			(-a.A[0] * a.x) - (a.A[3] * a.y) - (a.A[6] * a.z),
+			(-a.A[1] * a.x) - (a.A[4] * a.y) - (a.A[7] * a.z),
+			(-a.A[2] * a.x) - (a.A[5] * a.y) - (a.A[8] * a.z)
+		}
+	};
+	return tmp;
+}
+
 void AM4_print(AM4 a)
 {
 	printf("%f %f %f\n", a.A[0], a.A[1], a.A[2]);
 	printf("%f %f %f\n", a.A[3], a.A[4], a.A[5]);
 	printf("%f %f %f\n", a.A[6], a.A[7], a.A[8]);
-	printf("\n%f %f %f\n\n", a.T[0], a.T[1], a.T[2]);
+	printf("\n%f %f %f\n\n", a.x, a.y, a.z);
 }
