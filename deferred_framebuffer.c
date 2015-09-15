@@ -13,6 +13,8 @@ struct deferred_framebuffer new_deferred_framebuffer(int width, int height)
 	for (int i = 0 ; i < GBUFFER_NUM_TEXTURES; i++) {
 		glBindTexture(GL_TEXTURE_2D, tmp.textures[i]);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, tmp.textures[i], 0);
 	}
 
@@ -32,4 +34,21 @@ struct deferred_framebuffer new_deferred_framebuffer(int width, int height)
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
 	return tmp;
+}
+
+void delete_deferred_framebuffer(struct deferred_framebuffer fb)
+{
+	glDeleteTextures(GBUFFER_NUM_TEXTURES, fb.textures);
+	glDeleteTextures(1, &fb.depth);
+	glDeleteFramebuffers(1, &fb.fbo);
+}
+
+void bind_deferred_for_reading(struct deferred_framebuffer fb)
+{
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    for (int i = 0; i < sizeof(fb.textures)/sizeof(fb.textures[0]); i++) {
+		glActiveTexture(GL_TEXTURE0 + i);	
+		glBindTexture(GL_TEXTURE_2D, fb.textures[GBUFFER_TEXTURE_TYPE_POSITION + i]);
+    }
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, fb.fbo);
 }

@@ -1,5 +1,7 @@
 #include <SDL2/SDL.h>
 #include "keyboard.h"
+#include "init.h"
+#include "shaders.h"
 #include "main.h"
 
 #define TRUE 1
@@ -48,6 +50,13 @@ void keyevent(SDL_Keysym keysym, SDL_EventType type)
 		break;
 	case SDL_SCANCODE_R:
 		printf("Average # of tight loop iterations after sleep: %d\n", tight_loop_iter_ave);
+		break;
+	case SDL_SCANCODE_1:
+		if (keystate) {
+			int error = init_shaders(shader_programs, shader_infos, sizeof(shader_programs)/sizeof(shader_programs[0]), TRUE);
+			printf("error was: %d\n", error);
+		}
+		break;
 	default: break;
 	}
 }

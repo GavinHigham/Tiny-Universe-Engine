@@ -8,5 +8,6 @@ struct shader_info;
 int init();
 void deinit();
 void checkErrors(char *label);
+int init_shaders(struct shader_prog **programs, struct shader_info **infos, int numprogs, int reload);
 
 #endif

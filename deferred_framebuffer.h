@@ -18,5 +18,7 @@ struct deferred_framebuffer {
 };
 
 struct deferred_framebuffer new_deferred_framebuffer(int width, int height);
+void delete_deferred_framebuffer(struct deferred_framebuffer fb);
+void bind_deferred_for_reading(struct deferred_framebuffer fb);
 
 #endif

@@ -7,7 +7,7 @@ affine_matrix4.o matrix3.o vector3.o models.o buffer_group.o controller.o deferr
 SHADERS = shaders/*
 MODELS = models/*
 SHADER_GENERATORS = generate_shader_source.awk generate_shader_header.awk
-EXE = main
+EXE = hello_sdl
 
 all: $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(EXE)

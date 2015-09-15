@@ -4,6 +4,7 @@
 #include <string.h>
 #include <assert.h>
 #include "affine_matrix4.h"
+#include "vector3.h"
 
 #define TRANSLATION 01
 #define ROTATION    02
@@ -71,6 +72,26 @@ AM4 AM4_mult(AM4 a, AM4 b)
 		},
 		(a.type | b.type)
 	};
+	return tmp;
+}
+
+V3 AM4_multpoint(AM4 a, V3 b)
+{
+	V3 tmp = {{{
+		a.A[0]*b.x + a.A[1]*b.y + a.A[2]*b.z + a.x,
+		a.A[3]*b.x + a.A[4]*b.y + a.A[5]*b.z + a.y,
+		a.A[6]*b.x + a.A[7]*b.y + a.A[8]*b.z + a.z
+	}}};
+	return tmp;
+}
+
+V3 AM4_multvec(AM4 a, V3 b)
+{
+	V3 tmp = {{{
+		a.A[0]*b.x + a.A[1]*b.y + a.A[2]*b.z,
+		a.A[3]*b.x + a.A[4]*b.y + a.A[5]*b.z,
+		a.A[6]*b.x + a.A[7]*b.y + a.A[8]*b.z
+	}}};
 	return tmp;
 }
 
@@ -165,9 +186,9 @@ AM4 AM4_lookat(V3 p, V3 q, V3 u)
 	V3 x = v3_cross(y, z);
 	AM4 tmp = {
 		.A = {
-			x.A[0], y.A[0], z.A[0],
-			x.A[1], y.A[1], z.A[1],
-			x.A[2], y.A[2], z.A[2]
+			x.x, y.x, z.x,
+			x.y, y.y, z.y,
+			x.z, y.z, z.z
 		},
 		.T = {
 			p.x, p.y, p.z
@@ -175,12 +196,6 @@ AM4 AM4_lookat(V3 p, V3 q, V3 u)
 	};
 	return tmp;
 }
-
-/*
- 0  1  2
- 3  4  5
- 6  7  8
-*/
 
 AM4 AM4_inverse(AM4 a)
 {

@@ -7,6 +7,7 @@
 
 int buffer_ball(struct buffer_group rc);
 int buffer_newship(struct buffer_group rc);
+int buffer_room(struct buffer_group rc);
 int buffer_ship(struct buffer_group rc);
 int buffer_thrust_flare(struct buffer_group rc);
 int buffer_thrust_flare_forward(struct buffer_group rc);
