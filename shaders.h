@@ -37,9 +37,10 @@ struct shader_prog {
 		GLint unif[10];
 	};
 };
-extern struct shader_prog lighting_program;
+extern struct shader_prog point_light_program;
 extern struct shader_prog deferred_program;
-extern struct shader_prog *shader_programs[2];
-extern struct shader_info *shader_infos[2];
+extern struct shader_prog point_light_wireframe_program;
+extern struct shader_prog *shader_programs[3];
+extern struct shader_info *shader_infos[3];
 
 #endif

@@ -21,6 +21,8 @@ V3 v3_new(float x, float y, float z);
 //Returns a new vector that represents the addition of respective components of a and b.
 //(a+b)
 V3 v3_add(V3 a, V3 b);
+//Returns a new vector that represents the scaling of a by factor b.
+V3 v3_scale(V3 a, float b);
 //Returns a new vector that represents the subtraction of respective components of a and b.
 //(a - b)
 V3 v3_sub(V3 a, V3 b);

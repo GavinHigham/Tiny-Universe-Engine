@@ -25,18 +25,12 @@ light_fragment point_light_fragment(vec3 world_pos, vec3 normal, vec3 light_pos,
 	light_fragment tmp;
 	float distance = distance(world_pos, light_pos);
 	float attenuation = attr[CONSTANT] + (attr[LINEAR]*distance) + (attr[EXPONENTIAL]*distance*distance);
-	tmp.diffuse = attr[INTENSITY] * clamp(dot(normalize(light_pos-world_pos), normal), 0, 1) / attenuation;
+	tmp.diffuse = (attr[INTENSITY] * clamp(dot(normalize(light_pos-world_pos), normal), 0, 1)) / attenuation;
 
 	vec3 h = normalize(normalize(-world_pos) + normalize(light_pos-world_pos));
-	tmp.specular = attr[INTENSITY] * pow(max(0.0, dot(h, normalize(normal))), 32.0) / attenuation;
+	tmp.specular = (attr[INTENSITY] * pow(max(0.0, dot(h, normalize(normal))), 32.0)) / attenuation;
 	//tmp.specular = 0;
 	return tmp;
-}
-
-float light_source(vec3 hard_coded_light_pos, vec3 world_pos)
-{
-	float distance = distance(hard_coded_light_pos, world_pos);
-	return pow(100/(distance * distance), 32);
 }
 
 void main() {

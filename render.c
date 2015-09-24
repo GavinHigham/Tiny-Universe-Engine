@@ -14,61 +14,62 @@
 #include "models.h"
 #include "controller.h"
 #include "deferred_framebuffer.h"
-
-#define TRUE 1
-#define FALSE 0
+#include "lights.h"
+#include "macros.h"
 
 #define FOV M_PI/2.0
 #define PRIMITIVE_RESTART_INDEX 0xFFFF
 
-#define DEFERRED_MODE FALSE
-
-struct point_light {
-	float atten_c; //Constant attenuation.
-	float atten_l; //Linear attenuation.
-	float atten_e; //Exponential attenuation.
-	float intensity; //Light intensity.
-	V3 position;
-	V3 color;
-};
+#define DEFERRED_MODE TRUE
+#define DRAW_LIGHT_BOUNDS FALSE
 
 static struct buffer_group newship_buffers;
+static struct buffer_group ship_buffers;
 static struct buffer_group ball_buffers;
 static struct buffer_group thrust_flare_buffers;
-static struct buffer_group thrust_flare_forward_buffers;
 static struct buffer_group room_buffers;
-static AM4 eye_frame = {.a = MAT3_IDENT, .T = {0, 0, 0}};;
+static struct buffer_group icosphere_buffers;
+static GLuint quad_vbo;
+static GLuint quad_ibo;
+static AM4 eye_frame = {.a = MAT3_IDENT, .T = {0, 0, 0}};
+static AM4 inv_eye_frame;
 static AM4 ship_frame = {.a = MAT3_IDENT, .T = {0, 0, -8}};
 static AM4 room_frame = {.a = MAT3_IDENT, .T = {0, -4, -8}};
-static struct point_light point_light1 = {
-	.position = {{{0, 0, 0}}},
-	.color    = {{{1.0, 0.4, 0.4}}},
-	.atten_c  = 100,
-	.atten_l  = 20,
-	.atten_e  = 10,
-	.intensity = 600
+
+static struct point_light point_lights[] = {
+	{
+		.position = {{{0, 0, 0}}},
+		.color    = {{{1.0, 0.4, 0.4}}},
+		.atten_c  = 1,
+		.atten_l  = 0,
+		.atten_e  = 1,
+		.intensity = 50,
+		.enabled_for_draw = TRUE
+	},
+	{
+		.position = {{{0, 0, 0}}},
+		.color    = {{{1, 1, 1}}},
+		.atten_c  = 10,
+		.atten_l  = 2,
+		.atten_e  = 1,
+		.intensity = 100,
+		.enabled_for_draw = TRUE
+	},
+	{
+		.position = {{{0, 0, 0}}},
+		.color    = {{{.8, .8, 1}}},
+		.atten_c  = 10,
+		.atten_l  = 2,
+		.atten_e  = 1,
+		.intensity = 50,
+		.enabled_for_draw = TRUE
+	}
 };
-static struct point_light point_light2 = {
-	.position = {{{0, 0, 0}}},
-	.color    = {{{1, 1, 1}}},
-	.atten_c  = 100,
-	.atten_l  = 20,
-	.atten_e  = 10,
-	.intensity = 1000
-};
-static struct point_light point_light3 = {
-	.position = {{{0, 0, 0}}},
-	.color    = {{{.8, .8, 1}}},
-	.atten_c  = 100,
-	.atten_l  = 20,
-	.atten_e  = 10,
-	.intensity = 500
-};
-static int thrusting = 0;
 static struct deferred_framebuffer gbuffer;
 static GLfloat proj_mat[16];
 extern int reload_shaders_signal;
 //static GLuint deferred_buffer = 0;
+void buffer_quad(GLuint *vbo, GLuint *ibo);
 
 //Set up everything needed to start rendering frames.
 void init_render()
@@ -82,24 +83,32 @@ void init_render()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	gbuffer = new_deferred_framebuffer(SCREEN_WIDTH, SCREEN_HEIGHT);
+	ship_buffers = new_buffer_group(buffer_ship);
 	newship_buffers = new_buffer_group(buffer_newship);
 	ball_buffers = new_buffer_group(buffer_ball);
 	thrust_flare_buffers = new_buffer_group(buffer_thrust_flare);
-	thrust_flare_forward_buffers = new_buffer_group(buffer_thrust_flare_forward);
+	icosphere_buffers = new_custom_buffer_group(buffer_icosphere, 0);
 	room_buffers = new_buffer_group(buffer_room);
+	buffer_quad(&quad_vbo, &quad_ibo);
 
-
-	make_projection_matrix(FOV, (float)SCREEN_WIDTH/(float)SCREEN_HEIGHT, -1, -1000, proj_mat, sizeof(proj_mat)/sizeof(proj_mat[0]));
+	make_projection_matrix(FOV, (float)SCREEN_WIDTH/(float)SCREEN_HEIGHT, -1, -1000, proj_mat, LENGTH(proj_mat));
 	//Setup unchanging deferred uniforms.
 	glUseProgram(deferred_program.handle);
 	glUniformMatrix4fv(deferred_program.projection_matrix, 1, GL_TRUE, proj_mat);
 	//Setup unchanging lighting uniforms.
-	glUseProgram(lighting_program.handle);
-	glUniformMatrix4fv(lighting_program.projection_matrix, 1, GL_TRUE, proj_mat);
-	glUniform1i(lighting_program.gPositionMap, GBUFFER_TEXTURE_TYPE_POSITION);
-	glUniform1i(lighting_program.gColorMap, GBUFFER_TEXTURE_TYPE_DIFFUSE);
-	glUniform1i(lighting_program.gNormalMap, GBUFFER_TEXTURE_TYPE_NORMAL);
-	glUniform2f(lighting_program.gScreenSize, SCREEN_WIDTH, SCREEN_HEIGHT);
+	glUseProgram(point_light_program.handle);
+	glUniformMatrix4fv(point_light_program.projection_matrix, 1, GL_TRUE, proj_mat);
+	glUniform1i(point_light_program.gPositionMap, GBUFFER_TEXTURE_TYPE_POSITION);
+	glUniform1i(point_light_program.gColorMap, GBUFFER_TEXTURE_TYPE_DIFFUSE);
+	glUniform1i(point_light_program.gNormalMap, GBUFFER_TEXTURE_TYPE_NORMAL);
+	glUniform2f(point_light_program.gScreenSize, SCREEN_WIDTH, SCREEN_HEIGHT);
+	glUseProgram(point_light_wireframe_program.handle);
+	glUniformMatrix4fv(point_light_wireframe_program.projection_matrix, 1, GL_TRUE, proj_mat);
+
+	for (int i = 0; i < LENGTH(point_lights); i++) {
+		point_lights[i].radius = point_light_radius(point_lights[i]);
+		printf("Light %i radius is %f\n", i, point_lights[i].radius);
+	}
 
 	glUseProgram(0);
 	checkErrors("After init");
@@ -111,7 +120,10 @@ void deinit_render()
 	delete_buffer_group(newship_buffers);
 	delete_buffer_group(ball_buffers);
 	delete_buffer_group(thrust_flare_buffers);
-	delete_buffer_group(thrust_flare_forward_buffers);
+	delete_buffer_group(icosphere_buffers);
+	delete_buffer_group(room_buffers);
+	glDeleteBuffers(1, &quad_vbo);
+	glDeleteBuffers(1, &quad_ibo);
 }
 
 //Create a projection matrix with "fov" field of view, "a" aspect ratio, n and f near and far planes.
@@ -126,7 +138,7 @@ void make_projection_matrix(GLfloat fov, GLfloat a, GLfloat n, GLfloat f, GLfloa
 		0,  0, (f+n)/(f-n), (-2*f*n)/(f-n),
 		0,  0,          -1,              1
 	};
-	assert(buf_len == sizeof(tmp)/sizeof(GLfloat));
+	assert(buf_len == LENGTH(tmp));
 	if (a >= 0)
 		tmp[0] /= a;
 	else
@@ -134,32 +146,26 @@ void make_projection_matrix(GLfloat fov, GLfloat a, GLfloat n, GLfloat f, GLfloa
 	memcpy(buf, tmp, sizeof(tmp));
 }
 
-void draw(struct shader_prog *program, struct buffer_group bg, AM4 model_view_matrix)
+void setup_attrib_for_draw(GLuint attr_handle, GLuint buffer, GLenum attr_type, int attr_size)
+{
+	glEnableVertexAttribArray(attr_handle);
+	glBindBuffer(GL_ARRAY_BUFFER, buffer);
+	glVertexAttribPointer(attr_handle, attr_size, attr_type, GL_FALSE, 0, NULL);
+}
+
+void draw_vcol_vnorm(struct shader_prog *program, struct buffer_group bg, AM4 model_matrix)
 {	
 	GLfloat mvm_buf[16];
 	checkErrors("Before setting uniforms.");
-	model_view_matrix = AM4_mult(AM4_inverse(eye_frame), model_view_matrix);
-	AM4_to_array(mvm_buf, sizeof(mvm_buf)/sizeof(mvm_buf[0]), model_view_matrix);
+	AM4 model_view_matrix = AM4_mult(inv_eye_frame, model_matrix);
+	AM4_to_array(mvm_buf, LENGTH(mvm_buf), model_view_matrix);
 	glUniformMatrix4fv(program->MVM, 1, GL_TRUE, mvm_buf);
-	mat3_v3_to_array(mvm_buf, sizeof(mvm_buf)/sizeof(mvm_buf[0]), mat3_transp(model_view_matrix.a), (V3){{{0, 0, 0}}});
+	mat3_v3_to_array(mvm_buf, LENGTH(mvm_buf), mat3_transp(model_view_matrix.a), (V3){{{0, 0, 0}}});
 	glUniformMatrix4fv(program->NMVM, 1, GL_TRUE, mvm_buf);
-	//glUniform3f(program->light_pos, light_pos_vec.x, light_pos_vec.y, light_pos_vec.z);
 	checkErrors("Before glDrawElements");
-	//vertex_pos
-	glEnableVertexAttribArray(program->vPos);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
-	glVertexAttribPointer(program->vPos, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-	checkErrors("After enabling vPos");
-	//vColor
-	glEnableVertexAttribArray(program->vColor);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
-	glVertexAttribPointer(program->vColor, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-	checkErrors("After enabling vColor");
-	//vNormal
-	glEnableVertexAttribArray(program->vNormal);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
-	glVertexAttribPointer(program->vNormal, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-	checkErrors("After enabling vNormal");
+	setup_attrib_for_draw(program->vPos, bg.vbo, GL_FLOAT, 3);
+	setup_attrib_for_draw(program->vColor, bg.cbo, GL_FLOAT, 3);
+	setup_attrib_for_draw(program->vNormal, bg.nbo, GL_FLOAT, 3);
 	//indices
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
 	glDrawElements(GL_TRIANGLES, bg.index_count, GL_UNSIGNED_INT, NULL);
@@ -170,7 +176,7 @@ void draw(struct shader_prog *program, struct buffer_group bg, AM4 model_view_ma
 	glDisableVertexAttribArray(program->vNormal);
 }
 
-void buffer_fullscreen_quad(GLuint *vbo, GLuint *ibo)
+void buffer_quad(GLuint *vbo, GLuint *ibo)
 {
 	glGenBuffers(1, vbo);
 	glGenBuffers(1, ibo);
@@ -190,35 +196,48 @@ void buffer_fullscreen_quad(GLuint *vbo, GLuint *ibo)
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 }
 
-void draw_lighting(struct shader_prog *program, struct point_light p)
+void draw_light(struct shader_prog *program, struct point_light p)
 {
 	//Buffer the MVM to the shader.
 	GLfloat mvm_buf[16];
-
-	AM4 model_view_matrix = (AM4_trans((AM4)AM4_IDENT, 0, 0, 0));
-	AM4_to_array(mvm_buf, sizeof(mvm_buf)/sizeof(mvm_buf[0]), model_view_matrix);
+	AM4 model_matrix = {.a = mat3_scalemat(p.radius, p.radius, p.radius), .t = p.position};
+	AM4 model_view_matrix = AM4_mult(inv_eye_frame, model_matrix);
+	AM4_to_array(mvm_buf, LENGTH(mvm_buf), model_view_matrix);
 	glUniformMatrix4fv(program->MVM, 1, GL_TRUE, mvm_buf);
 
-	AM4 inverse_eye_frame = AM4_inverse(eye_frame);
-	V3 light_position_camera_space = AM4_multpoint(inverse_eye_frame, p.position);
+	// AM4 model_view_matrix = AM4_IDENT;
+	// AM4_to_array(mvm_buf, LENGTH(mvm_buf), model_view_matrix);
+	// glUniformMatrix4fv(program->MVM, 1, GL_TRUE, mvm_buf);
+
+	V3 light_position_camera_space = AM4_multpoint(inv_eye_frame, p.position);
 	glUniform3f(program->uLight_pos, light_position_camera_space.x, light_position_camera_space.y, light_position_camera_space.z);
 	glUniform3f(program->uLight_col, p.color.r, p.color.g, p.color.b);
 	glUniform4f(program->uLight_attr, p.atten_c, p.atten_l, p.atten_e, p.intensity);
 
-	GLuint vbo, ibo;
-	buffer_fullscreen_quad(&vbo, &ibo);
-
-	//vertex_pos
-	glEnableVertexAttribArray(program->vPos);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glVertexAttribPointer(program->vPos, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-	checkErrors("After enabling vPos");
-
-	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+	// setup_attrib_for_draw(program->vPos, quad_vbo, GL_FLOAT, 3);
+	// glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_ibo);
+	setup_attrib_for_draw(program->vPos, icosphere_buffers.vbo, GL_FLOAT, 3);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, icosphere_buffers.ibo);
+	glDrawElements(GL_TRIANGLES, icosphere_buffers.index_count, GL_UNSIGNED_INT, NULL);
 	//Clean up?
 	glDisableVertexAttribArray(program->vPos);
-	glDeleteBuffers(1, &vbo);
-	glDeleteBuffers(1, &ibo);
+}
+
+void draw_light_wireframe(struct shader_prog *program, struct point_light p)
+{
+	//Buffer the MVM to the shader.
+	GLfloat mvm_buf[16];
+	AM4 model_matrix = {.a = mat3_scalemat(p.radius, p.radius, p.radius), .t = p.position};
+	AM4 model_view_matrix = AM4_mult(inv_eye_frame, model_matrix);
+	AM4_to_array(mvm_buf, LENGTH(mvm_buf), model_view_matrix);
+	glUniformMatrix4fv(program->MVM, 1, GL_TRUE, mvm_buf);
+	glUniform3f(program->uLight_col, p.color.r, p.color.g, p.color.b);
+
+	setup_attrib_for_draw(program->vPos, icosphere_buffers.vbo, GL_FLOAT, 3);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, icosphere_buffers.ibo);
+	glDrawElements(GL_TRIANGLES, icosphere_buffers.index_count, GL_UNSIGNED_INT, NULL);
+	//Clean up?
+	glDisableVertexAttribArray(program->vPos);
 }
 
 void render_to_deferred(struct shader_prog *program)
@@ -226,25 +245,24 @@ void render_to_deferred(struct shader_prog *program)
 	checkErrors("Before rendering to deferred");
 	glUseProgram(program->handle);
 	glDepthMask(GL_TRUE);
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
 	glDisable(GL_BLEND);
 
 	checkErrors("Before drawing.");
-	draw(program, newship_buffers, ship_frame);
-	if (thrusting == 1) {
-		draw(program, thrust_flare_buffers, ship_frame);
-	} else if (thrusting == 2) {
-		draw(program, thrust_flare_forward_buffers, ship_frame);
+	draw_vcol_vnorm(program, newship_buffers, ship_frame);
+	if (axes[LEFTY] < 0) {
+		draw_vcol_vnorm(program, thrust_flare_buffers, ship_frame);
 	}
-	draw(program, room_buffers, room_frame);
+	draw_vcol_vnorm(program, room_buffers, room_frame);
 	checkErrors("After drawing.");
 	glDepthMask(GL_FALSE);
 	glDisable(GL_DEPTH_TEST);
 }
 
-void render_from_deferred()
+//Draw the deferred framebuffer textures to the screen, for debugging.
+void blit_deferred()
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glClearColor(0.0f, 0.0f, 0.25f, 1.0f);
@@ -274,20 +292,41 @@ void prepare_lighting_pass(struct deferred_framebuffer buffer)
 	glEnable(GL_BLEND);
 	glBlendEquation(GL_FUNC_ADD);
 	glBlendFunc(GL_ONE, GL_ONE);
+	glDisable(GL_CULL_FACE);
+}
+
+void draw_point_lights(struct point_light *lights, int num_lights)
+{
+	glUseProgram(point_light_program.handle);
+	for (int i = 0; i < num_lights; i++)
+		if (lights[i].enabled_for_draw)
+			draw_light(&point_light_program, lights[i]);
+
+	if (DRAW_LIGHT_BOUNDS) {
+		glDisable(GL_BLEND);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glUseProgram(point_light_wireframe_program.handle);
+		for (int i = 0; i < num_lights; i++)
+			if (lights[i].enabled_for_draw)
+				draw_light_wireframe(&point_light_wireframe_program, lights[i]);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	}
+}
+
+void render_lights()
+{
+	glClear(GL_COLOR_BUFFER_BIT);
+	draw_point_lights(point_lights, LENGTH(point_lights));
 }
 
 void render()
 {
+	inv_eye_frame = AM4_inverse(eye_frame); //Only need to do this once per frame.
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, gbuffer.fbo);
 	render_to_deferred(&deferred_program);
 	prepare_lighting_pass(gbuffer);
-	glClear(GL_COLOR_BUFFER_BIT);
-	glUseProgram(lighting_program.handle);
-	draw_lighting(&lighting_program, point_light1);
-	draw_lighting(&lighting_program, point_light2);
-	if (thrusting == 1)
-		draw_lighting(&lighting_program, point_light3);
-	//render_from_deferred();
+	render_lights();
+	//blit_deferred(); //Use this to overlay the deferred buffers, for debugging.
 	glUseProgram(0);
 }
 
@@ -296,10 +335,10 @@ void update(float dt)
 	static float light_time = 0;
 	static AM4 velocity = AM4_IDENT;
 	light_time += dt;
-	point_light1.position = v3_new(10*cos(light_time), 0, 10*sin(light_time)-8);
+	point_lights[0].position = v3_new(10*cos(light_time), 0, 10*sin(light_time)-8);
 
 	if (reload_shaders_signal) {
-		int error = init_shaders(shader_programs, shader_infos, sizeof(shader_programs)/sizeof(shader_programs[0]), TRUE);
+		int error = init_shaders(shader_programs, shader_infos, LENGTH(shader_programs), TRUE);
 		if (error)
 			printf("error was: %d\n", error);
 		reload_shaders_signal = FALSE;
@@ -307,16 +346,11 @@ void update(float dt)
 
 	float ts = 1/30000000.0;
 	float rs = 1/600000.0;
-	if (axes[LEFTY] < 0)
-		thrusting = 1;
-	else if (axes[LEFTY] > 0)
-		thrusting = 2;
-	else
-		thrusting = 0;
+	point_lights[2].enabled_for_draw = (axes[LEFTY] < 0)?TRUE:FALSE;
 	eye_frame.t = v3_add(eye_frame.t, (V3){{{(keys[KEY_RIGHT] - keys[KEY_LEFT])*dt, 0, (keys[KEY_DOWN] - keys[KEY_UP])*dt}}});
 	V3 acceleration = mat3_multvec(ship_frame.a, (V3){{{axes[LEFTX]*ts, 0, axes[LEFTY]*ts}}});
 	velocity.a = mat3_rot(mat3_rotmat(0, 0, 1, -axes[RIGHTX]*rs), 1, 0, 0, axes[RIGHTY]*rs);
-	velocity.t = v3_add(velocity.t, acceleration);
+	velocity.t = v3_scale(acceleration, 200);//v3_add(velocity.t, acceleration);
 	ship_frame.a = mat3_mult(ship_frame.a, velocity.a);
 	ship_frame.t = v3_add(ship_frame.t, velocity.t);
 	eye_frame.t = AM4_multpoint(ship_frame, (V3){{{0, 2, 8}}});
@@ -324,5 +358,5 @@ void update(float dt)
 		eye_frame.t,
 		AM4_multpoint(ship_frame, (V3){{{0, 0, -4}}}),
 		mat3_multvec(ship_frame.a, (V3){{{0, 1, 0}}}));
-	point_light3.position = AM4_multpoint(ship_frame, (V3){{{0, 0, 6}}});
+	point_lights[2].position = AM4_multpoint(ship_frame, (V3){{{0, 0, 6}}});
 }

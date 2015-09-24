@@ -12,9 +12,7 @@
 #include "default_settings.h"
 #include "shaders.h"
 #include "render.h"
-
-#define FALSE 0
-#define TRUE 1
+#include "macros.h"
 
 extern SDL_Window *window;
 static SDL_GLContext context = NULL;
@@ -45,7 +43,7 @@ int init()
 		printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
 		return error;
 	}
-	window = SDL_CreateWindow("SDL Tutorial", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL);
+	window = SDL_CreateWindow("SDL Tutorial", WINDOW_OFFSET_X, WINDOW_OFFSET_Y, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL);
 	if (window == NULL) {
 		printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
 		return -1;
@@ -64,7 +62,7 @@ int init()
 		return -1;
 	}
 
-	if (init_shaders(shader_programs, shader_infos, sizeof(shader_programs)/sizeof(shader_programs[0]), FALSE)) {
+	if (init_shaders(shader_programs, shader_infos, LENGTH(shader_programs), FALSE)) {
 		printf("Something went wrong with shader initialization!\n");
 		return -1;
 	}
@@ -178,7 +176,7 @@ int init_shader_program(struct shader_prog *program, const GLchar **vs_source, c
 
 int init_shader_attributes(struct shader_prog *program, struct shader_info info)
 {
-	for (int i = 0; i < sizeof(program->attr)/sizeof(program->attr[0]); i++) {
+	for (int i = 0; i < LENGTH(program->attr); i++) {
 		if (program->attr[i] != -1) {
 			program->attr[i] = glGetAttribLocation(program->handle, info.attr_names[i]);
 			if (program->attr[i] == -1) {
@@ -192,7 +190,7 @@ int init_shader_attributes(struct shader_prog *program, struct shader_info info)
 
 int init_shader_uniforms(struct shader_prog *program, struct shader_info info)
 {
-	for (int i = 0; i < sizeof(program->unif)/sizeof(program->unif[0]); i++) {
+	for (int i = 0; i < LENGTH(program->unif); i++) {
 		if (program->unif[i] != -1) {
 			program->unif[i] = glGetUniformLocation(program->handle, info.unif_names[i]);
 			if (program->unif[i] == -1) {

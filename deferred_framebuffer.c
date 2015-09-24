@@ -1,5 +1,6 @@
 #include <GL/glew.h>
 #include "deferred_framebuffer.h"
+#include "macros.h"
 
 struct deferred_framebuffer new_deferred_framebuffer(int width, int height)
 {
@@ -23,7 +24,7 @@ struct deferred_framebuffer new_deferred_framebuffer(int width, int height)
 	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tmp.depth, 0);
 
 	GLenum draw_buffers[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3}; 
-	glDrawBuffers(sizeof(draw_buffers)/sizeof(draw_buffers[0]), draw_buffers);
+	glDrawBuffers(LENGTH(draw_buffers), draw_buffers);
 
 	GLenum error = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 
@@ -46,7 +47,7 @@ void delete_deferred_framebuffer(struct deferred_framebuffer fb)
 void bind_deferred_for_reading(struct deferred_framebuffer fb)
 {
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-    for (int i = 0; i < sizeof(fb.textures)/sizeof(fb.textures[0]); i++) {
+    for (int i = 0; i < LENGTH(fb.textures); i++) {
 		glActiveTexture(GL_TEXTURE0 + i);	
 		glBindTexture(GL_TEXTURE_2D, fb.textures[GBUFFER_TEXTURE_TYPE_POSITION + i]);
     }

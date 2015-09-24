@@ -18,8 +18,12 @@ FNR == 1 {
 	reading_vertices = 0
 	reading_indices = 0
 	just_started = 1
+	data[name, "using_normals"] = 0
+	data[name, "using_colors"] = 0
 }
 
+($1 == "property" && $3 == "nx") {data[name, "using_normals"] = 1}
+($1 == "property" && $3 == "red") {data[name, "using_colors"] = 1}
 ($1 == "element" && $2 == "vertex") {vertex_count = $3 + 0}
 ($1 == "element" && $2 == "face") {face_count = $3 + 0}
 ($1 == "end_header") {reading_vertices = 1}
@@ -32,8 +36,10 @@ FNR == 1 {
 			just_started = 1
 		}
 		data[name, "positions"] = data[name, "positions"] "\n\t\t" $1 ", " $2 ", " $3 ","
-		data[name, "normals"] = data[name, "normals"] "\n\t\t" $4 ", " $5 ", " $6 ","
-		data[name, "colors"] = data[name, "colors"] "\n\t\t" $7*color_scale ", " $8*color_scale ", " $9*color_scale ","
+		if (data[name, "using_normals"])
+			data[name, "normals"] = data[name, "normals"] "\n\t\t" $4 ", " $5 ", " $6 ","
+		if (data[name, "using_colors"])
+			data[name, "colors"] = data[name, "colors"] "\n\t\t" $7*color_scale ", " $8*color_scale ", " $9*color_scale ","
 	} else {
 		just_started = 0
 	}
@@ -53,15 +59,21 @@ END {
 		print "int buffer_" model_name "(struct buffer_group bg)"
 		print "{"
 		print substr(data[model_name, "positions"], 1, length(data[model_name, "positions"])-1) "\n\t};\n"
-		print substr(data[model_name, "normals"], 1, length(data[model_name, "normals"])-1) "\n\t};\n"
-		print substr(data[model_name, "colors"], 1, length(data[model_name, "colors"])-1) "\n\t};\n"
+		if (data[model_name, "using_normals"])
+			print substr(data[model_name, "normals"], 1, length(data[model_name, "normals"])-1) "\n\t};\n"
+		if (data[model_name, "using_colors"])
+			print substr(data[model_name, "colors"], 1, length(data[model_name, "colors"])-1) "\n\t};\n"
 		print substr(data[model_name, "indices"], 1, length(data[model_name, "indices"])-1) "\n\t};\n"
 		print "\tglBindBuffer(GL_ARRAY_BUFFER, bg.vbo);"
 		print "\tglBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);"
-		print "\tglBindBuffer(GL_ARRAY_BUFFER, bg.cbo);"
-		print "\tglBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);"
-		print "\tglBindBuffer(GL_ARRAY_BUFFER, bg.nbo);"
-		print "\tglBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);"
+		if (data[model_name, "using_colors"]) {
+			print "\tglBindBuffer(GL_ARRAY_BUFFER, bg.cbo);"
+			print "\tglBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);"
+		}
+		if (data[model_name, "using_normals"]) {
+			print "\tglBindBuffer(GL_ARRAY_BUFFER, bg.nbo);"
+			print "\tglBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);"
+		}
 		print "\tglBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);"
 		print "\tglBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);"
 		print "\treturn sizeof(indices)/sizeof(indices[0]);"
