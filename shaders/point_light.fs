@@ -47,5 +47,6 @@ void main() {
 	//light_col = vec3(1.0, 0.4, 0.4);
 	light_fragment p = point_light_fragment(WorldPos, Normal, uLight_pos, attr);
    	LFragment = vec4(Color*light_col, 1.0) * (p.diffuse + p.specular);
-   	//LFragment = vec4(Normal, 1.0);
+	//LFragment = vec4(Normal, 1.0);
+	//LFragment = vec4(WorldPos, 1.0);
 }

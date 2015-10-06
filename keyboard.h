@@ -3,8 +3,8 @@
 
 #include <SDL2/SDL.h>
 
-enum keys {KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN, KEY_EQUALS, KEY_MINUS, NUM_HANDLED_KEYS};
-extern int keys[NUM_HANDLED_KEYS];
+extern const Uint8 *key_state;
+void init_keyboard();
 void keyevent(SDL_Keysym keysym, SDL_EventType type);
 
 #endif

@@ -22,8 +22,8 @@
 
 //Average number of tight loop iterations. Global so it can be accessed from keyboard.c
 int loop_iter_ave = 0;
-SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
+SDL_Window *window = NULL;
 //When quit is set to true, the main loop will break, quitting the program.
 static int quit = GL_FALSE;
 //quit_event will be called when the user clicks the close button.
@@ -32,8 +32,9 @@ int SDLCALL quit_event(void *userdata, SDL_Event *e);
 int main()
 {
 	SDL_Event e;
-	atexit(deinit);
-	if (init() < 0) {
+	SDL_GLContext context;
+
+	if (init(&context, &window) < 0) {
 		printf("Something went wrong in init! Aborting.\n");
 		return -1;
 	}
@@ -67,7 +68,7 @@ int main()
 			SDL_Delay(FRAME_TIME_MS - ms_since_update - WAKE_EARLY_MS); //Sleep up until WAKE_EARLY_MS milliseconds left. (Busywait the rest)
 		}
 	}
-
+	deinit(context, window);
 	return 0;
 }
 

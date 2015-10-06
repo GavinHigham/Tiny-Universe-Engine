@@ -1,13 +1,9 @@
 #ifndef INIT_H
 #define INIT_H
+#include <SDL2/SDL.h>
 
-//Forward declarations. Defined in "shaders.h"
-struct shader_prog;
-struct shader_info;
-
-int init();
-void deinit();
+int init(SDL_GLContext *context, SDL_Window **window);
+void deinit(SDL_GLContext context, SDL_Window *window);
 void checkErrors(char *label);
-int init_shaders(struct shader_prog **programs, struct shader_info **infos, int numprogs, int reload);
 
 #endif

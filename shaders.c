@@ -65,7 +65,8 @@ const char *point_light_fs_source[] = {
 "	//light_col = vec3(1.0, 0.4, 0.4);\n"
 "	light_fragment p = point_light_fragment(WorldPos, Normal, uLight_pos, attr);\n"
 "   	LFragment = vec4(Color*light_col, 1.0) * (p.diffuse + p.specular);\n"
-"   	//LFragment = vec4(Normal, 1.0);\n"
+"	//LFragment = vec4(Normal, 1.0);\n"
+"	//LFragment = vec4(WorldPos, 1.0);\n"
 "}\n"
 };
 const GLchar *point_light_attribute_names[] = {"vNormal", "vColor", "vPos"};
