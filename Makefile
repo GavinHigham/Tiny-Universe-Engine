@@ -1,10 +1,10 @@
 CC = clang
-SDL = -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW
-CFLAGS = -Wall -c -std=c99 -g -O3
-LDFLAGS = $(SDL)
+SDL = -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW 
+CFLAGS = -Wall -c -std=c99 -g -O3 -pthread
+LDFLAGS = $(SDL) -lAntTweakBar -ljansson
 OBJECTS = main.o init.o image_load.o global_images.o keyboard.o render.o shaders.o \
 affine_matrix4.o matrix3.o vector3.o models.o buffer_group.o controller.o deferred_framebuffer.o \
-lights.o func_list.o shader_utils.o gl_utils.o
+lights.o func_list.o shader_utils.o gl_utils.o mindwave_thread.o
 SHADERS = shaders/*
 MODELS = models/*
 SHADER_GENERATORS = generate_shader_source.awk generate_shader_header.awk
@@ -28,6 +28,10 @@ shaders.c: $(SHADERS) $(SHADER_GENERATORS) shaders.h
 
 shaders.h: $(SHADERS) $(SHADER_GENERATORS)
 	awk -f generate_shader_header.awk $(SHADERS) > shaders.h
+
+buffer_group.h: shaders.h
+
+buffer_group.c: buffer_group.h
 
 clean:
 	rm $(OBJECTS) && rm $(EXE)

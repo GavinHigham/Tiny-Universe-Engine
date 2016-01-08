@@ -17,8 +17,17 @@ struct deferred_framebuffer {
 	GLuint depth;
 };
 
+struct accumulation_buffer {
+	GLuint fbo;
+	GLuint textures[2];
+	GLuint depth;
+};
+
 struct deferred_framebuffer new_deferred_framebuffer(int width, int height);
+struct accumulation_buffer new_accumulation_buffer(int width, int height);
 void delete_deferred_framebuffer(struct deferred_framebuffer fb);
-void bind_deferred_for_reading(struct deferred_framebuffer fb);
+void delete_accumulation_buffer(struct accumulation_buffer ab);
+void bind_deferred_for_reading(struct deferred_framebuffer fb, struct accumulation_buffer ab);
+void bind_accumulation_for_reading(struct accumulation_buffer ab);
 
 #endif

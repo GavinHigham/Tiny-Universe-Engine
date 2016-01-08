@@ -21,7 +21,8 @@ FNR == 1 {
 	attributes_by_prog[name, attr_name]
 }
 ($1 == "uniform") {
-	unif_name = substr($3, 1, length($3)-1)
+	split($3, split_result, "[\[;]"); #Hopefully this will make arrays work.
+	unif_name = split_result[1]#substr($3, 1, length($3)-1)
 	uniforms[unif_name]
 	uniforms_by_prog[name, unif_name]
 }

@@ -17,7 +17,6 @@
 
 int init_gl(SDL_GLContext *context, SDL_Window *window);
 int init_glew();
-static GLuint gVAO = 0;
 
 void reload_shaders_void_wrapper()
 {
@@ -88,9 +87,6 @@ int init(SDL_GLContext *context, SDL_Window **window)
 		printf("An error occurred while setting a signal handler.\n");
 	}
 
-	glGenVertexArrays(1, &gVAO);
-	glBindVertexArray(gVAO);
-
 	return error;
 }
 
@@ -126,7 +122,6 @@ int init_glew()
 
 void deinit(SDL_GLContext context, SDL_Window *window)
 {
-	glDeleteVertexArrays(1, &gVAO);
 	SDL_DestroyTexture(texture);
 	SDL_DestroyWindow(window);
 	SDL_GL_DeleteContext(context);

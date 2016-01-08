@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <string.h>
 #include <GL/glew.h>
+#include <AntTweakBar.h>
 #include "render.h"
 #include "shaders.h"
 #include "keyboard.h"
@@ -22,7 +23,9 @@
 #define FOV M_PI/2.0
 #define PRIMITIVE_RESTART_INDEX 0xFFFF
 
-#define DEFERRED_MODE TRUE
+#define DEFERRED_MODE FALSE
+
+extern int mindwave_attention;
 
 static struct counted_func update_funcs_storage[10];
 struct func_list update_func_list = {
@@ -37,77 +40,52 @@ static struct buffer_group ball_buffers;
 static struct buffer_group thrust_flare_buffers;
 static struct buffer_group room_buffers;
 static struct buffer_group icosphere_buffers;
+static struct buffer_group big_asteroid_buffers;
+static struct buffer_group grid_buffers;
 static GLuint quad_vbo;
 static GLuint quad_ibo;
+static GLuint gVAO = 0;
 static int draw_light_bounds = FALSE;
 static AM4 eye_frame = {.a = MAT3_IDENT, .T = {0, 0, 0}};
 static AM4 inv_eye_frame;
 static AM4 ship_frame = {.a = MAT3_IDENT, .T = {0, 0, -8}};
 static AM4 room_frame = {.a = MAT3_IDENT, .T = {0, -4, -8}};
-
-// static struct point_light point_lights[] = {
-// 	{
-// 		.position = {{{0, 0, 0}}},
-// 		.color    = {{{1.0, 0.4, 0.4}}},
-// 		.atten_c  = 1,
-// 		.atten_l  = 0,
-// 		.atten_e  = 1,
-// 		.intensity = 50,
-// 		.enabled_for_draw = TRUE
-// 	},
-// 	{
-// 		.position = {{{0, 0, 0}}},
-// 		.color    = {{{1, 1, 1}}},
-// 		.atten_c  = 10,
-// 		.atten_l  = 2,
-// 		.atten_e  = 1,
-// 		.intensity = 100,
-// 		.enabled_for_draw = TRUE
-// 	},
-// 	{
-// 		.position = {{{0, 0, 0}}},
-// 		.color    = {{{.8, .8, 1}}},
-// 		.atten_c  = 10,
-// 		.atten_l  = 2,
-// 		.atten_e  = 1,
-// 		.intensity = 50,
-// 		.enabled_for_draw = TRUE
-// 	},
-// 	{
-// 		.position = {{{10, 0, -7}}},
-// 		.color    = {{{0.4, 1.0, 0.4}}},
-// 		.atten_c  = 0.1,
-// 		.atten_l  = 0.14,
-// 		.atten_e  = .07,
-// 		.intensity = 0.75,
-// 		.enabled_for_draw = TRUE
-// 	}
-// };
+static AM4 grid_frame = {.a = MAT3_IDENT, .T = {-30, -3, -30}};
+static AM4 big_asteroid_frame = {.a = MAT3_IDENT, .T = {0, -4, -20}};
 
 struct point_light_attributes point_lights = {.num_lights = 0};
 
 static struct deferred_framebuffer gbuffer;
+static struct accumulation_buffer lbuffer;
 static GLfloat proj_mat[16];
 extern int reload_shaders_signal;
 //static GLuint deferred_buffer = 0;
 static void buffer_quad(GLuint *vbo, GLuint *ibo);
+static struct buffer_group buffer_grid(int numrows, int numcols);
 
 //Set up everything needed to start rendering frames.
 void init_render()
 {
+	glGenVertexArrays(1, &gVAO);
+	glBindVertexArray(gVAO);
+
 	glUseProgram(0);
 	glClearDepth(0.0);
+	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_GREATER);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	gbuffer = new_deferred_framebuffer(SCREEN_WIDTH, SCREEN_HEIGHT);
-	ship_buffers = new_buffer_group(buffer_ship);
-	newship_buffers = new_buffer_group(buffer_newship);
-	ball_buffers = new_buffer_group(buffer_ball);
-	thrust_flare_buffers = new_buffer_group(buffer_thrust_flare);
+	lbuffer = new_accumulation_buffer(SCREEN_WIDTH, SCREEN_HEIGHT);
+	ship_buffers = new_buffer_group(buffer_ship, &deferred_program);
+	newship_buffers = new_buffer_group(buffer_newship, &deferred_program);
+	ball_buffers = new_buffer_group(buffer_ball, &deferred_program);
+	thrust_flare_buffers = new_buffer_group(buffer_thrust_flare, &deferred_program);
 	icosphere_buffers = new_custom_buffer_group(buffer_icosphere, 0);
-	room_buffers = new_buffer_group(buffer_room);
+	room_buffers = new_buffer_group(buffer_room, &deferred_program);
+	big_asteroid_buffers = new_buffer_group(buffer_big_asteroid, &deferred_program);
+	grid_buffers = buffer_grid(128, 128);
 	buffer_quad(&quad_vbo, &quad_ibo);
 
 	make_projection_matrix(FOV, (float)SCREEN_WIDTH/(float)SCREEN_HEIGHT, -1, -1000, proj_mat, LENGTH(proj_mat));
@@ -123,16 +101,32 @@ void init_render()
 	glUniform2f(point_light_program.gScreenSize, SCREEN_WIDTH, SCREEN_HEIGHT);
 	glUseProgram(point_light_wireframe_program.handle);
 	glUniformMatrix4fv(point_light_wireframe_program.projection_matrix, 1, GL_TRUE, proj_mat);
+	glUseProgram(effects_program.handle);
+	glUniform1i(effects_program.diffuse_light, 0);
+	glUniform1i(effects_program.specular_light, 1);
+	glUniform2f(effects_program.gScreenSize, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-	//Position, color, atten_c, atten_l, atten_e, intensity
-	new_point_light(&point_lights, (V3){{{0, 0, 0}}},   (V3){{{1.0, 0.4, 0.4}}},   1,    0,    1, 50);
-	new_point_light(&point_lights, (V3){{{0, 0, 0}}},   (V3){{{1.0, 1.0, 1.0}}},  10,    2,    1, 100);
-	new_point_light(&point_lights, (V3){{{0, 0, 0}}},   (V3){{{0.8, 0.8, 1.0}}},  10,    2,    1, 50);
-	new_point_light(&point_lights, (V3){{{10, 0, -7}}}, (V3){{{0.4, 1.0, 0.4}}}, 0.1, 0.14, 0.07, 0.75);
+	glUseProgram(forward_program.handle);
+	glUniformMatrix4fv(forward_program.projection_matrix, 1, GL_TRUE, proj_mat);
+
+
+	//                             Position,            color,                atten_c, atten_l, atten_e, intensity
+	new_point_light(&point_lights, (V3){{{0, 0, 0}}},   (V3){{{1.0, 0.2, 0.2}}}, 0.0,     0.0,    1,    20);
+	new_point_light(&point_lights, (V3){{{0, 0, 0}}},   (V3){{{1.0, 1.0, 1.0}}}, 0.0,     0.0,    1,    50);
+	new_point_light(&point_lights, (V3){{{0, 0, 0}}},   (V3){{{0.8, 0.8, 1.0}}}, 0.0,     0.3,    0.04, 0.4);
+	new_point_light(&point_lights, (V3){{{10, 0, -7}}}, (V3){{{0.4, 1.0, 0.4}}}, 0.1,     0.14,   0.07, 0.75);
 
 	for (int i = 0; i < point_lights.num_lights; i++) {
 		printf("Light %i radius is %f\n", i, point_lights.radius[i]);
 	}
+
+	// TwInit(TW_OPENGL, NULL);
+	// TwWindowSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+	// TwBar *myBar;
+	// myBar = TwNewBar("NameOfMyTweakBar");
+	// // Add 'g_MatDiffuse' to 'bar': this is a variable of type TW_TYPE_COLOR3F (3 floats color, alpha is ignored)
+	// // and is inserted into group 'Material'.
+	// TwAddVarRW(myBar, "Diffuse", TW_TYPE_COLOR3F, &(point_lights.color[0].A), " group='Material' ");
 
 	glUseProgram(0);
 	checkErrors("After init");
@@ -141,13 +135,16 @@ void init_render()
 void deinit_render()
 {
 	delete_deferred_framebuffer(gbuffer);
+	delete_accumulation_buffer(lbuffer);
 	delete_buffer_group(newship_buffers);
 	delete_buffer_group(ball_buffers);
 	delete_buffer_group(thrust_flare_buffers);
 	delete_buffer_group(icosphere_buffers);
 	delete_buffer_group(room_buffers);
+	delete_buffer_group(grid_buffers);
 	glDeleteBuffers(1, &quad_vbo);
 	glDeleteBuffers(1, &quad_ibo);
+	glDeleteVertexArrays(1, &gVAO);
 	point_lights.num_lights = 0;
 }
 
@@ -180,29 +177,44 @@ static void setup_attrib_for_draw(GLuint attr_handle, GLuint buffer, GLenum attr
 
 static void draw_vcol_vnorm(struct shader_prog *program, struct buffer_group bg, AM4 model_matrix)
 {	
+	glBindVertexArray(bg.vao);
 	GLfloat mvm_buf[16];
-	checkErrors("Before setting uniforms.");
+	checkErrors("Before setting uniforms");
 	AM4 model_view_matrix = AM4_mult(inv_eye_frame, model_matrix);
+	//Send model_view_matrix.
 	AM4_to_array(mvm_buf, LENGTH(mvm_buf), model_view_matrix);
-	glUniformMatrix4fv(program->MVM, 1, GL_TRUE, mvm_buf);
-	mat3_v3_to_array(mvm_buf, LENGTH(mvm_buf), mat3_transp(model_view_matrix.a), (V3){{{0, 0, 0}}});
-	glUniformMatrix4fv(program->NMVM, 1, GL_TRUE, mvm_buf);
-	checkErrors("Before glDrawElements");
-	setup_attrib_for_draw(program->vPos, bg.vbo, GL_FLOAT, 3);
-	setup_attrib_for_draw(program->vColor, bg.cbo, GL_FLOAT, 3);
-	setup_attrib_for_draw(program->vNormal, bg.nbo, GL_FLOAT, 3);
-	//indices
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
-	glDrawElements(GL_TRIANGLES, bg.index_count, GL_UNSIGNED_INT, NULL);
-	checkErrors("After glDrawElements");
-	//Clean up?
-	glDisableVertexAttribArray(program->vPos);
-	glDisableVertexAttribArray(program->vColor);
-	glDisableVertexAttribArray(program->vNormal);
+	glUniformMatrix4fv(program->model_view_matrix, 1, GL_TRUE, mvm_buf);
+	//Send model_matrix
+	AM4_to_array(mvm_buf, LENGTH(mvm_buf), model_matrix);
+	glUniformMatrix4fv(program->model_matrix, 1, GL_TRUE, mvm_buf);
+	//Send transpmodel_matrix.
+	mat3_v3_to_array(mvm_buf, LENGTH(mvm_buf), mat3_transp(model_matrix.a), (V3){{{0, 0, 0}}});
+	glUniformMatrix4fv(program->transp_model_matrix, 1, GL_TRUE, mvm_buf);
+	//Draw!
+	glDrawElements(bg.primitive_type, bg.index_count, GL_UNSIGNED_INT, NULL);
+}
+
+static void draw_forward(struct shader_prog *program, struct buffer_group bg, AM4 model_matrix)
+{
+	glBindVertexArray(bg.vao);
+	GLfloat mvm_buf[16];
+	AM4 model_view_matrix = AM4_mult(inv_eye_frame, model_matrix);
+	//Send model_view_matrix.
+	AM4_to_array(mvm_buf, LENGTH(mvm_buf), model_view_matrix);
+	glUniformMatrix4fv(program->model_view_matrix, 1, GL_TRUE, mvm_buf);
+	//Send model_matrix
+	AM4_to_array(mvm_buf, LENGTH(mvm_buf), model_matrix);
+	glUniformMatrix4fv(program->model_matrix, 1, GL_TRUE, mvm_buf);
+	//Send normal_model_view_matrix
+	mat3_v3_to_array(mvm_buf, LENGTH(mvm_buf), mat3_transp(model_matrix.a), (V3){{{0, 0, 0}}});
+	glUniformMatrix4fv(program->model_view_normal_matrix, 1, GL_TRUE, mvm_buf);
+	//Draw!
+	glDrawElements(bg.primitive_type, bg.index_count, GL_UNSIGNED_INT, NULL);
 }
 
 static void buffer_quad(GLuint *vbo, GLuint *ibo)
 {
+	glBindVertexArray(gVAO);
 	glGenBuffers(1, vbo);
 	glGenBuffers(1, ibo);
 	GLfloat positions[] = {
@@ -221,8 +233,88 @@ static void buffer_quad(GLuint *vbo, GLuint *ibo)
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 }
 
+V3 height_map1(float x, float z)
+{
+	return (V3){{{x, sin(z) + sin(x), z}}};
+}
+
+//Cheap trick to get normals, should replace with something faster eventually.
+V3 height_map_normal1(float x, float z)
+{
+	float delta = 0.0001;
+	V3 v0 = height_map1(x, z);
+	V3 v1 = height_map1(x+delta, z);
+	V3 v2 = height_map1(x, z+delta);
+
+	return v3_normalize(v3_cross(v3_sub(v2, v0), v3_sub(v1, v0)));
+	//return (V3){{{0, 1, 0}}};
+}
+
+static struct buffer_group buffer_grid(int numrows, int numcols)
+{
+	//Sort of green color
+	V3 color = {{{0.4, 0.7, 0.3}}};
+	struct buffer_group tmp;
+	tmp.index_count = (2 * numcols + 1) * (numrows - 1);
+	glGenVertexArrays(1, &tmp.vao);
+	glBindVertexArray(tmp.vao);
+	glGenBuffers(1, &tmp.ibo);
+	glGenBuffers(LENGTH(tmp.buffer_handles), tmp.buffer_handles);
+	int atrlen = sizeof(V3) * numrows * numcols;
+	int indlen = sizeof(GLuint) * tmp.index_count;
+	V3 *positions = (V3 *)malloc(atrlen);
+	V3 *normals = (V3 *)malloc(atrlen);
+	V3 *colors = (V3 *)malloc(atrlen);
+	GLuint *indices = (GLuint *)malloc(indlen);
+
+	//Generate vertices.
+	for (int i = 0; i < numrows; i++) {
+		for (int j = 0; j < numcols; j++) {
+			int offset = (numcols * i) + j;
+			V3 pos = height_map1(i, j);
+			V3 norm = height_map_normal1(i, j);
+			positions[offset] = pos;
+			normals[offset] = norm;
+			colors[offset] = color;
+		}
+	}
+	//Generate indices
+	for (int i = 0; i < (numrows - 1); i++) {
+		int j = 0;
+		int col_offset = i*(numcols*2+1);
+		for (j = 0; j < numcols; j++) {
+			indices[col_offset + j*2]     = i*numcols + j + numcols;
+			indices[col_offset + j*2 + 1] = i*numcols + j;
+		}
+		indices[col_offset + j*2] = PRIMITIVE_RESTART_INDEX;
+	}
+
+	setup_attrib_for_draw(forward_program.vPos,    tmp.vbo, GL_FLOAT, 3);
+	setup_attrib_for_draw(forward_program.vNormal, tmp.nbo, GL_FLOAT, 3);
+	setup_attrib_for_draw(forward_program.vColor,  tmp.cbo, GL_FLOAT, 3);
+	glEnable(GL_PRIMITIVE_RESTART);
+	glPrimitiveRestartIndex(PRIMITIVE_RESTART_INDEX);
+	tmp.primitive_type = GL_TRIANGLE_STRIP;
+	glBindBuffer(GL_ARRAY_BUFFER, tmp.vbo);
+	glBufferData(GL_ARRAY_BUFFER, atrlen, positions, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, tmp.nbo);
+	glBufferData(GL_ARRAY_BUFFER, atrlen, normals, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, tmp.cbo);
+	glBufferData(GL_ARRAY_BUFFER, atrlen, colors, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tmp.ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indlen, indices, GL_STATIC_DRAW);
+
+	free(positions);
+	free(normals);
+	free(colors);
+	free(indices);
+
+	return tmp;
+}
+
 static void draw_light(struct shader_prog *program, struct point_light_attributes *lights, int i)
 {
+	glBindVertexArray(gVAO);
 	//Buffer the MVM to the shader.
 	GLfloat mvm_buf[16];
 	float radius = lights->radius[i];
@@ -237,9 +329,8 @@ static void draw_light(struct shader_prog *program, struct point_light_attribute
 	// AM4_to_array(mvm_buf, LENGTH(mvm_buf), model_view_matrix);
 	// glUniformMatrix4fv(program->MVM, 1, GL_TRUE, mvm_buf);
 
-	V3 light_position_camera_space = AM4_multpoint(inv_eye_frame, position);
-	glUniform3f(program->uLight_pos, light_position_camera_space.x, light_position_camera_space.y, light_position_camera_space.z);
-	glUniform3f(program->uLight_col, color.r, color.g, color.b);
+	glUniform3fv(program->uLight_pos, 1, position.A);
+	glUniform3fv(program->uLight_col, 1, color.A);
 	glUniform4f(program->uLight_attr, lights->atten_c[i], lights->atten_l[i], lights->atten_e[i], lights->intensity[i]);
 
 	// setup_attrib_for_draw(program->vPos, quad_vbo, GL_FLOAT, 3);
@@ -253,6 +344,7 @@ static void draw_light(struct shader_prog *program, struct point_light_attribute
 
 static void draw_light_wireframe(struct shader_prog *program, struct point_light_attributes *lights, int i)
 {
+	glBindVertexArray(gVAO);
 	//Buffer the MVM to the shader.
 	GLfloat mvm_buf[16];
 	float radius = lights->radius[i];
@@ -261,7 +353,7 @@ static void draw_light_wireframe(struct shader_prog *program, struct point_light
 	AM4 model_view_matrix = AM4_mult(inv_eye_frame, model_matrix);
 	AM4_to_array(mvm_buf, LENGTH(mvm_buf), model_view_matrix);
 	glUniformMatrix4fv(program->MVM, 1, GL_TRUE, mvm_buf);
-	glUniform3f(program->uLight_col, color.r, color.g, color.b);
+	glUniform3fv(program->uLight_col, 1, color.A);
 
 	setup_attrib_for_draw(program->vPos, icosphere_buffers.vbo, GL_FLOAT, 3);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, icosphere_buffers.ibo);
@@ -273,19 +365,29 @@ static void draw_light_wireframe(struct shader_prog *program, struct point_light
 static void render_to_deferred(struct shader_prog *program)
 {
 	glUseProgram(program->handle);
-
+	//draw_vcol_vnorm(program, big_asteroid_buffers, big_asteroid_frame);
 	draw_vcol_vnorm(program, newship_buffers, ship_frame);
-	if (axes[LEFTY] < 0) {
-		draw_vcol_vnorm(program, thrust_flare_buffers, ship_frame);
-	}
+	// if (axes[LEFTY] < 0) {
+	// 	draw_vcol_vnorm(program, thrust_flare_buffers, ship_frame);
+	// }
 	draw_vcol_vnorm(program, room_buffers, room_frame);
+	draw_forward(program, grid_buffers, grid_frame);
+}
+
+static void render_effects_pass(struct shader_prog *program)
+{
+	glUseProgram(program->handle);
+	glClear(GL_COLOR_BUFFER_BIT); //Clear the previous scene.
+	setup_attrib_for_draw(program->vPos, quad_vbo, GL_FLOAT, 3);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_ibo);
+	glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_INT, NULL);
 }
 
 //Draw the deferred framebuffer textures to the screen, for debugging.
 static void blit_deferred()
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glClearColor(0.0f, 0.0f, 0.25f, 1.0f);
+	//glClearColor(0.0f, 0.0f, 0.25f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, gbuffer.fbo);
 
@@ -301,8 +403,12 @@ static void blit_deferred()
 	glReadBuffer(GL_COLOR_ATTACHMENT0 + GBUFFER_TEXTURE_TYPE_NORMAL);
 	glBlitFramebuffer(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, HalfWidth, HalfHeight, SCREEN_WIDTH, SCREEN_HEIGHT, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 
-	// glReadBuffer(GL_COLOR_ATTACHMENT0 + GBUFFER_TEXTURE_TYPE_TEXCOORD);
-	// glBlitFramebuffer(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, HalfWidth, 0, SCREEN_WIDTH, HalfHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, lbuffer.fbo);
+	if (key_state[SDL_SCANCODE_4])
+		glReadBuffer(GL_COLOR_ATTACHMENT1);
+	else
+		glReadBuffer(GL_COLOR_ATTACHMENT0);
+	glBlitFramebuffer(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, HalfWidth, 0, SCREEN_WIDTH, HalfHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 	checkErrors("After rendering from deferred."); 
 }
 
@@ -310,12 +416,14 @@ static void draw_point_lights(struct point_light_attributes *lights)
 {
 	int num_lights = lights->num_lights;
 	glUseProgram(point_light_program.handle);
+	glUniform3fv(point_light_program.camera_position, 1, eye_frame.A);
 	for (int i = 0; i < num_lights; i++)
 		if (lights->enabled_for_draw[i])
 			draw_light(&point_light_program, lights, i);
 
 	if (draw_light_bounds) {
 		glDisable(GL_BLEND);
+		glEnable(GL_DEPTH_TEST);
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		glUseProgram(point_light_wireframe_program.handle);
 		for (int i = 0; i < num_lights; i++)
@@ -323,33 +431,79 @@ static void draw_point_lights(struct point_light_attributes *lights)
 				draw_light_wireframe(&point_light_wireframe_program, lights, i);
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		glEnable(GL_BLEND);
+		glDisable(GL_DEPTH_TEST);
+	}
+}
+
+static void forward_update_point_lights(struct shader_prog *program, struct point_light_attributes *lights)
+{
+	char buf[50];
+	int num_lights = lights->num_lights;
+	for (int i = 0; i < num_lights; i++) {
+		V3 position = lights->position[i];
+		sprintf(buf, "uLight_pos[%i]", i);
+		glUniform3fv(glGetUniformLocation(program->handle, buf), 1, position.A);
+		sprintf(buf, "uLight_col[%i]", i);
+		glUniform3fv(glGetUniformLocation(program->handle, buf), 1, lights->color[i].A);
+		sprintf(buf, "uLight_attr[%i]", i);
+		glUniform4f(glGetUniformLocation(program->handle, buf), lights->atten_c[i], lights->atten_l[i], lights->atten_e[i], lights->enabled_for_draw[i]?lights->intensity[i]:0.0);
 	}
 }
 
 void render()
 {
 	inv_eye_frame = AM4_inverse(eye_frame); //Only need to do this once per frame.
-	//Begin the deferred pass setup.
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, gbuffer.fbo);
-	glDepthMask(GL_TRUE); //Enable depth writing, so that depth culling works.
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glEnable(GL_DEPTH_TEST); //Depth testing.
-	glEnable(GL_CULL_FACE); //Backface culling.
-	glDisable(GL_BLEND); //No blending, or we'll get weird artifacts at discontinuities.
-	//Render vertex attributes to the gbuffer.
-	render_to_deferred(&deferred_program);
-	//Begin the lighting pass.
-	bind_deferred_for_reading(gbuffer);
-	glDepthMask(GL_FALSE); //We don't want to write to the depth buffer.
-	glDisable(GL_DEPTH_TEST); //Lights can occupy the same volume, so we don't want depth testing.
-	glEnable(GL_BLEND); //We're going to blend the contribution from each individual light.
-	glBlendEquation(GL_FUNC_ADD); //The light contributions get blended additively.
-	glBlendFunc(GL_ONE, GL_ONE); //Just straight addition.
-	glDisable(GL_CULL_FACE); //We'll need the backfaces for some fancy stencil buffer tricks.
-	glClear(GL_COLOR_BUFFER_BIT); //Clear the previous scene.
-	draw_point_lights(&point_lights);
-	//blit_deferred(); //Use this to overlay the deferred buffers, for debugging.
-	glUseProgram(0);
+
+	if (DEFERRED_MODE || key_state[SDL_SCANCODE_5]) {
+		//Begin the deferred pass setup.
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, gbuffer.fbo);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glDisable(GL_BLEND); //No blending, or we'll get weird artifacts at discontinuities.
+		//Render vertex attributes to the gbuffer.
+		render_to_deferred(&deferred_program);
+		//Begin the lighting pass.
+		bind_deferred_for_reading(gbuffer, lbuffer);
+		glBlitFramebuffer(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+		glDepthMask(GL_FALSE); //We don't want to write to the depth buffer.
+		glDisable(GL_DEPTH_TEST); //Lights can occupy the same volume, so we don't want depth testing.
+		glEnable(GL_BLEND); //We're going to blend the contribution from each individual light.
+		glBlendEquation(GL_FUNC_ADD); //The light contributions get blended additively.
+		glBlendFunc(GL_ONE, GL_ONE); //Just straight addition.
+		//glDisable(GL_CULL_FACE); //We'll need the backfaces for some fancy stencil buffer tricks.
+		glCullFace(GL_FRONT); //For now, we'll just cull front faces to avoid double brightness.
+		glClear(GL_COLOR_BUFFER_BIT); //Clear the previous scene.
+		draw_point_lights(&point_lights);
+		//Effects pass / sky pass / gamma correction / bloom will go here.
+		bind_accumulation_for_reading(lbuffer);
+		//glEnable(GL_FOG);
+		glCullFace(GL_BACK);
+		render_effects_pass(&effects_program);
+		//glDisable(GL_FOG);
+		if (key_state[SDL_SCANCODE_3])
+			blit_deferred(); //Use this to overlay the deferred buffers, for debugging.
+		glUseProgram(0);
+		glEnable(GL_DEPTH_TEST); //Depth testing.
+		//glEnable(GL_CULL_FACE); //Backface culling.
+		glDepthMask(GL_TRUE); //Enable depth writing, so that depth culling works.
+		//checkErrors("Before TwDraw()");
+		//TwDraw();
+		//checkErrors("After TwDraw()");
+	} else {
+		glEnable(GL_DEPTH_TEST);
+		glEnable(GL_CULL_FACE);
+		glDisable(GL_BLEND);
+		glDepthMask(GL_TRUE); //Enable depth writing, so that depth culling works.
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glUseProgram(forward_program.handle);
+		checkErrors("After glUseProgram(forward_program.handle)");
+		forward_update_point_lights(&forward_program, &point_lights);
+		checkErrors("After forward_update_point_lights");
+		glUniform3fv(forward_program.camera_position, 1, eye_frame.A);
+		draw_forward(&forward_program, newship_buffers, ship_frame);
+		draw_forward(&forward_program, room_buffers, room_frame);
+		draw_forward(&forward_program, grid_buffers, grid_frame);
+		checkErrors("After forward junk");
+	}
 }
 
 void update(float dt)
@@ -364,7 +518,9 @@ void update(float dt)
 	float rs = 1/600000.0;
 
 	//If you're moving forward, turn the light on to show it.
-	point_lights.enabled_for_draw[2] = (axes[LEFTY] < 0)?TRUE:FALSE;
+	//point_lights.enabled_for_draw[2] = (axes[LEFTY] < 0)?TRUE:FALSE;
+	point_lights.enabled_for_draw[2] = key_state[SDL_SCANCODE_6];
+	//point_lights.intensity[3] = mindwave_attention / 10.0;
 	float camera_speed = 20;
 	float ship_speed = 12000;
 	if (key_state[SDL_SCANCODE_2])
@@ -376,6 +532,7 @@ void update(float dt)
 		(key_state[SDL_SCANCODE_RIGHT] - key_state[SDL_SCANCODE_LEFT]) * dt * camera_speed,
 		0,
 		(key_state[SDL_SCANCODE_DOWN] - key_state[SDL_SCANCODE_UP]) * dt * camera_speed}}});
+	//grid_frame.t = point_lights.position[3];
 	//Set the ship's acceleration using the controller axes.
 	V3 acceleration = mat3_multvec(ship_frame.a, (V3){{{
 		axes[LEFTX] * ts,

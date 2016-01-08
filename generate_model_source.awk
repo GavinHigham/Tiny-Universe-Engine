@@ -11,10 +11,14 @@ FNR == 1 {
 	name = arr[length(arr)-1]
 	models[name]
 
-	data[name, "positions"] = "\tGLfloat positions[] = {"
-	data[name, "normals"] = "\tGLfloat normals[] = {"
-	data[name, "colors"] = "\tGLfloat colors[] = {"
-	data[name, "indices"] = "\tGLuint indices[] = {"
+	counts[name"positions"] = 0
+	counts[name"normals"] = 0
+	counts[name"colors"] = 0
+	counts[name"indices"] = 0
+	data[name"positions", counts[name"positions"]++] = "\tGLfloat positions[] = {"
+	data[name"normals", counts[name"normals"]++] = "\tGLfloat normals[] = {"
+	data[name"colors", counts[name"colors"]++] = "\tGLfloat colors[] = {"
+	data[name"indices", counts[name"indices"]++] = "\tGLuint indices[] = {"
 	reading_vertices = 0
 	reading_indices = 0
 	just_started = 1
@@ -35,20 +39,20 @@ FNR == 1 {
 			reading_vertices = 0
 			just_started = 1
 		}
-		data[name, "positions"] = data[name, "positions"] "\n\t\t" $1 ", " $2 ", " $3 ","
+		data[name"positions", counts[name"positions"]++] = "\t\t" $1 ", " $2 ", " $3 ","
 		if (data[name, "using_normals"])
-			data[name, "normals"] = data[name, "normals"] "\n\t\t" $4 ", " $5 ", " $6 ","
+			data[name"normals", counts[name"normals"]++] = "\t\t" $4 ", " $5 ", " $6 ","
 		if (data[name, "using_colors"])
-			data[name, "colors"] = data[name, "colors"] "\n\t\t" $7*color_scale ", " $8*color_scale ", " $9*color_scale ","
+			data[name"colors", counts[name"colors"]++] = "\t\t" $7*color_scale ", " $8*color_scale ", " $9*color_scale ","
 	} else {
 		just_started = 0
 	}
 }
 reading_indices {
 	if (!just_started) {
-		data[name, "indices"] = data[name, "indices"] "\n\t\t" $2 ", " $3 ", " $4 ","
+		data[name"indices", counts[name"indices"]++] = "\t\t" $2 ", " $3 ", " $4 ","
 		if ($1 == 4) {
-			data[name, "indices"] = data[name, "indices"] " " $5 ","
+			data[name"indices", counts[name"indices"] - 1] = data[name"indices", counts[name"indices"] - 1] " " $5 ","
 		}
 	} else {
 		just_started = 0
@@ -58,12 +62,27 @@ END {
 	for (model_name in models) {
 		print "int buffer_" model_name "(struct buffer_group bg)"
 		print "{"
-		print substr(data[model_name, "positions"], 1, length(data[model_name, "positions"])-1) "\n\t};\n"
-		if (data[model_name, "using_normals"])
-			print substr(data[model_name, "normals"], 1, length(data[model_name, "normals"])-1) "\n\t};\n"
-		if (data[model_name, "using_colors"])
-			print substr(data[model_name, "colors"], 1, length(data[model_name, "colors"])-1) "\n\t};\n"
-		print substr(data[model_name, "indices"], 1, length(data[model_name, "indices"])-1) "\n\t};\n"
+
+		for (i = 0; i < counts[model_name"positions"] - 1; i++)
+			print data[model_name"positions", i]
+		print substr(data[model_name"positions", i], 1, length(data[model_name"positions", i])-1) "\n\t};\n"
+
+		if (data[model_name, "using_normals"]) {
+			for (i = 0; i < counts[model_name"normals"] - 1; i++)
+				print data[model_name"normals", i]
+			print substr(data[model_name"normals", i], 1, length(data[model_name"normals", i])-1) "\n\t};\n"
+		}
+
+		if (data[model_name, "using_colors"]) {
+			for (i = 0; i < counts[model_name"colors"] - 1; i++)
+				print data[model_name"colors", i]
+			print substr(data[model_name"colors", i], 1, length(data[model_name"colors", i])-1) "\n\t};\n"
+		}
+
+		for (i = 0; i < counts[model_name"indices"] - 1; i++)
+			print data[model_name"indices", i]
+		print substr(data[model_name"indices", i], 1, length(data[model_name"indices", i])-1) "\n\t};\n"
+		
 		print "\tglBindBuffer(GL_ARRAY_BUFFER, bg.vbo);"
 		print "\tglBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);"
 		if (data[model_name, "using_colors"]) {

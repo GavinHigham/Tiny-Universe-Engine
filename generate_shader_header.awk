@@ -22,7 +22,11 @@ FNR == 1 {
 }
 #uniforms and attributes are not handled on a per-shader/per-program basis :/
 ($1 == "in" && ext == "vs") {attributes[substr($3, 1, length($3)-1)]}
-($1 == "uniform") {uniforms[substr($3, 1, length($3)-1)]}
+($1 == "uniform") {
+	split($3, split_result, "[\[;]"); #Hopefully this will make arrays work.
+	unif_name = split_result[1]#substr($3, 1, length($3)-1)
+	uniforms[split_result[1]]#substr($3, 1, length($3)-1)]
+}
 END {
 	print "struct shader_prog {"
 	print "\tGLuint handle;"

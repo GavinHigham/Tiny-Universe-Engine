@@ -11,6 +11,7 @@
 #include "keyboard.h"
 #include "render.h"
 #include "controller.h"
+#include "pthread.h"
 
 #define FALSE 0
 #define TRUE 1
@@ -25,14 +26,16 @@ int loop_iter_ave = 0;
 SDL_Renderer *renderer = NULL;
 SDL_Window *window = NULL;
 //When quit is set to true, the main loop will break, quitting the program.
-static int quit = GL_FALSE;
+int quit = GL_FALSE;
 //quit_event will be called when the user clicks the close button.
 int SDLCALL quit_event(void *userdata, SDL_Event *e);
+extern int mindwave_thread(void *data);
 
 int main()
 {
 	SDL_Event e;
 	SDL_GLContext context;
+	//SDL_Thread *mindwave_thread_handle = SDL_CreateThread(mindwave_thread, "Mindwave Thread", NULL);
 
 	if (init(&context, &window) < 0) {
 		printf("Something went wrong in init! Aborting.\n");
@@ -68,6 +71,7 @@ int main()
 			SDL_Delay(FRAME_TIME_MS - ms_since_update - WAKE_EARLY_MS); //Sleep up until WAKE_EARLY_MS milliseconds left. (Busywait the rest)
 		}
 	}
+	//SDL_WaitThread(mindwave_thread_handle, NULL);
 	deinit(context, window);
 	return 0;
 }
