@@ -39,11 +39,11 @@ light_fragment point_light_fragment(vec3 l, vec3 v, vec3 normal)
 	return tmp;
 }
 
-light_fragment point_light_fragment_2(vec3 l, vec3 v, vec3 normal)
+light_fragment point_light_fragment2(vec3 l, vec3 v, vec3 normal)
 {
 	light_fragment tmp;
     // set important material values
-    float roughnessValue = 0.3; // 0 : smooth, 1: rough
+    float roughnessValue = 0.09; // 0 : smooth, 1: rough
     float F0 = 0.8; // fresnel reflectance at normal incidence
     float k = 0.2; // fraction of diffuse reflection (specular reflection = 1 - k)
 
@@ -94,7 +94,7 @@ void main() {
 	vec3 normal = normalize(fNormal);
 	vec3 final_color = vec3(0.0);
 	vec3 ambient_color = vec3(1.0, 0.9, 0.9);
-	float ambient_intensity = 0.2;
+	float ambient_intensity = 0.5;
 	vec3 v = normalize(camera_position-fPos); //View vector.
 	for (int i = 0; i < NUM_LIGHTS; i++) {
 		float distance = distance(fPos, uLight_pos[i]);
@@ -102,13 +102,13 @@ void main() {
 
 		vec3 l = normalize(uLight_pos[i]-fPos); //Light vector.
 
-		light_fragment p = point_light_fragment(l, v, normal);
+		light_fragment p = point_light_fragment2(l, v, normal);
 		vec3 diffuse_frag = fColor*uLight_col[i]*uLight_attr[i][INTENSITY]*p.diffuse/attenuation;
 		vec3 specular_frag = fColor*uLight_col[i]*uLight_attr[i][INTENSITY]*p.specular/attenuation;
 		final_color = final_color + (diffuse_frag + specular_frag);
 	}
 
-	light_fragment p = point_light_fragment(normalize(vec3(0.1, 0.9, 0.2)), v, fNormal);
+	light_fragment p = point_light_fragment2(normalize(vec3(0.1, 0.9, 0.2)), v, fNormal);
 	final_color += (p.diffuse+p.specular)*fColor*ambient_color*ambient_intensity;
 
 	//Tone mapping.

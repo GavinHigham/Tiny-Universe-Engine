@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <assert.h>
 #include "configuration_file.h"
@@ -53,6 +54,75 @@ int config_expose_float3(struct config_buf *cb, float *ptr, char *tag_name)
 	return config_expose(cb, (void *)ptr, tag_name, _CONFIG_FLOAT3);
 }
 
+int config_expose_bool(struct config_buf *cb, int *ptr, char *tag_name)
+{
+	return config_expose(cb, (void *)ptr, tag_name, _CONFIG_BOOL);
+}
+
+int config_expose_multiple(struct config_buf *cb, void **ptrs, char **tag_names, int len, enum config_var_type type)
+{
+		for (int i = 0; i < len; i++) {
+		int error = config_expose(cb, ptrs[i], tag_names[i], type);
+		if (error)
+			return error;
+	}
+	return 0;
+}
+
+int config_expose_ints(struct config_buf *cb, int **ptrs, char **tag_names, int len)
+{
+	return config_expose_multiple(cb, (void **)ptrs, tag_names, len, _CONFIG_INT);
+}
+
+int config_expose_floats(struct config_buf *cb, float **ptrs, char **tag_names, int len)
+{
+	return config_expose_multiple(cb, (void **)ptrs, tag_names, len, _CONFIG_FLOAT);
+}
+
+int config_expose_float3s(struct config_buf *cb, float **ptrs, char **tag_names, int len)
+{
+	return config_expose_multiple(cb, (void **)ptrs, tag_names, len, _CONFIG_FLOAT3);
+}
+
+int config_expose_bools(struct config_buf *cb, bool **ptrs, char **tag_names, int len)
+{
+	return config_expose_multiple(cb, (void **)ptrs, tag_names, len, _CONFIG_BOOL);
+}
+
+void config_parse_set_value(struct config_var var, char *value)
+{
+	float *fptr = ((float *)var.var_ptr);
+	switch (var.type) {
+	case _CONFIG_INT:
+		sscanf(value, "%i", (int *)var.var_ptr);
+		break;
+	case _CONFIG_FLOAT:
+		sscanf(value, "%f", fptr);
+		break;
+	case _CONFIG_FLOAT3:
+		sscanf(value, "%f %f %f", fptr, fptr + 1, fptr + 2);
+		break;
+	case _CONFIG_BOOL:
+		{
+			char *bstr = strtok(value, " \t\n"); //get rid of whitespace
+			if (bstr) {
+				//"true" and "false" are the only valid bool values
+				if (!strcmp("true", bstr))
+					*((int *)var.var_ptr) = 1;
+				else if (!strcmp("false", bstr))
+					*((int *)var.var_ptr) = 0;
+			}
+			printf("bool string: %s\n", bstr);
+		}
+		break;
+	case _CONFIG_STRING:
+		assert(0); //Not yet implemented.
+		break;
+	default:
+		break;
+	}	
+}
+
 int config_load(struct config_buf cb, char *file_path)
 {
 	FILE * fp;
@@ -66,31 +136,13 @@ int config_load(struct config_buf cb, char *file_path)
 
 	while ((read = getline(&line, &len, fp)) != -1) {
 		printf("%s", line);
-		char *value = strchr(line, ':');
-		if (value) {
-			*value = '\0';
-			value++;
-			for (int i = 0; i < cb.var_buf_used_len; i++) {
-				if (strcmp(line, cb.var_buf[i].tag) == 0) {
-					struct config_var var = cb.var_buf[i];
-					//char *value = strtok(NULL, delimiters);
-					float *fptr = ((float *)var.var_ptr);
-					switch (var.type) {
-					case _CONFIG_INT:
-						sscanf(value, "%i", (int *)var.var_ptr);
-						break;
-					case _CONFIG_FLOAT:
-						sscanf(value, "%f", fptr);
-						break;
-					case _CONFIG_FLOAT3:
-						sscanf(value, "%f %f %f", fptr, fptr + 1, fptr + 2);
-						break;
-					case _CONFIG_STRING:
-						assert(0); //Not yet implemented.
-						break;
-					default:
-						break;
-					}
+		char *value = strchr(line, ':'); //Try to find the colon
+		if (value) { //if we found the colon,
+			*value = '\0'; //turn it into a \0 to terminate the tag string
+			value++; //then advance the pointer to look at the value, if there is one
+			for (int i = 0; i < cb.var_buf_used_len; i++) { //loop through the tags we recognize
+				if (strcmp(line, cb.var_buf[i].tag) == 0) { //if there's a match, do the thing
+					config_parse_set_value(cb.var_buf[i], value);
 				}
 			}
 		}

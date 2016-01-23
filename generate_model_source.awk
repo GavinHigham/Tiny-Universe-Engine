@@ -5,6 +5,7 @@ BEGIN {
 	print "#include <GL/glew.h>"
 	print "#include \"buffer_group.h\"\n"
 	color_scale = 1/255.0
+	gamma = 2.2
 }
 FNR == 1 {
 	split(FILENAME, arr, /[\/\.]/)
@@ -43,7 +44,7 @@ FNR == 1 {
 		if (data[name, "using_normals"])
 			data[name"normals", counts[name"normals"]++] = "\t\t" $4 ", " $5 ", " $6 ","
 		if (data[name, "using_colors"])
-			data[name"colors", counts[name"colors"]++] = "\t\t" $7*color_scale ", " $8*color_scale ", " $9*color_scale ","
+			data[name"colors", counts[name"colors"]++] = "\t\t" ($7*color_scale)^gamma ", " ($8*color_scale)^gamma ", " ($9*color_scale)^gamma ","
 	} else {
 		just_started = 0
 	}

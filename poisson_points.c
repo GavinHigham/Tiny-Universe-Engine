@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdbool.h>
 #include <math.h>
 #include "vector3.h"
 #include "macros.h"
@@ -50,6 +51,7 @@ void poisson_grid_add_point(V3 point, struct poisson_grid *grid)
 
 int valid_poisson_point(V3 point, struct poisson_grid *grid)
 {
+	V3 
 	if (point_in_bounds(point, grid->corner1, grid->corner2)) {
 		for (int i = -2; i < 3; i++) {
 			for (int j = -2; j < 3; j++) {

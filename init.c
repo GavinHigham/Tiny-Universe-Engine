@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <GL/glew.h>
 #include <SDL2/SDL.h>
 //#include <SDL2/SDL_opengl.h>
@@ -110,7 +111,7 @@ int init_gl(SDL_GLContext *context, SDL_Window *window)
 
 int init_glew()
 {
-	glewExperimental = TRUE;
+	glewExperimental = true;
 	GLenum glewError = glewInit();
 	checkErrors("After glewInit");
 	if (glewError != GLEW_OK) {

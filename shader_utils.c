@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -36,7 +37,7 @@ static int init_shader_uniforms(struct shader_prog *program, struct shader_info 
 	return 0;
 }
 
-void printLog(GLuint handle, int is_program)
+void printLog(GLuint handle, bool is_program)
 {
 	//Why write two log printing functions when you can use FUNCTION POINTERS AND TERNARY OPERATORS >:D
 	GLboolean (*glIsLOGTYPE)(GLuint)                                  = is_program? glIsProgram         : glIsShader;
@@ -58,7 +59,7 @@ void printLog(GLuint handle, int is_program)
 	}
 }
 
-static int init_shader_program(struct shader_prog *program, const GLchar **vs_source, const GLchar **fs_source)
+static int init_shader_program(struct shader_prog *program, const GLchar **vs_source, const GLchar **fs_source, const char *vs_path, const char *fs_path)
 {
 	program->handle = glCreateProgram();
 	//Vertex shader part
@@ -66,11 +67,11 @@ static int init_shader_program(struct shader_prog *program, const GLchar **vs_so
 	glShaderSource(vshader, 1, vs_source, NULL);
 	glCompileShader(vshader);
 
-	GLint success = FALSE;
+	GLint success = false;
 	glGetShaderiv(vshader, GL_COMPILE_STATUS, &success);
-	if (success != TRUE) {
-		printf("Unable to compile vertex shader %d!\n", vshader);
-		printLog(vshader, FALSE);
+	if (success != true) {
+		printf("Unable to compile vertex shader %d! (Path: %s)\n", vshader, vs_path);
+		printLog(vshader, false);
 		return -1;
 	}
 	glAttachShader(program->handle, vshader);
@@ -79,20 +80,20 @@ static int init_shader_program(struct shader_prog *program, const GLchar **vs_so
 	glShaderSource(fshader, 1, fs_source, NULL);
 	glCompileShader(fshader);
 
-	success = FALSE;
+	success = false;
 	glGetShaderiv(fshader, GL_COMPILE_STATUS, &success);
-	if (success != TRUE) {
-		printf("Unable to compile fragment shader %d!\n", fshader);
-		printLog(fshader, FALSE);
+	if (success != true) {
+		printf("Unable to compile fragment shader %d! (Path: %s)\n", fshader, fs_path);
+		printLog(fshader, false);
 		return -1;
 	}
 	glAttachShader(program->handle, fshader);
 	glLinkProgram(program->handle);
-	success = TRUE;
+	success = true;
 	glGetProgramiv(program->handle, GL_LINK_STATUS, &success);
-	if (success != TRUE) {
-		printf("Unable to link program %d!\n", program->handle);
-		printLog(program->handle, TRUE);
+	if (success != true) {
+		printf("Unable to link program %d! (%s, %s)\n", program->handle, vs_path, fs_path);
+		printLog(program->handle, true);
 		return -1;
 	}
 	glDeleteShader(vshader);
@@ -100,7 +101,7 @@ static int init_shader_program(struct shader_prog *program, const GLchar **vs_so
 	return 0;
 }
 
-static int init_shader(struct shader_prog *program, struct shader_info info, int reload)
+static int init_shader(struct shader_prog *program, struct shader_info info, bool reload)
 {
 	if (reload) {
 		//Delete existing program
@@ -122,7 +123,7 @@ static int init_shader(struct shader_prog *program, struct shader_info info, int
 		fs_source[buf.st_size] = '\0';
 
 		struct shader_prog program_copy = *program;
-		int error = init_shader_program(&program_copy, (const GLchar **)&vs_source, (const GLchar **)&fs_source);
+		int error = init_shader_program(&program_copy, (const GLchar **)&vs_source, (const GLchar **)&fs_source, *info.vs_file_path, *info.fs_file_path);
 		free(vs_source);
 		free(fs_source);
 		if (error) {
@@ -131,7 +132,7 @@ static int init_shader(struct shader_prog *program, struct shader_info info, int
 		}
 		glDeleteProgram(program->handle);
 		*program = program_copy;
-	} else if (init_shader_program(program, info.vs_source, info.fs_source)) {
+	} else if (init_shader_program(program, info.vs_source, info.fs_source, *info.vs_file_path, *info.fs_file_path)) {
 		printf("Could not compile shader program.\n");
 		return -1;
 	}
@@ -146,7 +147,7 @@ static int init_shader(struct shader_prog *program, struct shader_info info, int
 	return 0;
 }
 
-static int init_or_reload_shaders(struct shader_prog **programs, struct shader_info **infos, int numprogs, int reload)
+static int init_or_reload_shaders(struct shader_prog **programs, struct shader_info **infos, int numprogs, bool reload)
 {
 	for (int i = 0; i < numprogs; i++) {
 		int result = init_shader(programs[i], *infos[i], reload);
@@ -161,10 +162,10 @@ static int init_or_reload_shaders(struct shader_prog **programs, struct shader_i
 
 int init_shaders(struct shader_prog **programs, struct shader_info **infos, int numprogs)
 {
-	return init_or_reload_shaders(programs, infos, numprogs, FALSE);
+	return init_or_reload_shaders(programs, infos, numprogs, false);
 }
 
 int reload_shaders(struct shader_prog **programs, struct shader_info **infos, int numprogs)
 {
-	return init_or_reload_shaders(programs, infos, numprogs, TRUE);
+	return init_or_reload_shaders(programs, infos, numprogs, true);
 }

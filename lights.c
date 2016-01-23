@@ -1,6 +1,6 @@
 #include <math.h>
 #include "lights.h"
-#include "macros.h"
+#include "stdbool.h"
 #define BITS_PER_COLOR_CHANNEL 16
 
 float point_light_radius(struct point_light_attributes *lights, int i)
@@ -29,7 +29,7 @@ int new_point_light(struct point_light_attributes *lights, V3 position, V3 color
 	lights->atten_e[num_lights] = atten_e;
 	lights->intensity[num_lights] = intensity;
 	lights->radius[num_lights] = point_light_radius(lights, num_lights);
-	lights->enabled_for_draw[num_lights] = TRUE;
+	lights->enabled_for_draw[num_lights] = true;
 	lights->num_lights++;
 	return 0;
 }

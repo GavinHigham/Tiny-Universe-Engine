@@ -1,14 +1,14 @@
-CC = clang
+CC = gcc
 SDL = -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW 
 CFLAGS = -Wall -c -std=c99 -g -O3 -pthread
 LDFLAGS = $(SDL) -lAntTweakBar -ljansson
 OBJECTS = main.o init.o image_load.o global_images.o keyboard.o render.o shaders.o \
 affine_matrix4.o matrix3.o vector3.o models.o buffer_group.o controller.o deferred_framebuffer.o \
-lights.o func_list.o shader_utils.o gl_utils.o mindwave_thread.o
+lights.o func_list.o shader_utils.o gl_utils.o procedural_terrain.o
 SHADERS = shaders/*
 MODELS = models/*
 SHADER_GENERATORS = generate_shader_source.awk generate_shader_header.awk
-EXE = hello_sdl
+EXE = sock
 
 all: $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(EXE)

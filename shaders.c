@@ -287,6 +287,72 @@ struct shader_info deferred_info = {
 	.vs_file_path = deferred_vs_file_path,
 	.fs_file_path = deferred_fs_file_path
 };
+const char *skybox_vs_file_path[] = {"shaders/skybox.vs"};
+const char *skybox_fs_file_path[] = {"shaders/skybox.fs"};
+const char *skybox_vs_source[] = {
+"#version 330 \n"
+"\n"
+"in vec3 vPos; \n"
+"\n"
+"uniform mat4 model_matrix;\n"
+"uniform mat4 model_view_matrix;\n"
+"uniform mat4 projection_matrix;\n"
+"\n"
+"out vec3 fPos;\n"
+"\n"
+"void main()\n"
+"{\n"
+"	gl_Position = projection_matrix * (model_view_matrix * vec4(vPos, 1));\n"
+"	fPos = vec3(model_matrix * vec4(vPos, 1));\n"
+"}\n"
+};
+const char *skybox_fs_source[] = {
+"#version 330\n"
+"\n"
+"uniform vec3 camera_position;\n"
+"\n"
+"in vec3 fPos;\n"
+"out vec4 LFragment;\n"
+"\n"
+"void main() {\n"
+"	vec3 sun_dir = normalize(vec3(1, 1, 1));\n"
+"	float gamma = 2.2;\n"
+"	vec3 v = normalize(camera_position-fPos); //View vector.\n"
+"	float sky = dot(v, vec3(0, 1, 0)); //sky direction, determines whiteness\n"
+"	float sun = dot(v, sun_dir); //sun direction, determines brightness\n"
+"	vec3 ambient = vec3(0.0, 0.05, 0.2); //minimum amount of light\n"
+"	vec3 sky_color = sun*vec3(0.1, 0.1, 1) + ambient;\n"
+"	//vec3 sky_color = 4*s*vec3(0.1,0.3,0.8)+ambient;//*vec3(.6)+vec3(0.1,0.3,0.8);\n"
+"\n"
+"	vec3 final_color = sky_color;\n"
+"\n"
+"	//Tone mapping.\n"
+"	final_color = final_color / (final_color + vec3(1.0));\n"
+"	//Gamma correction.\n"
+"	final_color = pow(final_color, vec3(1.0 / gamma));\n"
+"   	LFragment = vec4(final_color, 1.0);\n"
+"   	//LFragment = vec4(fColor, 1.0);\n"
+"}\n"
+};
+const GLchar *skybox_attribute_names[] = {"vNormal", "vColor", "vPos"};
+const GLchar *skybox_uniform_names[] = {"gPositionMap", "gNormalMap", "gColorMap", "model_matrix", "projection_matrix", "gScreenSize", "diffuse_light", "specular_light", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "MVM", "model_view_normal_matrix", "transp_model_matrix", "camera_position"};
+static const int skybox_attribute_count = sizeof(skybox_attribute_names)/sizeof(skybox_attribute_names[0]);
+static const int skybox_uniform_count = sizeof(skybox_uniform_names)/sizeof(skybox_uniform_names[0]);
+GLint skybox_attributes[skybox_attribute_count];
+GLint skybox_uniforms[skybox_uniform_count];
+struct shader_prog skybox_program = {
+	.handle = 0,
+	.attr = {-1, -1, 0},
+	.unif = {-1, -1, -1, 0, 0, -1, -1, -1, -1, -1, -1, 0, -1, -1, -1, 0}
+};
+struct shader_info skybox_info = {
+	.vs_source = skybox_vs_source,
+	.fs_source = skybox_fs_source,
+	.attr_names = skybox_attribute_names,
+	.unif_names = skybox_uniform_names,
+	.vs_file_path = skybox_vs_file_path,
+	.fs_file_path = skybox_fs_file_path
+};
 const char *point_light_wireframe_vs_file_path[] = {"shaders/point_light_wireframe.vs"};
 const char *point_light_wireframe_fs_file_path[] = {"shaders/point_light_wireframe.fs"};
 const char *point_light_wireframe_vs_source[] = {
@@ -397,11 +463,11 @@ const char *forward_fs_source[] = {
 "	return tmp;\n"
 "}\n"
 "\n"
-"light_fragment point_light_fragment_2(vec3 l, vec3 v, vec3 normal)\n"
+"light_fragment point_light_fragment2(vec3 l, vec3 v, vec3 normal)\n"
 "{\n"
 "	light_fragment tmp;\n"
 "    // set important material values\n"
-"    float roughnessValue = 0.3; // 0 : smooth, 1: rough\n"
+"    float roughnessValue = 0.09; // 0 : smooth, 1: rough\n"
 "    float F0 = 0.8; // fresnel reflectance at normal incidence\n"
 "    float k = 0.2; // fraction of diffuse reflection (specular reflection = 1 - k)\n"
 "\n"
@@ -452,7 +518,7 @@ const char *forward_fs_source[] = {
 "	vec3 normal = normalize(fNormal);\n"
 "	vec3 final_color = vec3(0.0);\n"
 "	vec3 ambient_color = vec3(1.0, 0.9, 0.9);\n"
-"	float ambient_intensity = 0.2;\n"
+"	float ambient_intensity = 0.5;\n"
 "	vec3 v = normalize(camera_position-fPos); //View vector.\n"
 "	for (int i = 0; i < NUM_LIGHTS; i++) {\n"
 "		float distance = distance(fPos, uLight_pos[i]);\n"
@@ -460,13 +526,13 @@ const char *forward_fs_source[] = {
 "\n"
 "		vec3 l = normalize(uLight_pos[i]-fPos); //Light vector.\n"
 "\n"
-"		light_fragment p = point_light_fragment(l, v, normal);\n"
+"		light_fragment p = point_light_fragment2(l, v, normal);\n"
 "		vec3 diffuse_frag = fColor*uLight_col[i]*uLight_attr[i][INTENSITY]*p.diffuse/attenuation;\n"
 "		vec3 specular_frag = fColor*uLight_col[i]*uLight_attr[i][INTENSITY]*p.specular/attenuation;\n"
 "		final_color = final_color + (diffuse_frag + specular_frag);\n"
 "	}\n"
 "\n"
-"	light_fragment p = point_light_fragment(normalize(vec3(0.1, 0.9, 0.2)), v, fNormal);\n"
+"	light_fragment p = point_light_fragment2(normalize(vec3(0.1, 0.9, 0.2)), v, fNormal);\n"
 "	final_color += (p.diffuse+p.specular)*fColor*ambient_color*ambient_intensity;\n"
 "\n"
 "	//Tone mapping.\n"
@@ -496,5 +562,5 @@ struct shader_info forward_info = {
 	.vs_file_path = forward_vs_file_path,
 	.fs_file_path = forward_fs_file_path
 };
-struct shader_prog *shader_programs[] = {&effects_program, &point_light_program, &deferred_program, &point_light_wireframe_program, &forward_program};
-struct shader_info *shader_infos[] = {&effects_info, &point_light_info, &deferred_info, &point_light_wireframe_info, &forward_info};
+struct shader_prog *shader_programs[] = {&effects_program, &point_light_program, &deferred_program, &skybox_program, &point_light_wireframe_program, &forward_program};
+struct shader_info *shader_infos[] = {&effects_info, &point_light_info, &deferred_info, &skybox_info, &point_light_wireframe_info, &forward_info};

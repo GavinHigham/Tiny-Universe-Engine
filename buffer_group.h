@@ -2,7 +2,6 @@
 #define BUFFER_GROUP_H
 #include <GL/glew.h>
 #include "shaders.h"
-#include "macros.h"
 
 #define BG_BUFFER_NORMALS   1
 #define BG_BUFFER_COLORS    2

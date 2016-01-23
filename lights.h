@@ -1,5 +1,6 @@
 #ifndef LIGHTS_H
 #define LIGHTS_H
+#include <stdbool.h>
 #include "vector3.h"
 
 #define MAX_NUM_LIGHTS 1000
@@ -12,7 +13,7 @@ struct point_light_attributes {
 	float atten_e[MAX_NUM_LIGHTS]; //Exponontial attenuation.
 	float intensity[MAX_NUM_LIGHTS]; //Light intensity.
 	float radius[MAX_NUM_LIGHTS];
-	int enabled_for_draw[MAX_NUM_LIGHTS]; //TRUE or FALSE
+	bool enabled_for_draw[MAX_NUM_LIGHTS];
 	int num_lights; //Number of created lights.
 };
 
