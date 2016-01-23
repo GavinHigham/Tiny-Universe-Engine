@@ -8,7 +8,7 @@
 #include "global_images.h"
 #include "init.h"
 #include "default_settings.h"
-#include "shaders.h"
+#include "shaders/shaders.h"
 #include "shader_utils.h"
 #include "gl_utils.h"
 #include "render.h"

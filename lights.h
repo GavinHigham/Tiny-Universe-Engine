@@ -1,7 +1,7 @@
 #ifndef LIGHTS_H
 #define LIGHTS_H
 #include <stdbool.h>
-#include "vector3.h"
+#include "math/vector3.h"
 
 #define MAX_NUM_LIGHTS 1000
 

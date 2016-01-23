@@ -6,7 +6,7 @@
 #include <sys/stat.h>
 #include <GL/glew.h>
 #include "macros.h"
-#include "shaders.h"
+#include "shaders/shaders.h"
 #include "gl_utils.h"
 
 static int init_shader_attributes(struct shader_prog *program, struct shader_info info)

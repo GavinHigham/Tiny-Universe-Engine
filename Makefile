@@ -2,36 +2,42 @@ CC = gcc
 SDL = -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW 
 CFLAGS = -Wall -c -std=c99 -g -O3 -pthread
 LDFLAGS = $(SDL)
-OBJECTS = main.o init.o image_load.o global_images.o keyboard.o render.o shaders.o \
-affine_matrix4.o matrix3.o vector3.o models.o buffer_group.o controller.o deferred_framebuffer.o \
-lights.o func_list.o shader_utils.o gl_utils.o procedural_terrain.o
-SHADERS = shaders/*
-MODELS = models/*
-SHADER_GENERATORS = generate_shader_source.awk generate_shader_header.awk
+MATH_OBJECTS = math/affine_matrix4.o math/matrix3.o math/vector3.o
+MODELS_OBJECTS = models/models.o
+SHADERS_OBJECTS = shaders/shaders.o
+CONFIGURATION_OBJECTS = configuration/configuration_file.o
+OBJECTS = main.o init.o image_load.o global_images.o keyboard.o render.o \
+buffer_group.o controller.o deferred_framebuffer.o lights.o func_list.o shader_utils.o gl_utils.o \
+procedural_terrain.o $(MATH_OBJECTS) $(MODELS_OBJECTS) $(SHADERS_OBJECTS) $(CONFIGURATION_OBJECTS)
 EXE = sock
 
-all: $(OBJECTS)
+all: $(OBJECTS) math_module models_module shaders_module configuration_module
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(EXE)
 
-init.o: shaders.h
+init.o: shaders_module
 
-render.o: shaders.h models.h
+math_module:
+	cd math; make
 
-models.c: $(MODELS) generate_model_source.awk models.h
-	awk -f generate_model_source.awk $(MODELS) > models.c
+models_module:
+	cd models; make
 
-models.h: $(MODELS) generate_model_header.awk
-	awk -f generate_model_header.awk $(MODELS) > models.h
+shaders_module:
+	cd shaders; make
 
-shaders.c: $(SHADERS) $(SHADER_GENERATORS) shaders.h
-	awk -f generate_shader_source.awk $(SHADERS) > shaders.c
+configuration_module:
+	cd configuration; make
 
-shaders.h: $(SHADERS) $(SHADER_GENERATORS)
-	awk -f generate_shader_header.awk $(SHADERS) > shaders.h
+render.o: shaders_module models_module
 
-buffer_group.h: shaders.h
+buffer_group.h: shaders_module
 
 buffer_group.c: buffer_group.h
 
 clean:
 	rm $(OBJECTS) && rm $(EXE)
+
+rclean: clean
+	cd math; make clean
+	cd models; make clean
+	cd shaders; make clean

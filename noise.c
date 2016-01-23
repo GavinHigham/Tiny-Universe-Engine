@@ -1,4 +1,4 @@
-#include "vector3.h"
+#include "math/vector3.h"
 
 //
 // Description : Array and textureless GLSL 2D/3D/4D simplex 

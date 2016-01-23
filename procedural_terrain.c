@@ -2,7 +2,7 @@
 #include <math.h>
 #include <GL/glew.h>
 #include "procedural_terrain.h"
-#include "vector3.h"
+#include "math/vector3.h"
 #include "buffer_group.h"
 #include "macros.h"
 #include "render.h"

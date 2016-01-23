@@ -1,7 +1,7 @@
 #ifndef BUFFER_GROUP_H
 #define BUFFER_GROUP_H
 #include <GL/glew.h>
-#include "shaders.h"
+#include "shaders/shaders.h"
 
 #define BG_BUFFER_NORMALS   1
 #define BG_BUFFER_COLORS    2
