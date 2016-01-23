@@ -1,7 +1,7 @@
 CC = gcc
 SDL = -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW 
 CFLAGS = -Wall -c -std=c99 -g -O3 -pthread
-LDFLAGS = $(SDL) -lAntTweakBar -ljansson
+LDFLAGS = $(SDL)
 OBJECTS = main.o init.o image_load.o global_images.o keyboard.o render.o shaders.o \
 affine_matrix4.o matrix3.o vector3.o models.o buffer_group.o controller.o deferred_framebuffer.o \
 lights.o func_list.o shader_utils.o gl_utils.o procedural_terrain.o
