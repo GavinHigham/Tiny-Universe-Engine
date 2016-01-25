@@ -9,50 +9,50 @@
 
 extern int PRIMITIVE_RESTART_INDEX;
 
-V3 height_map1(float x, float z)
+VEC3 height_map1(float x, float z)
 {
 	float height = 0;
 	int octaves = 5;
 	for (int i = 1; i <= octaves; i++)
 		height += i*sin(z/i) + i*sin(x/i);
-	return (V3){{{x, height, z}}};
+	return (VEC3){{{x, height, z}}};
 }
 
 //Cheap trick to get normals, should replace with something faster eventually.
-V3 height_map_normal1(float x, float z)
+VEC3 height_map_normal1(float x, float z)
 {
 	float delta = 0.0001;
-	V3 v0 = height_map1(x, z);
-	V3 v1 = height_map1(x+delta, z);
-	V3 v2 = height_map1(x, z+delta);
+	VEC3 v0 = height_map1(x, z);
+	VEC3 v1 = height_map1(x+delta, z);
+	VEC3 v2 = height_map1(x, z+delta);
 
-	return v3_normalize(v3_cross(v3_sub(v2, v0), v3_sub(v1, v0)));
-	//return (V3){{{0, 1, 0}}};
+	return vec3_normalize(vec3_cross(vec3_sub(v2, v0), vec3_sub(v1, v0)));
+	//return (VEC3){{{0, 1, 0}}};
 }
 
 struct buffer_group buffer_grid(int numrows, int numcols)
 {
 	//Sort of green color
-	V3 color = {{{0.8, 0.8, 0.8}}};
+	VEC3 color = {{{0.8, 0.8, 0.8}}};
 	struct buffer_group tmp;
 	tmp.index_count = (2 * numcols + 1) * (numrows - 1);
 	glGenVertexArrays(1, &tmp.vao);
 	glBindVertexArray(tmp.vao);
 	glGenBuffers(1, &tmp.ibo);
 	glGenBuffers(LENGTH(tmp.buffer_handles), tmp.buffer_handles);
-	int atrlen = sizeof(V3) * numrows * numcols;
+	int atrlen = sizeof(VEC3) * numrows * numcols;
 	int indlen = sizeof(GLuint) * tmp.index_count;
-	V3 *positions = (V3 *)malloc(atrlen);
-	V3 *normals = (V3 *)malloc(atrlen);
-	V3 *colors = (V3 *)malloc(atrlen);
+	VEC3 *positions = (VEC3 *)malloc(atrlen);
+	VEC3 *normals = (VEC3 *)malloc(atrlen);
+	VEC3 *colors = (VEC3 *)malloc(atrlen);
 	GLuint *indices = (GLuint *)malloc(indlen);
 
 	//Generate vertices.
 	for (int i = 0; i < numrows; i++) {
 		for (int j = 0; j < numcols; j++) {
 			int offset = (numcols * i) + j;
-			V3 pos = height_map1(i, j);
-			V3 norm = height_map_normal1(i, j);
+			VEC3 pos = height_map1(i, j);
+			VEC3 norm = height_map_normal1(i, j);
 			positions[offset] = pos;
 			normals[offset] = norm;
 			colors[offset] = color;

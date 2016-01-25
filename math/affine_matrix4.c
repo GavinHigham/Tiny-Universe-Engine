@@ -16,9 +16,9 @@
  6  7  8
 */
 
-AM4 AM4_mult_b(AM4 a, AM4 b)
+AMAT4 amat4_mult_b(AMAT4 a, AMAT4 b)
 {
-	AM4 tmp = {
+	AMAT4 tmp = {
 		.A = {
 			//First row
 			a.A[0] * b.A[0] + a.A[1] * b.A[3] + a.A[2] * b.A[6],
@@ -48,9 +48,9 @@ AM4 AM4_mult_b(AM4 a, AM4 b)
 	return tmp;
 }
 
-AM4 AM4_mult(AM4 a, AM4 b)
+AMAT4 amat4_mult(AMAT4 a, AMAT4 b)
 {
-	AM4 tmp = {
+	AMAT4 tmp = {
 		.A = {
 			//Top row
 			a.A[0] * b.A[0] + a.A[1] * b.A[3] + a.A[2] * b.A[6],
@@ -75,9 +75,9 @@ AM4 AM4_mult(AM4 a, AM4 b)
 	return tmp;
 }
 
-V3 AM4_multpoint(AM4 a, V3 b)
+VEC3 amat4_multpoint(AMAT4 a, VEC3 b)
 {
-	V3 tmp = {{{
+	VEC3 tmp = {{{
 		a.A[0]*b.x + a.A[1]*b.y + a.A[2]*b.z + a.x,
 		a.A[3]*b.x + a.A[4]*b.y + a.A[5]*b.z + a.y,
 		a.A[6]*b.x + a.A[7]*b.y + a.A[8]*b.z + a.z
@@ -85,9 +85,9 @@ V3 AM4_multpoint(AM4 a, V3 b)
 	return tmp;
 }
 
-V3 AM4_multvec(AM4 a, V3 b)
+VEC3 amat4_multvec(AMAT4 a, VEC3 b)
 {
-	V3 tmp = {{{
+	VEC3 tmp = {{{
 		a.A[0]*b.x + a.A[1]*b.y + a.A[2]*b.z,
 		a.A[3]*b.x + a.A[4]*b.y + a.A[5]*b.z,
 		a.A[6]*b.x + a.A[7]*b.y + a.A[8]*b.z
@@ -95,10 +95,10 @@ V3 AM4_multvec(AM4 a, V3 b)
 	return tmp;
 }
 
-AM4 AM4_rot(AM4 a, float ux, float uy, float uz, float angle)
+AMAT4 amat4_rot(AMAT4 a, float ux, float uy, float uz, float angle)
 {
-	AM4 b = AM4_rotmat(ux, uy, uz, angle);
-	AM4 tmp = {
+	AMAT4 b = amat4_rotmat(ux, uy, uz, angle);
+	AMAT4 tmp = {
 		.A = {
 			//Top row
 			a.A[0] * b.A[0] + a.A[1] * b.A[3] + a.A[2] * b.A[6],
@@ -119,7 +119,7 @@ AM4 AM4_rot(AM4 a, float ux, float uy, float uz, float angle)
 	return tmp;
 }
 
-AM4 AM4_trans(AM4 a, float x, float y, float z)
+AMAT4 amat4_trans(AMAT4 a, float x, float y, float z)
 {
 	a.x += x;
 	a.y += y;
@@ -127,7 +127,7 @@ AM4 AM4_trans(AM4 a, float x, float y, float z)
 	return a;
 }
 
-void AM4_to_array(float *buf, int len, AM4 a)
+void amat4_to_array(float *buf, int len, AMAT4 a)
 {
 	assert(len == 16);
 	float tmp[] = {
@@ -139,12 +139,12 @@ void AM4_to_array(float *buf, int len, AM4 a)
 	memcpy(buf, tmp, sizeof(tmp));
 };
 
-AM4 AM4_rotmat(float ux, float uy, float uz, float angle)
+AMAT4 amat4_rotmat(float ux, float uy, float uz, float angle)
 {
 	float s = sin(angle);
 	float c = cos(angle);
 	float c1 = 1-c;
-	AM4 tmp = {
+	AMAT4 tmp = {
 		.A = {
 			c + ux*ux*c1, ux*uy*c1 - uz*s, ux*uz*c1 + uy*s, 
 			uy*ux*c1 + uz*s, c + uy*uy*c1, uy*uz*c1 - ux*s,
@@ -156,7 +156,7 @@ AM4 AM4_rotmat(float ux, float uy, float uz, float angle)
 	return tmp;
 }
 
-AM4 AM4_rotmat_lomult(float ux, float uy, float uz, float angle)
+AMAT4 amat4_rotmat_lomult(float ux, float uy, float uz, float angle)
 {
 	float s = sin(angle);
 	float c = cos(angle);
@@ -167,7 +167,7 @@ AM4 AM4_rotmat_lomult(float ux, float uy, float uz, float angle)
 	float uxs = ux * s;    //Costs one multiply, saves two
 	float uys = uy * s;    //Costs one multiply, saves two
 	float uzs = uz * s;    //Costs one multiply, saves two
-	AM4 tmp = {
+	AMAT4 tmp = {
 		.A = {
 			c + ux*uxc1, uy*uxc1 - uzs, uz*uxc1 + uys, 
 			uy*uxc1 + uzs, c + uy*uyc1, uyzc1 - uxs,
@@ -179,12 +179,12 @@ AM4 AM4_rotmat_lomult(float ux, float uy, float uz, float angle)
 	return tmp;
 }
 
-AM4 AM4_lookat(V3 p, V3 q, V3 u)
+AMAT4 amat4_lookat(VEC3 p, VEC3 q, VEC3 u)
 {
-	V3 z = v3_normalize(v3_sub(q, p));
-	V3 y = v3_normalize(u);
-	V3 x = v3_cross(y, z);
-	AM4 tmp = {
+	VEC3 z = vec3_normalize(vec3_sub(q, p));
+	VEC3 y = vec3_normalize(u);
+	VEC3 x = vec3_cross(y, z);
+	AMAT4 tmp = {
 		.A = {
 			x.x, y.x, z.x,
 			x.y, y.y, z.y,
@@ -197,9 +197,9 @@ AM4 AM4_lookat(V3 p, V3 q, V3 u)
 	return tmp;
 }
 
-AM4 AM4_inverse(AM4 a)
+AMAT4 amat4_inverse(AMAT4 a)
 {
-	AM4 tmp = {
+	AMAT4 tmp = {
 		.A = {
 			a.A[0], a.A[3], a.A[6],
 			a.A[1], a.A[4], a.A[7],
@@ -214,7 +214,7 @@ AM4 AM4_inverse(AM4 a)
 	return tmp;
 }
 
-void AM4_print(AM4 a)
+void amat4_print(AMAT4 a)
 {
 	printf("%f %f %f\n", a.A[0], a.A[1], a.A[2]);
 	printf("%f %f %f\n", a.A[3], a.A[4], a.A[5]);

@@ -17,7 +17,7 @@ float point_light_radius(struct point_light_attributes *lights, int i)
 	return d;
 }
 
-int new_point_light(struct point_light_attributes *lights, V3 position, V3 color, float atten_c, float atten_l, float atten_e, float intensity)
+int new_point_light(struct point_light_attributes *lights, VEC3 position, VEC3 color, float atten_c, float atten_l, float atten_e, float intensity)
 {
 	int num_lights = lights->num_lights;
 	if (num_lights == MAX_NUM_LIGHTS)
