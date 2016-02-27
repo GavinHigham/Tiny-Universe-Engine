@@ -8,7 +8,7 @@ FNR == 1 {
 	name = arr[length(arr)-1]
 	ext  = arr[length(arr)]
 	programs[name]
-	filepaths[name, ext] = "const char *"name"_"ext"_file_path[] = {\""FILENAME"\"};"
+	filepaths[name, ext] = "const char *"name"_"ext"_file_path[] = {\"shaders/"FILENAME"\"};"
 	shaders[name, ext] = "const char *" name"_"ext"_source[] = {\n"
 }
 #uniforms and attributes are not handled on a per-shader/per-program basis :/
@@ -55,8 +55,12 @@ END {
 			}
 			print filepaths[prog, "vs"]
 			print filepaths[prog, "fs"]
+			print filepaths[prog, "gs"]
 			print shaders[prog, "vs"] "};"
 			print shaders[prog, "fs"] "};"
+			if ((prog, "gs") in shaders) {
+				print shaders[prog, "gs"] "};"
+			}
 			print "const GLchar *"prog"_attribute_names[] = {"substr(attr_string, 1, length(attr_string)-2)"};"
 			print "const GLchar *"prog"_uniform_names[] = {"substr(unif_string, 1, length(unif_string)-2)"};"
 			print "static const int "prog"_attribute_count = sizeof("prog"_attribute_names)/sizeof("prog"_attribute_names[0]);"
@@ -71,10 +75,20 @@ END {
 			print "struct shader_info "prog"_info = {"
 			print "	.vs_source = "prog"_vs_source,"
 			print "	.fs_source = "prog"_fs_source,"
+			if ((prog, "gs") in shaders) {
+				print "	.gs_source = "prog"_gs_source,"
+			} else {
+				print "	.gs_source = NULL,"
+			}
 			print "	.attr_names = "prog"_attribute_names,"
 			print "	.unif_names = "prog"_uniform_names,"
 			print "	.vs_file_path = "prog"_vs_file_path,"
-			print "	.fs_file_path = "prog"_fs_file_path"
+			print "	.fs_file_path = "prog"_fs_file_path,"
+			if ((prog, "gs") in shaders) {
+				print "	.gs_file_path = "prog"_gs_file_path"
+			} else {
+				print "	.gs_file_path = NULL"
+			}
 			print "};"
 			shader_programs = shader_programs "&"prog"_program, "
 			shader_infos = shader_infos "&"prog"_info, "

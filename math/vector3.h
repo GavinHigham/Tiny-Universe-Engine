@@ -1,6 +1,7 @@
 #ifndef VECTOR3_H
 #define VECTOR3_H
 
+//Typedef as a union later!
 typedef struct VEC3 {
 	union {
 		float A[3];

@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <GL/glew.h>
+#include <assert.h>
 #include "macros.h"
 #include "shaders/shaders.h"
 #include "gl_utils.h"
@@ -59,14 +60,18 @@ void printLog(GLuint handle, bool is_program)
 	}
 }
 
-static int init_shader_program(struct shader_prog *program, const GLchar **vs_source, const GLchar **fs_source, const char *vs_path, const char *fs_path)
+static int init_shader_program(struct shader_prog *program,
+	const GLchar **vs_source, const char *vs_path,
+	const GLchar **fs_source, const char *fs_path,
+	const GLchar **gs_source, const char *gs_path)
 {
 	program->handle = glCreateProgram();
+	const GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
+	const GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
+	const GLuint gshader = glCreateShader(GL_GEOMETRY_SHADER);
 	//Vertex shader part
-	GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vshader, 1, vs_source, NULL);
 	glCompileShader(vshader);
-
 	GLint success = false;
 	glGetShaderiv(vshader, GL_COMPILE_STATUS, &success);
 	if (success != true) {
@@ -76,10 +81,8 @@ static int init_shader_program(struct shader_prog *program, const GLchar **vs_so
 	}
 	glAttachShader(program->handle, vshader);
 	//Fragment shader part
-	const GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(fshader, 1, fs_source, NULL);
 	glCompileShader(fshader);
-
 	success = false;
 	glGetShaderiv(fshader, GL_COMPILE_STATUS, &success);
 	if (success != true) {
@@ -88,16 +91,30 @@ static int init_shader_program(struct shader_prog *program, const GLchar **vs_so
 		return -1;
 	}
 	glAttachShader(program->handle, fshader);
+	//Geometry shader part, optional
+	if (gs_source && gs_path) {
+		glShaderSource(gshader, 1, gs_source, NULL);
+		glCompileShader(gshader);
+		GLint success = false;
+		glGetShaderiv(gshader, GL_COMPILE_STATUS, &success);
+		if (success != true) {
+			printf("Unable to compile vertex shader %d! (Path: %s)\n", gshader, gs_path);
+			printLog(gshader, false);
+			return -1;
+		}
+		glAttachShader(program->handle, gshader);
+	}
 	glLinkProgram(program->handle);
 	success = true;
 	glGetProgramiv(program->handle, GL_LINK_STATUS, &success);
 	if (success != true) {
-		printf("Unable to link program %d! (%s, %s)\n", program->handle, vs_path, fs_path);
+		printf("Unable to link program %d! (%s, %s, %s)\n", program->handle, vs_path, fs_path, gs_path);
 		printLog(program->handle, true);
 		return -1;
 	}
 	glDeleteShader(vshader);
 	glDeleteShader(fshader);
+	glDeleteShader(gshader);
 	return 0;
 }
 
@@ -121,18 +138,36 @@ static int init_shader(struct shader_prog *program, struct shader_info info, boo
 		read(fd, fs_source, buf.st_size);
 		close(fd);
 		fs_source[buf.st_size] = '\0';
+		//Load in the geometry shader, it's optional
+		GLchar *gs_source = NULL;
+		if (info.gs_file_path) {
+			fd = open(*info.gs_file_path, O_RDONLY);
+			fstat(fd, &buf);
+			gs_source = (GLchar *) malloc(buf.st_size+1);
+			read(fd, gs_source, buf.st_size);
+			close(fd);
+			gs_source[buf.st_size] = '\0';
+		}
 
 		struct shader_prog program_copy = *program;
-		int error = init_shader_program(&program_copy, (const GLchar **)&vs_source, (const GLchar **)&fs_source, *info.vs_file_path, *info.fs_file_path);
+		int error = init_shader_program(&program_copy,
+			(const GLchar **)&vs_source, *info.vs_file_path,
+			(const GLchar **)&fs_source, *info.fs_file_path,
+			(const GLchar **)&gs_source, info.gs_file_path?*info.gs_file_path:NULL);
 		free(vs_source);
 		free(fs_source);
+		if (info.gs_file_path)
+			free(gs_source);
 		if (error) {
 			printf("Could not compile shader program.\n");
 			return -1;
 		}
 		glDeleteProgram(program->handle);
 		*program = program_copy;
-	} else if (init_shader_program(program, info.vs_source, info.fs_source, *info.vs_file_path, *info.fs_file_path)) {
+	} else if (init_shader_program(program,
+		(const GLchar **)info.vs_source, *info.vs_file_path,
+		(const GLchar **)info.fs_source, *info.fs_file_path,
+		(const GLchar **)info.gs_source, info.gs_file_path?*info.gs_file_path:NULL)) {
 		printf("Could not compile shader program.\n");
 		return -1;
 	}

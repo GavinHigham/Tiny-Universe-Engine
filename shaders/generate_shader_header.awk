@@ -7,10 +7,12 @@ BEGIN {
 	print "struct shader_info {"
 	print "	const GLchar **vs_source;"
 	print "	const GLchar **fs_source;"
+	print "	const GLchar **gs_source;"
 	print "	const GLchar **attr_names;"
 	print "	const GLchar **unif_names;"
 	print "	const char **vs_file_path;"
 	print "	const char **fs_file_path;"
+	print "	const char **gs_file_path;"
 	print "};"
 }
 FNR == 1 {

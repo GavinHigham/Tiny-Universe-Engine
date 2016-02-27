@@ -8,7 +8,6 @@
 #include "main.h"
 #include "init.h"
 #include "image_load.h"
-#include "global_images.h"
 #include "keyboard.h"
 #include "render.h"
 #include "controller.h"

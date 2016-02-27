@@ -6,10 +6,12 @@
 struct shader_info {
 	const GLchar **vs_source;
 	const GLchar **fs_source;
+	const GLchar **gs_source;
 	const GLchar **attr_names;
 	const GLchar **unif_names;
 	const char **vs_file_path;
 	const char **fs_file_path;
+	const char **gs_file_path;
 };
 struct shader_prog {
 	GLuint handle;
@@ -49,7 +51,8 @@ extern struct shader_prog deferred_program;
 extern struct shader_prog skybox_program;
 extern struct shader_prog point_light_wireframe_program;
 extern struct shader_prog forward_program;
-extern struct shader_prog *shader_programs[6];
-extern struct shader_info *shader_infos[6];
+extern struct shader_prog stars_program;
+extern struct shader_prog *shader_programs[7];
+extern struct shader_info *shader_infos[7];
 
 #endif

@@ -5,7 +5,6 @@
 #include <SDL2/SDL.h>
 //#include <SDL2/SDL_opengl.h>
 #include <SDL2_image/SDL_image.h>
-#include "global_images.h"
 #include "init.h"
 #include "default_settings.h"
 #include "shaders/shaders.h"
@@ -39,7 +38,7 @@ int init(SDL_GLContext *context, SDL_Window **window)
 		printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
 		return error;
 	}
-	*window = SDL_CreateWindow("SDL Tutorial", WINDOW_OFFSET_X, WINDOW_OFFSET_Y, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL);
+	*window = SDL_CreateWindow("Sock Engine", WINDOW_OFFSET_X, WINDOW_OFFSET_Y, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL);
 	if (window == NULL) {
 		printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
 		return -1;
@@ -123,7 +122,6 @@ int init_glew()
 
 void deinit(SDL_GLContext context, SDL_Window *window)
 {
-	SDL_DestroyTexture(texture);
 	SDL_DestroyWindow(window);
 	SDL_GL_DeleteContext(context);
 	IMG_Quit();
