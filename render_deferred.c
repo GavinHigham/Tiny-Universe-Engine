@@ -93,7 +93,7 @@ static void draw_vcol_vnorm(struct shader_prog *program, struct buffer_group bg,
 	amat4_to_array(mvm_buf, LENGTH(mvm_buf), model_matrix);
 	glUniformMatrix4fv(program->model_matrix, 1, GL_TRUE, mvm_buf);
 	//Send transpmodel_matrix.
-	mat3_vec3_to_array(mvm_buf, LENGTH(mvm_buf), mat3_transp(model_matrix.a), (VEC3){{{0, 0, 0}}});
+	mat3_vec3_to_array(mvm_buf, LENGTH(mvm_buf), mat3_transp(model_matrix.a), (VEC3){{0, 0, 0}});
 	glUniformMatrix4fv(program->transp_model_matrix, 1, GL_TRUE, mvm_buf);
 	//Draw!
 	glDrawElements(bg.primitive_type, bg.index_count, GL_UNSIGNED_INT, NULL);

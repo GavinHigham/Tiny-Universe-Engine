@@ -21,12 +21,12 @@
 #include "gl_utils.h"
 #include "procedural_terrain.h"
 #include "render_deferred.h"
+#include "stars.h"
 
 #define FOV M_PI/2.5
 int PRIMITIVE_RESTART_INDEX = 0xFFFF;
 
 #define DEFERRED_MODE false
-#define NUM_STARS 100000
 
 static struct counted_func update_funcs_storage[10];
 struct func_list update_func_list = {
@@ -46,8 +46,6 @@ struct buffer_group grid_buffers;
 struct buffer_group cube_buffers;
 GLuint quad_vbo;
 GLuint quad_ibo;
-GLuint stars_vbo;
-GLuint stars_vao;
 GLuint gVAO = 0;
 extern bool draw_light_bounds;
 AMAT4 eye_frame = {.a = MAT3_IDENT, .T = {0, 0, 0}};
@@ -58,7 +56,6 @@ AMAT4 grid_frame = {.a = MAT3_IDENT, .T = {-30, -3, -30}};
 AMAT4 big_asteroid_frame = {.a = MAT3_IDENT, .T = {0, -4, -20}};
 static VEC3 skybox_scale;
 struct point_light_attributes point_lights = {.num_lights = 0};
-VEC3 star_buffer[NUM_STARS];
 
 GLfloat proj_mat[16];
 //static GLuint deferred_buffer = 0;
@@ -104,27 +101,14 @@ static void deinit_models()
 static void init_lights()
 {
 	//                             Position,            color,                atten_c, atten_l, atten_e, intensity
-	new_point_light(&point_lights, (VEC3){{{0, 0, 0}}},   (VEC3){{{1.0, 0.2, 0.2}}}, 0.0,     0.0,    1,    20);
-	new_point_light(&point_lights, (VEC3){{{0, 0, 0}}},   (VEC3){{{1.0, 1.0, 1.0}}}, 0.0,     0.0,    1,    50);
-	new_point_light(&point_lights, (VEC3){{{0, 0, 0}}},   (VEC3){{{0.8, 0.8, 1.0}}}, 0.0,     0.3,    0.04, 0.4);
-	new_point_light(&point_lights, (VEC3){{{10, 3, -7}}}, (VEC3){{{0.4, 1.0, 0.4}}}, 0.1,     0.14,   0.07, 0.75);
+	new_point_light(&point_lights, (VEC3){{0, 0, 0}},   (VEC3){{1.0, 0.2, 0.2}}, 0.0,     0.0,    1,    20);
+	new_point_light(&point_lights, (VEC3){{0, 0, 0}},   (VEC3){{1.0, 1.0, 1.0}}, 0.0,     0.0,    1,    50);
+	new_point_light(&point_lights, (VEC3){{0, 0, 0}},   (VEC3){{0.8, 0.8, 1.0}}, 0.0,     0.3,    0.04, 0.4);
+	new_point_light(&point_lights, (VEC3){{10, 2, -7}}, (VEC3){{0.4, 1.0, 0.4}}, 0.1,     0.14,   0.07, 0.75);
 
 	for (int i = 0; i < point_lights.num_lights; i++) {
 		printf("Light %i radius is %f\n", i, point_lights.radius[i]);
 	}
-}
-
-float rand_float()
-{
-	return (float)((double)rand()/RAND_MAX); //Discard precision after the division.
-}
-
-VEC3 rand_point3d_in_sphere(VEC3 origin, float radius)
-{
-	radius = rand_float() * radius; //Distribute stars within the sphere, not on the outside.
-	float a1 = rand_float() * 2 * M_PI;
-	float a2 = rand_float() * 2 * M_PI;
-	return vec3_add(origin, (VEC3){{{radius*sin(a1)*cos(a2), radius*sin(a1)*sin(a2), radius*cos(a1)}}});
 }
 
 //Set up everything needed to start rendering frames.
@@ -140,35 +124,23 @@ void init_render()
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	float far_distance = 2000;
+	make_projection_matrix(FOV, (float)SCREEN_WIDTH/(float)SCREEN_HEIGHT, -1, -far_distance, proj_mat, LENGTH(proj_mat));
+
 	init_forward_render();
 	init_deferred_render();
 	init_models();
 	init_lights();
+	init_stars();
 
-	float far_distance = 2000;
-	make_projection_matrix(FOV, (float)SCREEN_WIDTH/(float)SCREEN_HEIGHT, -1, -far_distance, proj_mat, LENGTH(proj_mat));
 	float skybox_distance = sqrt((far_distance*far_distance)/2);
-	skybox_scale = (VEC3){{{skybox_distance, skybox_distance, skybox_distance}}};
+	skybox_scale = (VEC3){{skybox_distance, skybox_distance, skybox_distance}};
 	//Setup unchanging deferred uniforms.
 	glUseProgram(skybox_program.handle);
 	glUniformMatrix4fv(skybox_program.projection_matrix, 1, GL_TRUE, proj_mat);
 	glUseProgram(forward_program.handle);
 	glUniformMatrix4fv(forward_program.projection_matrix, 1, GL_TRUE, proj_mat);
-	glUseProgram(stars_program.handle);
-	glUniformMatrix4fv(stars_program.projection_matrix, 1, GL_TRUE, proj_mat);
-
-	for (int i = 0; i < NUM_STARS; i++) {
-		star_buffer[i] = rand_point3d_in_sphere((VEC3){{{0, 0, 0}}}, far_distance/2);
-	}
-	glGenVertexArrays(1, &stars_vao);
-	glBindVertexArray(stars_vao);
-	glGenBuffers(1, &stars_vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, stars_vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(star_buffer), star_buffer, GL_STATIC_DRAW);
-	glEnableVertexAttribArray(stars_program.vPos);
-	glVertexAttribPointer(stars_program.vPos, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-
-	glBindVertexArray(0);
+	glPointSize(3);
 
 	glUseProgram(0);
 	checkErrors("After init");
@@ -178,8 +150,7 @@ void deinit_render()
 {
 	deinit_models();
 	deinit_deferred_render();
-	glDeleteVertexArrays(1, &gVAO);
-	glDeleteBuffers(1, &stars_vbo);
+	deinit_stars();
 	point_lights.num_lights = 0;
 }
 
@@ -222,7 +193,7 @@ static void draw_forward(struct shader_prog *program, struct buffer_group bg, AM
 	amat4_to_array(mvm_buf, LENGTH(mvm_buf), model_matrix);
 	glUniformMatrix4fv(program->model_matrix, 1, GL_TRUE, mvm_buf);
 	//Send normal_model_view_matrix
-	mat3_vec3_to_array(mvm_buf, LENGTH(mvm_buf), mat3_transp(model_matrix.a), (VEC3){{{0, 0, 0}}});
+	mat3_vec3_to_array(mvm_buf, LENGTH(mvm_buf), mat3_transp(model_matrix.a), (VEC3){{0, 0, 0}});
 	glUniformMatrix4fv(program->model_view_normal_matrix, 1, GL_TRUE, mvm_buf);
 	//Draw!
 	glDrawElements(bg.primitive_type, bg.index_count, GL_UNSIGNED_INT, NULL);
@@ -258,17 +229,6 @@ static void forward_update_point_lights(struct shader_prog *program, struct poin
 	}
 }
 
-void draw_stars()
-{
-	glBindVertexArray(stars_vao);
-	glUseProgram(stars_program.handle);
-	GLfloat mvm_buf[16];
-	//Send model_view_matrix.
-	amat4_to_array(mvm_buf, LENGTH(mvm_buf), inv_eye_frame);
-	glUniformMatrix4fv(stars_program.model_view_matrix, 1, GL_TRUE, mvm_buf);
-	glDrawArrays(GL_POINTS, 0, NUM_STARS);
-}
-
 void render()
 {
 	inv_eye_frame = amat4_inverse(eye_frame); //Only need to do this once per frame.
@@ -293,7 +253,7 @@ void render()
 		AMAT4 skybox_frame = {
 			.a = mat3_scalemat(skybox_scale.x, skybox_scale.y, skybox_scale.z),
 			.t = eye_frame.t};
-		draw_skybox_forward(&skybox_program, cube_buffers, skybox_frame);
+		//draw_skybox_forward(&skybox_program, cube_buffers, skybox_frame);
 		draw_stars();
 		checkErrors("After forward junk");
 	}
@@ -320,16 +280,16 @@ void update(float dt)
 	else
 		draw_light_bounds = false;
 	//Translate the camera using the arrow keys.
-	point_lights.position[3] = vec3_add(point_lights.position[3], (VEC3){{{
+	point_lights.position[3] = vec3_add(point_lights.position[3], (VEC3){{
 		(key_state[SDL_SCANCODE_RIGHT] - key_state[SDL_SCANCODE_LEFT]) * dt * camera_speed,
 		0,
-		(key_state[SDL_SCANCODE_DOWN] - key_state[SDL_SCANCODE_UP]) * dt * camera_speed}}});
+		(key_state[SDL_SCANCODE_DOWN] - key_state[SDL_SCANCODE_UP]) * dt * camera_speed}});
 	//grid_frame.t = point_lights.position[3];
 	//Set the ship's acceleration using the controller axes.
-	VEC3 acceleration = mat3_multvec(ship_frame.a, (VEC3){{{
+	VEC3 acceleration = mat3_multvec(ship_frame.a, (VEC3){{
 		axes[LEFTX] * ts,
 		0,
-		axes[LEFTY] * ts}}});
+		axes[LEFTY] * ts}});
 	//Angular velocity is currently determined by how much each axis is deflected.
 	velocity.a = mat3_rot(mat3_rotmat(0, 0, 1, -axes[RIGHTX]*rs), 1, 0, 0, axes[RIGHTY]*rs);
 	//Add our acceleration to our velocity to change our speed.
@@ -342,12 +302,13 @@ void update(float dt)
 	ship_frame.t = vec3_add(ship_frame.t, velocity.t);
 	//The eye should be positioned 2 up and 8 back relative to the ship's frame.
 	//eye_frame.t = point_lights.position[0];
-	eye_frame.t = amat4_multpoint(ship_frame, (VEC3){{{0, 2, 8}}});
+	eye_frame.t = point_lights.position[3];
+	//eye_frame.t = amat4_multpoint(ship_frame, (VEC3){{0, 2, 8}});
 	//The eye should look from itself to a point in front of the ship, and its "up" should be "up" from the ship's orientation.
 	eye_frame.a = mat3_lookat(
 		eye_frame.t,
-		amat4_multpoint(ship_frame, (VEC3){{{0, 0, -4}}}),
-		mat3_multvec(ship_frame.a, (VEC3){{{0, 1, 0}}}));
+		amat4_multpoint(ship_frame, (VEC3){{0, 0, -4}}),
+		mat3_multvec(ship_frame.a, (VEC3){{0, 1, 0}}));
 	//Move the engine light to just behind the ship.
-	point_lights.position[2] = amat4_multpoint(ship_frame, (VEC3){{{0, 0, 6}}});
+	point_lights.position[2] = amat4_multpoint(ship_frame, (VEC3){{0, 0, 6}});
 }

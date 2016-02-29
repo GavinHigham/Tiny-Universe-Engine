@@ -15,7 +15,7 @@ VEC3 height_map1(float x, float z)
 	int octaves = 5;
 	for (int i = 1; i <= octaves; i++)
 		height += i*sin(z/i) + i*sin(x/i);
-	return (VEC3){{{x, height, z}}};
+	return (VEC3){{x, height, z}};
 }
 
 //Cheap trick to get normals, should replace with something faster eventually.
@@ -27,13 +27,13 @@ VEC3 height_map_normal1(float x, float z)
 	VEC3 v2 = height_map1(x, z+delta);
 
 	return vec3_normalize(vec3_cross(vec3_sub(v2, v0), vec3_sub(v1, v0)));
-	//return (VEC3){{{0, 1, 0}}};
+	//return (VEC3){{0, 1, 0}};
 }
 
 struct buffer_group buffer_grid(int numrows, int numcols)
 {
 	//Sort of green color
-	VEC3 color = {{{0.8, 0.8, 0.8}}};
+	VEC3 color = {{0.8, 0.8, 0.8}};
 	struct buffer_group tmp;
 	tmp.index_count = (2 * numcols + 1) * (numrows - 1);
 	glGenVertexArrays(1, &tmp.vao);

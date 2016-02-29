@@ -2,20 +2,18 @@
 #define VECTOR3_H
 
 //Typedef as a union later!
-typedef struct VEC3 {
-	union {
-		float A[3];
-		struct {
-			float x, y, z;
-		};
-		struct {
-			float r, g, b;
-		};
+typedef union VEC3 {
+	float A[3];
+	struct {
+		float x, y, z;
+	};
+	struct {
+		float r, g, b;
 	};
 } VEC3;
 
-#define VEC3_UP {{{0, 0, 1}}}
-#define VEC3_ZERO {{{0, 0, 0}}}
+#define VEC3_UP {{0, 0, 1}}
+#define VEC3_ZERO {{0, 0, 0}}
 
 //Produces a new vector. Equivalent to (VEC3){{{x, y, z}}}.
 VEC3 vec3_new(float x, float y, float z);

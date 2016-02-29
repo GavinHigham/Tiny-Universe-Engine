@@ -77,21 +77,21 @@ AMAT4 amat4_mult(AMAT4 a, AMAT4 b)
 
 VEC3 amat4_multpoint(AMAT4 a, VEC3 b)
 {
-	VEC3 tmp = {{{
+	VEC3 tmp = {{
 		a.A[0]*b.x + a.A[1]*b.y + a.A[2]*b.z + a.x,
 		a.A[3]*b.x + a.A[4]*b.y + a.A[5]*b.z + a.y,
 		a.A[6]*b.x + a.A[7]*b.y + a.A[8]*b.z + a.z
-	}}};
+	}};
 	return tmp;
 }
 
 VEC3 amat4_multvec(AMAT4 a, VEC3 b)
 {
-	VEC3 tmp = {{{
+	VEC3 tmp = {{
 		a.A[0]*b.x + a.A[1]*b.y + a.A[2]*b.z,
 		a.A[3]*b.x + a.A[4]*b.y + a.A[5]*b.z,
 		a.A[6]*b.x + a.A[7]*b.y + a.A[8]*b.z
-	}}};
+	}};
 	return tmp;
 }
 
