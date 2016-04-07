@@ -24,6 +24,7 @@ struct config_buf config_new(char *tag_buf, int tag_buf_len, struct config_var *
 
 int config_expose(struct config_buf *cb, void *ptr, char *tag_name, enum config_var_type type)
 {
+	printf("Exposing %s\n", tag_name);
 	if (cb->var_buf_used_len < cb->var_buf_len && (strlen(tag_name) + 1) <= (cb->tag_buf_len - cb->tag_buf_used_len)) {
 		struct config_var tmp = {
 			.type = type,

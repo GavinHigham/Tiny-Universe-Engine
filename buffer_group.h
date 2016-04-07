@@ -5,10 +5,11 @@
 
 #define BG_BUFFER_NORMALS   1
 #define BG_BUFFER_COLORS    2
+#define BG_USING_ADJACENCIES  4
 //Add more vertex attribute buffer flags as powers-of-two
 
 struct buffer_group {
-	GLuint vao, ibo;
+	GLuint vao, ibo, aibo;
 	union {
 		struct {
 			GLuint nbo, cbo, vbo;

@@ -1,8 +1,9 @@
 #include <GL/glew.h>
 #include "buffer_group.h"
+#include "shader_utils.h"
 #include "macros.h"
 
-static void setup_attrib_for_draw(GLuint attr_handle, GLuint buffer, GLenum attr_type, int attr_size)
+void setup_attrib_for_draw(GLuint attr_handle, GLuint buffer, GLenum attr_type, int attr_size)
 {
 	glEnableVertexAttribArray(attr_handle);
 	glBindBuffer(GL_ARRAY_BUFFER, buffer);
@@ -18,39 +19,28 @@ struct buffer_group new_buffer_group(int (*buffering_function)(struct buffer_gro
 	for (int i = 0; i < LENGTH(program->attr); i++) {
 		setup_attrib_for_draw(program->attr[i], tmp.buffer_handles[i], GL_FLOAT, 3);
 	}
-	// glGenBuffers(1, &tmp.vbo);
-	// setup_attrib_for_draw(program->vPos, tmp.vbo, GL_FLOAT, 3);
-	// glGenBuffers(1, &tmp.cbo);
-	// setup_attrib_for_draw(program->vColor, tmp.cbo, GL_FLOAT, 3);
-	// glGenBuffers(1, &tmp.nbo);
-	// setup_attrib_for_draw(program->vNormal, tmp.nbo, GL_FLOAT, 3);
 	glGenBuffers(1, &tmp.ibo);
+	glGenBuffers(1, &tmp.aibo);
 	tmp.index_count = buffering_function(tmp);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tmp.ibo);
 	tmp.primitive_type = GL_TRIANGLES;
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tmp.ibo);
 	return tmp;
 }
 
 struct buffer_group new_custom_buffer_group(int (*buffering_function)(struct buffer_group), int buffer_flags)
 {
 	struct buffer_group tmp;
-	//glGenVertexArrays(1, &tmp.vao);
-	//glBindVertexArray(tmp.vao);
 	glGenBuffers(1, &tmp.vbo);
-	//setup_attrib_for_draw(program->vPos, tmp.vbo, GL_FLOAT, 3);
 	glGenBuffers(1, &tmp.ibo);
 	if (buffer_flags & BG_BUFFER_NORMALS) {
 		glGenBuffers(1, &tmp.nbo);
-		//setup_attrib_for_draw(program->vNormal, tmp.nbo, GL_FLOAT, 3);
 	}
 	if (buffer_flags & BG_BUFFER_COLORS) {
 		glGenBuffers(1, &tmp.cbo);
-		//setup_attrib_for_draw(program->vColor, tmp.cbo, GL_FLOAT, 3);
 	}
 	tmp.index_count = buffering_function(tmp);
-	tmp.flags = buffer_flags;
-	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tmp.ibo);
 	tmp.primitive_type = GL_TRIANGLES;
+	tmp.flags = buffer_flags;
 	return tmp;
 }
 
