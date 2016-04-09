@@ -6,7 +6,7 @@ in vec3 fPos;
 out vec4 LFragment;
 
 void main() {
-	vec3 sun_dir = normalize(vec3(1, 1, 1));
+	vec3 sun_dir = normalize(vec3(0, 0, -1));
 	float gamma = 2.2;
 	vec3 v = normalize(camera_position-fPos); //View vector.
 	float sky = dot(v, vec3(0, 1, 0)); //sky direction, determines whiteness

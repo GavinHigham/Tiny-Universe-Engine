@@ -186,23 +186,21 @@ static void draw_forward(struct shader_prog *program, struct buffer_group bg, AM
 static void draw_forward_adjacent(struct shader_prog *program, struct buffer_group bg, AMAT4 model_matrix)
 {
 	glBindVertexArray(bg.vao);
-	checkErrors("After binding vao");
 	GLfloat mvm_buf[16];
 	AMAT4 model_view_matrix = amat4_mult(inv_eye_frame, model_matrix);
 	//Send model_view_matrix.
 	amat4_to_array(mvm_buf, LENGTH(mvm_buf), model_view_matrix);
 	glUniformMatrix4fv(program->model_view_matrix, 1, GL_TRUE, mvm_buf);
-	checkErrors("After updating MVM");
 	//Send model_matrix
 	amat4_to_array(mvm_buf, LENGTH(mvm_buf), model_matrix);
 	glUniformMatrix4fv(program->model_matrix, 1, GL_TRUE, mvm_buf);
-	checkErrors("After updating MM");
-	glBindBuffer(bg.aibo, GL_ELEMENT_ARRAY_BUFFER);
-	checkErrors("After binding aibo");
-	glDrawElements(GL_TRIANGLES_ADJACENCY, bg.index_count, GL_UNSIGNED_INT, NULL);
+	//Send normal_model_view_matrix
+	mat3_vec3_to_array(mvm_buf, LENGTH(mvm_buf), mat3_transp(model_matrix.a), (VEC3){{0, 0, 0}});
+	glUniformMatrix4fv(program->model_view_normal_matrix, 1, GL_TRUE, mvm_buf);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
+	glDrawElements(GL_TRIANGLES_ADJACENCY, bg.index_count*2, GL_UNSIGNED_INT, NULL);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
 	checkErrors("After drawing with aibo");
-	glBindBuffer(bg.ibo, GL_ELEMENT_ARRAY_BUFFER);
-	checkErrors("After binding ibo");
 }
 
 static void draw_skybox_forward(struct shader_prog *program, struct buffer_group bg, AMAT4 model_matrix)
@@ -216,6 +214,7 @@ static void draw_skybox_forward(struct shader_prog *program, struct buffer_group
 	//Send model_matrix
 	amat4_to_array(mvm_buf, LENGTH(mvm_buf), model_matrix);
 	glUniformMatrix4fv(program->model_matrix, 1, GL_TRUE, mvm_buf);
+	glUniform3fv(program->camera_position, 1, eye_frame.T);
 	//Draw!
 	glDrawElements(GL_TRIANGLES, bg.index_count, GL_UNSIGNED_INT, NULL);
 }
@@ -253,19 +252,21 @@ void render()
 		checkErrors("After forward_update_point_lights");
 		glUniform3fv(forward_program.camera_position, 1, eye_frame.T);
 		//draw_forward(&forward_program, newship_buffers, ship_frame);
-		glUniform3fv(outline_program.uOrigin, 1, eye_frame.T);
+		draw_forward(&forward_program, room_buffers, room_frame);
+		checkErrors("After regular forward draw");
+		//draw_forward(&forward_program, grid_buffers, grid_frame);
 		checkErrors("After updating uOrigin");
 		glUseProgram(outline_program.handle);
+		glUniform3fv(outline_program.uOrigin, 1, eye_frame.T);
 		draw_forward_adjacent(&outline_program, newship_buffers, ship_frame);
+		draw_forward_adjacent(&outline_program, room_buffers, room_frame);
 		checkErrors("After drawing outline");
-		//draw_forward(&forward_program, room_buffers, room_frame);
-		//draw_forward(&forward_program, grid_buffers, grid_frame);
-		//glUseProgram(skybox_program.handle);
+		glUseProgram(skybox_program.handle);
 		AMAT4 skybox_frame = {
 			.a = mat3_scalemat(skybox_scale.x, skybox_scale.y, skybox_scale.z),
 			.t = eye_frame.t};
 		//draw_skybox_forward(&skybox_program, cube_buffers, skybox_frame);
-		draw_stars();
+		//draw_stars();
 		checkErrors("After forward junk");
 	}
 }

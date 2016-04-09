@@ -4,6 +4,5 @@
 
 int init(SDL_GLContext *context, SDL_Window **window);
 void deinit(SDL_GLContext context, SDL_Window *window);
-void checkErrors(char *label);
 
 #endif

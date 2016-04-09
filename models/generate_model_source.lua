@@ -115,7 +115,7 @@ for _, file in ipairs(arg) do
 		local v3 = vertices[face[3]+1]
 		local lineEnd = ","
 		if i == #faces then lineEnd = "\n\t};\n" end
-		print("\t\t" ..halfEdges[edgeString(v2, v1)] .. ", " .. face[2] .. ", " .. halfEdges[edgeString(v3, v2)] .. ", " .. face[3] .. ", " .. halfEdges[edgeString(v1, v3)] .. ", " .. face[1] .. lineEnd)
+		print("\t\t" .. face[1] .. ", " .. halfEdges[edgeString(v2, v1)] .. ", " .. face[2] .. ", " .. halfEdges[edgeString(v3, v2)] .. ", " .. face[3] .. ", " .. halfEdges[edgeString(v1, v3)] .. lineEnd)
 		--print("\t\t" .. face[1] .. ", " .. face[2] .. ", " .. face[3] .. lineEnd)
 	end
 	print("\tGLuint indices[] = {")

@@ -1,6 +1,8 @@
 #include <GL/glew.h>
+#include <stdio.h>
 #include "buffer_group.h"
 #include "shader_utils.h"
+#include "gl_utils.h"
 #include "macros.h"
 
 void setup_attrib_for_draw(GLuint attr_handle, GLuint buffer, GLenum attr_type, int attr_size)
@@ -14,16 +16,17 @@ struct buffer_group new_buffer_group(int (*buffering_function)(struct buffer_gro
 {
 	struct buffer_group tmp;
 	glGenVertexArrays(1, &tmp.vao);
-	glBindVertexArray(tmp.vao);
 	glGenBuffers(LENGTH(program->attr), tmp.buffer_handles);
-	for (int i = 0; i < LENGTH(program->attr); i++) {
-		setup_attrib_for_draw(program->attr[i], tmp.buffer_handles[i], GL_FLOAT, 3);
-	}
 	glGenBuffers(1, &tmp.ibo);
 	glGenBuffers(1, &tmp.aibo);
+	glBindVertexArray(tmp.vao);
+	for (int i = 0; i < LENGTH(program->attr); i++) {
+		if (program->attr[i] != -1)
+			setup_attrib_for_draw(program->attr[i], tmp.buffer_handles[i], GL_FLOAT, 3);
+	}
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tmp.ibo);
 	tmp.index_count = buffering_function(tmp);
 	tmp.primitive_type = GL_TRIANGLES;
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tmp.ibo);
 	return tmp;
 }
 
