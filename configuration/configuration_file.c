@@ -4,6 +4,7 @@
 #include <string.h>
 #include <assert.h>
 #include "configuration_file.h"
+#include "../math/vector3.h"
 
 //Parse config file. Will need a mechanism to register configurable variables.
 //When the config file is parsed, they will be set.
@@ -22,7 +23,7 @@ struct config_buf config_new(char *tag_buf, int tag_buf_len, struct config_var *
 	return tmp;
 }
 
-int config_expose(struct config_buf *cb, void *ptr, char *tag_name, enum config_var_type type)
+int config_expose_generic(enum config_var_type type, struct config_buf *cb, void *ptr, char *tag_name)
 {
 	printf("Exposing %s\n", tag_name);
 	if (cb->var_buf_used_len < cb->var_buf_len && (strlen(tag_name) + 1) <= (cb->tag_buf_len - cb->tag_buf_used_len)) {
@@ -39,31 +40,10 @@ int config_expose(struct config_buf *cb, void *ptr, char *tag_name, enum config_
 	return 1;
 }
 
-
-int config_expose_int(struct config_buf *cb, int *ptr, char *tag_name)
-{
-	return config_expose(cb, (void *)ptr, tag_name, _CONFIG_INT);
-}
-
-int config_expose_float(struct config_buf *cb, float *ptr, char *tag_name)
-{
-	return config_expose(cb, (void *)ptr, tag_name, _CONFIG_FLOAT);
-}
-
-int config_expose_float3(struct config_buf *cb, float *ptr, char *tag_name)
-{
-	return config_expose(cb, (void *)ptr, tag_name, _CONFIG_FLOAT3);
-}
-
-int config_expose_bool(struct config_buf *cb, int *ptr, char *tag_name)
-{
-	return config_expose(cb, (void *)ptr, tag_name, _CONFIG_BOOL);
-}
-
 int config_expose_multiple(struct config_buf *cb, void **ptrs, char **tag_names, int len, enum config_var_type type)
 {
 		for (int i = 0; i < len; i++) {
-		int error = config_expose(cb, ptrs[i], tag_names[i], type);
+		int error = config_expose_generic(type, cb, ptrs[i], tag_names[i]);
 		if (error)
 			return error;
 	}

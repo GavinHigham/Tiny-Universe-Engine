@@ -50,7 +50,7 @@ const char *skybox_fs_source[] = {
 "}\n"
 };
 const GLchar *skybox_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *skybox_uniform_names[] = {"model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "model_view_normal_matrix", "uOrigin", "camera_position"};
+const GLchar *skybox_uniform_names[] = {"model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
 static const int skybox_attribute_count = sizeof(skybox_attribute_names)/sizeof(skybox_attribute_names[0]);
 static const int skybox_uniform_count = sizeof(skybox_uniform_names)/sizeof(skybox_uniform_names[0]);
 GLint skybox_attributes[skybox_attribute_count];
@@ -58,7 +58,7 @@ GLint skybox_uniforms[skybox_uniform_count];
 struct shader_prog skybox_program = {
 	.handle = 0,
 	.attr = {-1, -1, 0},
-	.unif = {0, 0, -1, -1, -1, 0, -1, -1, -1, 0}
+	.unif = {0, 0, -1, -1, -1, 0, -1, -1, -1, -1, 0}
 };
 struct shader_info skybox_info = {
 	.vs_source = skybox_vs_source,
@@ -76,37 +76,38 @@ const char *outline_gs_file_path[] = {"shaders/programs/outline.gs"};
 const char *outline_vs_source[] = {
 "#version 330 \n"
 "\n"
+"in vec3 vPos;\n"
 "in vec3 vColor;\n"
-"in vec3 vPos; \n"
 "in vec3 vNormal; \n"
 "\n"
 "uniform mat4 model_matrix;\n"
 "uniform mat4 model_view_matrix;\n"
-"uniform mat4 model_view_normal_matrix;\n"
+"// uniform mat4 model_view_normal_matrix;\n"
 "uniform mat4 projection_matrix;\n"
 "\n"
 "out vec3 gPos;\n"
-"out vec3 gColor;\n"
-"out vec3 gNormal;\n"
+"// out vec3 gColor;\n"
+"// out vec3 gNormal;\n"
 "\n"
 "void main()\n"
 "{\n"
+"	vec3 refattr = vColor + vNormal;\n"
 "	gl_Position = projection_matrix * (model_view_matrix * vec4(vPos, 1));\n"
 "	gPos = vec3(model_matrix * vec4(vPos, 1));\n"
-"	gColor = vColor;\n"
-"	gNormal = vec3(vec4(vNormal, 0.0) * model_view_normal_matrix);\n"
+"	// gColor = vColor;\n"
+"	// gNormal = vec3(vec4(vNormal, 0.0) * model_view_normal_matrix);\n"
 "}\n"
 };
 const char *outline_fs_source[] = {
 "#version 330\n"
 "\n"
-"in vec3 fPos;\n"
-"in vec3 fColor;\n"
-"in vec3 fNormal;\n"
+"// in vec3 fPos;\n"
+"// in vec3 fColor;\n"
+"// in vec3 fNormal;\n"
 "out vec4 LFragment;\n"
 "\n"
 "void main() {\n"
-"	vec3 refAttr = fPos * fColor * fNormal;\n"
+"	// vec3 refAttr = fPos * fColor * fNormal;\n"
 "	LFragment = vec4(1.0, 0.0, 0.0, 1.0);\n"
 "}\n"
 };
@@ -118,23 +119,24 @@ const char *outline_gs_source[] = {
 "uniform vec3 uOrigin;\n"
 "\n"
 "in vec3 gPos[6];\n"
-"in vec3 gColor[6];\n"
-"in vec3 gNormal[6];\n"
-"out vec3 fPos;\n"
-"out vec3 fColor;\n"
-"out vec3 fNormal;\n"
+"// in vec3 gColor[6];\n"
+"// in vec3 gNormal[6];\n"
+"// out vec3 fPos;\n"
+"// out vec3 fColor;\n"
+"// out vec3 fNormal;\n"
+"vec4 z_nudge = vec4(0, 0, 0.1, 0);\n"
 "\n"
 "void EmitSegment(int StartIndex, int EndIndex)\n"
 "{\n"
-"	gl_Position = gl_in[StartIndex].gl_Position;\n"
-"	fPos = gPos[StartIndex];\n"
-"	fColor = gColor[StartIndex];\n"
-"	fNormal = gNormal[StartIndex];\n"
+"	gl_Position = gl_in[StartIndex].gl_Position + z_nudge;\n"
+"	// fPos = gPos[StartIndex];\n"
+"	// fColor = gColor[StartIndex];\n"
+"	// fNormal = gNormal[StartIndex];\n"
 "	EmitVertex();\n"
-"	gl_Position = gl_in[EndIndex].gl_Position;\n"
-"	fPos = gPos[EndIndex];\n"
-"	fColor = gColor[EndIndex];\n"
-"	fNormal = gNormal[EndIndex];\n"
+"	gl_Position = gl_in[EndIndex].gl_Position + z_nudge;\n"
+"	// fPos = gPos[EndIndex];\n"
+"	// fColor = gColor[EndIndex];\n"
+"	// fNormal = gNormal[EndIndex];\n"
 "	EmitVertex();\n"
 "	EndPrimitive();\n"
 "}\n"
@@ -148,7 +150,7 @@ const char *outline_gs_source[] = {
 "	vec3 e6 = gPos[5] - gPos[0];\n"
 "	vec3 normal = cross(e1, e2);\n"
 "	vec3 LightDir = uOrigin - gPos[0];\n"
-"	if (dot(normal, LightDir) > 0.00001) {\n"
+"	if (dot(normal, LightDir) >= 0) {\n"
 "\n"
 "		normal = cross(e3,e1);\n"
 "\n"
@@ -176,7 +178,7 @@ const char *outline_gs_source[] = {
 "}\n"
 };
 const GLchar *outline_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *outline_uniform_names[] = {"model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "model_view_normal_matrix", "uOrigin", "camera_position"};
+const GLchar *outline_uniform_names[] = {"model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
 static const int outline_attribute_count = sizeof(outline_attribute_names)/sizeof(outline_attribute_names[0]);
 static const int outline_uniform_count = sizeof(outline_uniform_names)/sizeof(outline_uniform_names[0]);
 GLint outline_attributes[outline_attribute_count];
@@ -184,7 +186,7 @@ GLint outline_uniforms[outline_uniform_count];
 struct shader_prog outline_program = {
 	.handle = 0,
 	.attr = {0, 0, 0},
-	.unif = {0, 0, -1, -1, -1, 0, -1, 0, 0, -1}
+	.unif = {0, 0, -1, -1, -1, 0, -1, -1, -1, 0, -1}
 };
 struct shader_info outline_info = {
 	.vs_source = outline_vs_source,
@@ -335,7 +337,7 @@ const char *forward_fs_source[] = {
 "}\n"
 };
 const GLchar *forward_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *forward_uniform_names[] = {"model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "model_view_normal_matrix", "uOrigin", "camera_position"};
+const GLchar *forward_uniform_names[] = {"model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
 static const int forward_attribute_count = sizeof(forward_attribute_names)/sizeof(forward_attribute_names[0]);
 static const int forward_uniform_count = sizeof(forward_uniform_names)/sizeof(forward_uniform_names[0]);
 GLint forward_attributes[forward_attribute_count];
@@ -343,7 +345,7 @@ GLint forward_uniforms[forward_uniform_count];
 struct shader_prog forward_program = {
 	.handle = 0,
 	.attr = {0, 0, 0},
-	.unif = {0, 0, 0, 0, 0, 0, -1, 0, -1, 0}
+	.unif = {0, 0, 0, 0, 0, 0, -1, -1, 0, -1, 0}
 };
 struct shader_info forward_info = {
 	.vs_source = forward_vs_source,
@@ -354,6 +356,151 @@ struct shader_info forward_info = {
 	.vs_file_path = forward_vs_file_path,
 	.fs_file_path = forward_fs_file_path,
 	.gs_file_path = NULL
+};
+const char *shadow_vs_file_path[] = {"shaders/programs/shadow.vs"};
+const char *shadow_fs_file_path[] = {"shaders/programs/shadow.fs"};
+const char *shadow_gs_file_path[] = {"shaders/programs/shadow.gs"};
+const char *shadow_vs_source[] = {
+"#version 330 \n"
+"\n"
+"in vec3 vPos; \n"
+"in vec3 vColor;\n"
+"in vec3 vNormal;\n"
+"\n"
+"out vec3 gPos;\n"
+"\n"
+"void main()\n"
+"{\n"
+"	vec3 refattr = vColor + vNormal;\n"
+"	gPos = vPos;\n"
+"}\n"
+};
+const char *shadow_fs_source[] = {
+"#version 330\n"
+"\n"
+"out vec4 LFragment;\n"
+"\n"
+"void main() {\n"
+"	LFragment = vec4(1.0, 0.0, 0.0, 1.0);\n"
+"}\n"
+};
+const char *shadow_gs_source[] = {
+"#version 330 core\n"
+"layout (triangles_adjacency) in;\n"
+"layout (line_strip, max_vertices = 14) out;\n"
+"\n"
+"uniform vec3 uOrigin;\n"
+"uniform vec3 gLightPos;\n"
+"\n"
+"in vec3 gPos[6];\n"
+"uniform mat4 model_view_matrix;\n"
+"uniform mat4 projection_matrix;\n"
+"\n"
+"float EPSILON = 0.0001;\n"
+"\n"
+"void EmitSegment(int StartIndex, int EndIndex)\n"
+"{\n"
+"	gl_Position = gl_in[StartIndex].gl_Position;\n"
+"	EmitVertex();\n"
+"	gl_Position = gl_in[EndIndex].gl_Position;\n"
+"	EmitVertex();\n"
+"	EndPrimitive();\n"
+"}\n"
+"\n"
+"// Emit a quad using a triangle strip\n"
+"void EmitQuadLines(vec3 StartVertex, vec3 EndVertex)\n"
+"{\n"
+"    // Vertex #1: the starting vertex (just a tiny bit below the original edge)\n"
+"    vec3 LightDir = normalize(StartVertex - gLightPos); \n"
+"    gl_Position = projection_matrix * (model_view_matrix * vec4((StartVertex + LightDir * EPSILON), 1.0));\n"
+"    EmitVertex();\n"
+"\n"
+"    // Vertex #2: the starting vertex projected to infinity\n"
+"    gl_Position = projection_matrix * (model_view_matrix * vec4(LightDir, 0.0));\n"
+"    EmitVertex();\n"
+"\n"
+"    EndPrimitive();\n"
+"\n"
+"    // Vertex #3: the ending vertex (just a tiny bit below the original edge)\n"
+"    LightDir = normalize(EndVertex - gLightPos);\n"
+"    gl_Position = projection_matrix * (model_view_matrix * vec4((EndVertex + LightDir * EPSILON), 1.0));\n"
+"    EmitVertex();\n"
+"\n"
+"    // Vertex #4: the ending vertex projected to infinity\n"
+"    gl_Position = projection_matrix * (model_view_matrix * vec4(LightDir , 0.0));\n"
+"    EmitVertex();\n"
+"\n"
+"    EndPrimitive(); \n"
+"}\n"
+"\n"
+"void main() {\n"
+"	vec3 e1 = gPos[2] - gPos[0];\n"
+"	vec3 e2 = gPos[4] - gPos[0];\n"
+"	vec3 e3 = gPos[1] - gPos[0];\n"
+"	vec3 e4 = gPos[3] - gPos[2];\n"
+"	vec3 e5 = gPos[4] - gPos[2];\n"
+"	vec3 e6 = gPos[5] - gPos[0];\n"
+"	vec3 normal = cross(e1, e2);\n"
+"	vec3 LightDir = uOrigin - gLightPos;\n"
+"	LightDir = uOrigin - gPos[0];\n"
+"	if (dot(normal, LightDir) > 0) {\n"
+"\n"
+"		normal = cross(e3,e1);\n"
+"\n"
+"		if (dot(normal, LightDir) <= 0) {\n"
+"			vec3 StartVertex = gPos[0];\n"
+"            vec3 EndVertex = gPos[2];\n"
+"            EmitQuadLines(StartVertex, EndVertex);\n"
+"			//EmitSegment(0, 2);\n"
+"		}\n"
+"\n"
+"		normal = cross(e4,e5);\n"
+"		LightDir = uOrigin - gPos[2];\n"
+"\n"
+"		if (dot(normal, LightDir) <=0) {\n"
+"			vec3 StartVertex = gPos[2];\n"
+"            vec3 EndVertex = gPos[4];\n"
+"            EmitQuadLines(StartVertex, EndVertex);\n"
+"			//EmitSegment(2, 4);\n"
+"		}\n"
+"\n"
+"		normal = cross(e2,e6);\n"
+"		LightDir = uOrigin - gPos[4];\n"
+"\n"
+"		if (dot(normal, LightDir) <= 0) {\n"
+"			vec3 StartVertex = gPos[4];\n"
+"            vec3 EndVertex = gPos[0];\n"
+"            EmitQuadLines(StartVertex, EndVertex);\n"
+"			EmitSegment(4, 0);\n"
+"		}\n"
+"	}\n"
+"	gl_Position = vec4(-1, -1, 0.4, 1);\n"
+"	EmitVertex();\n"
+"	gl_Position = vec4(1, 1, 0.4, 1);\n"
+"	EmitVertex();\n"
+"	EndPrimitive();\n"
+"}\n"
+};
+const GLchar *shadow_attribute_names[] = {"vNormal", "vColor", "vPos"};
+const GLchar *shadow_uniform_names[] = {"model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
+static const int shadow_attribute_count = sizeof(shadow_attribute_names)/sizeof(shadow_attribute_names[0]);
+static const int shadow_uniform_count = sizeof(shadow_uniform_names)/sizeof(shadow_uniform_names[0]);
+GLint shadow_attributes[shadow_attribute_count];
+GLint shadow_uniforms[shadow_uniform_count];
+struct shader_prog shadow_program = {
+	.handle = 0,
+	.attr = {0, 0, 0},
+	.unif = {-1, 0, -1, -1, -1, 0, -1, 0, -1, 0, -1}
+};
+struct shader_info shadow_info = {
+	.vs_source = shadow_vs_source,
+	.fs_source = shadow_fs_source,
+	.gs_source = shadow_gs_source,
+	.attr_names = shadow_attribute_names,
+	.unif_names = shadow_uniform_names,
+	.vs_file_path = shadow_vs_file_path,
+	.fs_file_path = shadow_fs_file_path,
+	.gs_file_path = shadow_gs_file_path
 };
 const char *stars_vs_file_path[] = {"shaders/programs/stars.vs"};
 const char *stars_fs_file_path[] = {"shaders/programs/stars.fs"};
@@ -408,7 +555,7 @@ const char *stars_fs_source[] = {
 "}\n"
 };
 const GLchar *stars_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *stars_uniform_names[] = {"model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "model_view_normal_matrix", "uOrigin", "camera_position"};
+const GLchar *stars_uniform_names[] = {"model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
 static const int stars_attribute_count = sizeof(stars_attribute_names)/sizeof(stars_attribute_names[0]);
 static const int stars_uniform_count = sizeof(stars_uniform_names)/sizeof(stars_uniform_names[0]);
 GLint stars_attributes[stars_attribute_count];
@@ -416,7 +563,7 @@ GLint stars_uniforms[stars_uniform_count];
 struct shader_prog stars_program = {
 	.handle = 0,
 	.attr = {-1, -1, 0},
-	.unif = {-1, 0, -1, -1, -1, 0, 0, -1, -1, -1}
+	.unif = {-1, 0, -1, -1, -1, 0, 0, -1, -1, -1, -1}
 };
 struct shader_info stars_info = {
 	.vs_source = stars_vs_source,
@@ -428,5 +575,5 @@ struct shader_info stars_info = {
 	.fs_file_path = stars_fs_file_path,
 	.gs_file_path = NULL
 };
-struct shader_prog *shader_programs[] = {&skybox_program, &outline_program, &forward_program, &stars_program};
-struct shader_info *shader_infos[] = {&skybox_info, &outline_info, &forward_info, &stars_info};
+struct shader_prog *shader_programs[] = {&skybox_program, &outline_program, &forward_program, &shadow_program, &stars_program};
+struct shader_info *shader_infos[] = {&skybox_info, &outline_info, &forward_info, &shadow_info, &stars_info};

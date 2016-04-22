@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include "configuration_file.h"
 #include "math/vector3.h"
 
@@ -15,18 +16,26 @@ int main()
 	int some_special_int = 4;
 	int some_other_int = 20;
 	float some_float = .01;
-	VEC3 some_vector = {{{0.0, 0.0, 0.0}}};
-	int some_bool = 0;
-	int some_other_bool = 1;
-	int some_unchanging_bool = 1;
+	VEC3 some_vector = {{0.0, 0.0, 0.0}};
+	bool some_bool = 0;
+	bool some_other_bool = 1;
+	bool some_unchanging_bool = 1;
 
-	config_expose_int(&buf, &some_other_int, "SOME_OTHER_INT");
-	config_expose_int(&buf, &some_special_int, "SOME_SPECIAL_INT");
-	config_expose_float(&buf, &some_float, "SOME_FLOAT");
-	config_expose_float3(&buf, some_vector.A, "SOME_VECTOR");
-	config_expose_bool(&buf, &some_bool, "SOME_BOOL");
-	config_expose_bool(&buf, &some_other_bool, "SOME_OTHER_BOOL");
-	config_expose_bool(&buf, &some_unchanging_bool, "SOME_UNCHANGING_BOOL");
+	// config_expose_int(&buf, &some_other_int, "SOME_OTHER_INT");
+	// config_expose_int(&buf, &some_special_int, "SOME_SPECIAL_INT");
+	// config_expose_float(&buf, &some_float, "SOME_FLOAT");
+	// config_expose_float3(&buf, some_vector.A, "SOME_VECTOR");
+	// config_expose_bool(&buf, &some_bool, "SOME_BOOL");
+	// config_expose_bool(&buf, &some_other_bool, "SOME_OTHER_BOOL");
+	// config_expose_bool(&buf, &some_unchanging_bool, "SOME_UNCHANGING_BOOL");
+
+	config_expose(&buf, &some_other_int, "SOME_OTHER_INT");
+	config_expose(&buf, &some_special_int, "SOME_SPECIAL_INT");
+	config_expose(&buf, &some_float, "SOME_FLOAT");
+	config_expose(&buf, &some_vector, "SOME_VECTOR");
+	config_expose(&buf, &some_bool, "SOME_BOOL");
+	config_expose(&buf, &some_other_bool, "SOME_OTHER_BOOL");
+	config_expose(&buf, &some_unchanging_bool, "SOME_UNCHANGING_BOOL");
 
 
 	printf("some_special_int value is %i\n", some_special_int);

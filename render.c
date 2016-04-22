@@ -132,6 +132,8 @@ void init_render()
 	glUniformMatrix4fv(forward_program.projection_matrix, 1, GL_TRUE, proj_mat);
 	glUseProgram(outline_program.handle);
 	glUniformMatrix4fv(outline_program.projection_matrix, 1, GL_TRUE, proj_mat);
+	glUseProgram(shadow_program.handle);
+	glUniformMatrix4fv(outline_program.projection_matrix, 1, GL_TRUE, proj_mat);
 	glPointSize(3);
 	glEnable(GL_PROGRAM_POINT_SIZE);
 
@@ -164,6 +166,22 @@ void make_projection_matrix(GLfloat fov, GLfloat a, GLfloat n, GLfloat f, GLfloa
 	else
 		tmp[5] *= a;
 	memcpy(buf, tmp, sizeof(tmp));
+}
+
+static void draw_skybox_forward(struct shader_prog *program, struct buffer_group bg, AMAT4 model_matrix)
+{
+	glBindVertexArray(bg.vao);
+	GLfloat mvm_buf[16];
+	AMAT4 model_view_matrix = amat4_mult(inv_eye_frame, model_matrix);
+	//Send model_view_matrix.
+	amat4_to_array(mvm_buf, LENGTH(mvm_buf), model_view_matrix);
+	glUniformMatrix4fv(program->model_view_matrix, 1, GL_TRUE, mvm_buf);
+	//Send model_matrix
+	amat4_to_array(mvm_buf, LENGTH(mvm_buf), model_matrix);
+	glUniformMatrix4fv(program->model_matrix, 1, GL_TRUE, mvm_buf);
+	glUniform3fv(program->camera_position, 1, eye_frame.T);
+	//Draw!
+	glDrawElements(GL_TRIANGLES, bg.index_count, GL_UNSIGNED_INT, NULL);
 }
 
 static void draw_forward(struct shader_prog *program, struct buffer_group bg, AMAT4 model_matrix)
@@ -203,22 +221,6 @@ static void draw_forward_adjacent(struct shader_prog *program, struct buffer_gro
 	checkErrors("After drawing with aibo");
 }
 
-static void draw_skybox_forward(struct shader_prog *program, struct buffer_group bg, AMAT4 model_matrix)
-{
-	glBindVertexArray(bg.vao);
-	GLfloat mvm_buf[16];
-	AMAT4 model_view_matrix = amat4_mult(inv_eye_frame, model_matrix);
-	//Send model_view_matrix.
-	amat4_to_array(mvm_buf, LENGTH(mvm_buf), model_view_matrix);
-	glUniformMatrix4fv(program->model_view_matrix, 1, GL_TRUE, mvm_buf);
-	//Send model_matrix
-	amat4_to_array(mvm_buf, LENGTH(mvm_buf), model_matrix);
-	glUniformMatrix4fv(program->model_matrix, 1, GL_TRUE, mvm_buf);
-	glUniform3fv(program->camera_position, 1, eye_frame.T);
-	//Draw!
-	glDrawElements(GL_TRIANGLES, bg.index_count, GL_UNSIGNED_INT, NULL);
-}
-
 static void forward_update_point_lights(struct shader_prog *program, struct point_light_attributes *lights)
 {
 	char buf[50];
@@ -250,17 +252,22 @@ void render()
 		checkErrors("After glUseProgram(forward_program.handle)");
 		forward_update_point_lights(&forward_program, &point_lights);
 		checkErrors("After forward_update_point_lights");
-		glUniform3fv(forward_program.camera_position, 1, eye_frame.T);
-		//draw_forward(&forward_program, newship_buffers, ship_frame);
+		//glUniform3fv(forward_program.camera_position, 1, eye_frame.T);
+		draw_forward(&forward_program, newship_buffers, ship_frame);
 		draw_forward(&forward_program, room_buffers, room_frame);
 		checkErrors("After regular forward draw");
 		//draw_forward(&forward_program, grid_buffers, grid_frame);
 		checkErrors("After updating uOrigin");
 		glUseProgram(outline_program.handle);
 		glUniform3fv(outline_program.uOrigin, 1, eye_frame.T);
-		draw_forward_adjacent(&outline_program, newship_buffers, ship_frame);
+		//draw_forward_adjacent(&outline_program, newship_buffers, ship_frame);
 		draw_forward_adjacent(&outline_program, room_buffers, room_frame);
 		checkErrors("After drawing outline");
+		glUseProgram(shadow_program.handle);
+		glUniform3fv(shadow_program.uOrigin, 1, eye_frame.T);
+		glUniform3fv(shadow_program.gLightPos, 1, point_lights.position[0].A);
+		draw_forward_adjacent(&shadow_program, newship_buffers, ship_frame);
+		checkErrors("After drawing shadow lines");
 		glUseProgram(skybox_program.handle);
 		AMAT4 skybox_frame = {
 			.a = mat3_scalemat(skybox_scale.x, skybox_scale.y, skybox_scale.z),
