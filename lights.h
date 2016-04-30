@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include "math/vector3.h"
 
-#define MAX_NUM_LIGHTS 1000
+#define MAX_NUM_LIGHTS 10
 
 struct point_light_attributes {
 	VEC3 position[MAX_NUM_LIGHTS];

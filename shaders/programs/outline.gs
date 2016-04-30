@@ -5,24 +5,13 @@ layout (line_strip, max_vertices = 6) out;
 uniform vec3 uOrigin;
 
 in vec3 gPos[6];
-// in vec3 gColor[6];
-// in vec3 gNormal[6];
-// out vec3 fPos;
-// out vec3 fColor;
-// out vec3 fNormal;
 vec4 z_nudge = vec4(0, 0, 0.1, 0);
 
 void EmitSegment(int StartIndex, int EndIndex)
 {
 	gl_Position = gl_in[StartIndex].gl_Position + z_nudge;
-	// fPos = gPos[StartIndex];
-	// fColor = gColor[StartIndex];
-	// fNormal = gNormal[StartIndex];
 	EmitVertex();
 	gl_Position = gl_in[EndIndex].gl_Position + z_nudge;
-	// fPos = gPos[EndIndex];
-	// fColor = gColor[EndIndex];
-	// fNormal = gNormal[EndIndex];
 	EmitVertex();
 	EndPrimitive();
 }
@@ -58,7 +47,4 @@ void main() {
 			EmitSegment(4, 0);
 		}
 	}
-	//EmitSegment(0, 2);
-	//EmitSegment(2, 4);
-	//EmitSegment(4, 0);
 }

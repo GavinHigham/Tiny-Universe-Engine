@@ -50,6 +50,10 @@ AMAT4 amat4_lookat(VEC3 p, VEC3 q, VEC3 u);
 //Produce the inverse matrix to a, provided that a represents a rotation and a translation.
 //Does not work if a represents a scale (or a skew?).
 AMAT4 amat4_inverse(AMAT4 a);
+//Do a true 4x4 matrix multiply on two buffers, a and b, and put the result into out.
+//a, b and out must all be different 16-float buffers, or the behaviour of this function is undefined.
+void amat4_buf_mult(float * restrict a, float * restrict b, float * restrict out);
+
 //AMAT4 amat4_rotinv(AMAT4 a);
 void amat4_print(AMAT4 a);
 

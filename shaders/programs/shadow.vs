@@ -1,13 +1,11 @@
 #version 330 
 
 in vec3 vPos; 
-in vec3 vColor;
-in vec3 vNormal;
-
+uniform mat4 model_matrix;
 out vec3 gPos;
+
 
 void main()
 {
-	vec3 refattr = vColor + vNormal;
-	gPos = vPos;
+	gPos = vec3(model_matrix * vec4(vPos, 1));
 }

@@ -1,7 +1,10 @@
 #version 330
 
-out vec4 LFragment;
+uniform vec3 light_color;
+
+// out vec4 LFragment;
 
 void main() {
-	LFragment = vec4(1.0, 0.0, 0.0, 1.0);
+	vec3 ref = light_color;
+	// LFragment = vec4(light_color, 1.0);
 }

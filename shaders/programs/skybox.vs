@@ -10,6 +10,6 @@ out vec3 fPos;
 
 void main()
 {
-	gl_Position = projection_matrix * (model_view_matrix * vec4(vPos, 1));
 	fPos = vec3(model_matrix * vec4(vPos, 1));
+	gl_Position = projection_matrix * (model_view_matrix * vec4(vPos, 1));
 }

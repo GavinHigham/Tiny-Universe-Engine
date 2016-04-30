@@ -17,8 +17,8 @@ const char *skybox_vs_source[] = {
 "\n"
 "void main()\n"
 "{\n"
-"	gl_Position = projection_matrix * (model_view_matrix * vec4(vPos, 1));\n"
 "	fPos = vec3(model_matrix * vec4(vPos, 1));\n"
+"	gl_Position = projection_matrix * (model_view_matrix * vec4(vPos, 1));\n"
 "}\n"
 };
 const char *skybox_fs_source[] = {
@@ -50,7 +50,7 @@ const char *skybox_fs_source[] = {
 "}\n"
 };
 const GLchar *skybox_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *skybox_uniform_names[] = {"model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
+const GLchar *skybox_uniform_names[] = {"projection_view_matrix", "model_matrix", "projection_matrix", "light_color", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
 static const int skybox_attribute_count = sizeof(skybox_attribute_names)/sizeof(skybox_attribute_names[0]);
 static const int skybox_uniform_count = sizeof(skybox_uniform_names)/sizeof(skybox_uniform_names[0]);
 GLint skybox_attributes[skybox_attribute_count];
@@ -58,7 +58,7 @@ GLint skybox_uniforms[skybox_uniform_count];
 struct shader_prog skybox_program = {
 	.handle = 0,
 	.attr = {-1, -1, 0},
-	.unif = {0, 0, -1, -1, -1, 0, -1, -1, -1, -1, 0}
+	.unif = {-1, 0, 0, -1, -1, -1, -1, 0, -1, -1, -1, -1, 0}
 };
 struct shader_info skybox_info = {
 	.vs_source = skybox_vs_source,
@@ -77,38 +77,26 @@ const char *outline_vs_source[] = {
 "#version 330 \n"
 "\n"
 "in vec3 vPos;\n"
-"in vec3 vColor;\n"
-"in vec3 vNormal; \n"
 "\n"
 "uniform mat4 model_matrix;\n"
 "uniform mat4 model_view_matrix;\n"
-"// uniform mat4 model_view_normal_matrix;\n"
 "uniform mat4 projection_matrix;\n"
 "\n"
 "out vec3 gPos;\n"
-"// out vec3 gColor;\n"
-"// out vec3 gNormal;\n"
 "\n"
 "void main()\n"
 "{\n"
-"	vec3 refattr = vColor + vNormal;\n"
 "	gl_Position = projection_matrix * (model_view_matrix * vec4(vPos, 1));\n"
 "	gPos = vec3(model_matrix * vec4(vPos, 1));\n"
-"	// gColor = vColor;\n"
-"	// gNormal = vec3(vec4(vNormal, 0.0) * model_view_normal_matrix);\n"
 "}\n"
 };
 const char *outline_fs_source[] = {
 "#version 330\n"
 "\n"
-"// in vec3 fPos;\n"
-"// in vec3 fColor;\n"
-"// in vec3 fNormal;\n"
-"out vec4 LFragment;\n"
+"// out vec4 LFragment;\n"
 "\n"
 "void main() {\n"
-"	// vec3 refAttr = fPos * fColor * fNormal;\n"
-"	LFragment = vec4(1.0, 0.0, 0.0, 1.0);\n"
+"	// LFragment = vec4(1.0, 0.0, 0.0, 1.0);\n"
 "}\n"
 };
 const char *outline_gs_source[] = {
@@ -119,24 +107,13 @@ const char *outline_gs_source[] = {
 "uniform vec3 uOrigin;\n"
 "\n"
 "in vec3 gPos[6];\n"
-"// in vec3 gColor[6];\n"
-"// in vec3 gNormal[6];\n"
-"// out vec3 fPos;\n"
-"// out vec3 fColor;\n"
-"// out vec3 fNormal;\n"
 "vec4 z_nudge = vec4(0, 0, 0.1, 0);\n"
 "\n"
 "void EmitSegment(int StartIndex, int EndIndex)\n"
 "{\n"
 "	gl_Position = gl_in[StartIndex].gl_Position + z_nudge;\n"
-"	// fPos = gPos[StartIndex];\n"
-"	// fColor = gColor[StartIndex];\n"
-"	// fNormal = gNormal[StartIndex];\n"
 "	EmitVertex();\n"
 "	gl_Position = gl_in[EndIndex].gl_Position + z_nudge;\n"
-"	// fPos = gPos[EndIndex];\n"
-"	// fColor = gColor[EndIndex];\n"
-"	// fNormal = gNormal[EndIndex];\n"
 "	EmitVertex();\n"
 "	EndPrimitive();\n"
 "}\n"
@@ -172,21 +149,18 @@ const char *outline_gs_source[] = {
 "			EmitSegment(4, 0);\n"
 "		}\n"
 "	}\n"
-"	//EmitSegment(0, 2);\n"
-"	//EmitSegment(2, 4);\n"
-"	//EmitSegment(4, 0);\n"
 "}\n"
 };
 const GLchar *outline_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *outline_uniform_names[] = {"model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
+const GLchar *outline_uniform_names[] = {"projection_view_matrix", "model_matrix", "projection_matrix", "light_color", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
 static const int outline_attribute_count = sizeof(outline_attribute_names)/sizeof(outline_attribute_names[0]);
 static const int outline_uniform_count = sizeof(outline_uniform_names)/sizeof(outline_uniform_names[0]);
 GLint outline_attributes[outline_attribute_count];
 GLint outline_uniforms[outline_uniform_count];
 struct shader_prog outline_program = {
 	.handle = 0,
-	.attr = {0, 0, 0},
-	.unif = {0, 0, -1, -1, -1, 0, -1, -1, -1, 0, -1}
+	.attr = {-1, -1, 0},
+	.unif = {-1, 0, 0, -1, -1, -1, -1, 0, -1, -1, -1, 0, -1}
 };
 struct shader_info outline_info = {
 	.vs_source = outline_vs_source,
@@ -209,9 +183,10 @@ const char *forward_vs_source[] = {
 "in vec3 vNormal; \n"
 "\n"
 "uniform mat4 model_matrix;\n"
-"uniform mat4 model_view_matrix;\n"
 "uniform mat4 model_view_normal_matrix;\n"
 "uniform mat4 projection_matrix;\n"
+"uniform mat4 projection_view_matrix;\n"
+"uniform mat4 model_view_matrix;\n"
 "\n"
 "out vec3 fPos;\n"
 "out vec3 fColor;\n"
@@ -219,7 +194,9 @@ const char *forward_vs_source[] = {
 "\n"
 "void main()\n"
 "{\n"
-"	gl_Position = projection_matrix * (model_view_matrix * vec4(vPos, 1));\n"
+"	mat4 ref = model_view_matrix;\n"
+"	mat4 ref2 = projection_matrix;\n"
+"	gl_Position = projection_view_matrix * (model_matrix * vec4(vPos, 1));\n"
 "	fPos = vec3(model_matrix * vec4(vPos, 1));\n"
 "	fColor = vColor;\n"
 "	fNormal = vec3(vec4(vNormal, 0.0) * model_view_normal_matrix);\n"
@@ -228,11 +205,9 @@ const char *forward_vs_source[] = {
 const char *forward_fs_source[] = {
 "#version 330\n"
 "\n"
-"#define NUM_LIGHTS 4\n"
-"\n"
-"uniform vec3 uLight_pos[NUM_LIGHTS]; //Light position in world space.\n"
-"uniform vec3 uLight_col[NUM_LIGHTS]; //Light color.\n"
-"uniform vec4 uLight_attr[NUM_LIGHTS]; //Light attributes. Falloff factors, then intensity.\n"
+"uniform vec3 uLight_pos; //Light position in world space.\n"
+"uniform vec3 uLight_col; //Light color.\n"
+"uniform vec4 uLight_attr; //Light attributes. Falloff factors, then intensity.\n"
 "uniform vec3 camera_position; //Camera position in world space.\n"
 "\n"
 "#define CONSTANT    0\n"
@@ -313,20 +288,18 @@ const char *forward_fs_source[] = {
 "	float ambient_intensity = 0.1;\n"
 "	float specular, diffuse;\n"
 "	vec3 v = normalize(camera_position - fPos); //View vector.\n"
-"	for (int i = 0; i < NUM_LIGHTS; i++) {\n"
-"		float dist = distance(fPos, uLight_pos[i]);\n"
-"		float attenuation = uLight_attr[i][CONSTANT] + uLight_attr[i][LINEAR]*dist + uLight_attr[i][EXPONENTIAL]*dist*dist;\n"
+"	float dist = distance(fPos, uLight_pos);\n"
+"	float attenuation = uLight_attr[CONSTANT] + uLight_attr[LINEAR]*dist + uLight_attr[EXPONENTIAL]*dist*dist;\n"
 "\n"
-"		vec3 l = normalize(uLight_pos[i]-fPos); //Light vector.\n"
+"	vec3 l = normalize(uLight_pos-fPos); //Light vector.\n"
 "\n"
-"		point_light_fragment2(l, v, normal, specular, diffuse);\n"
-"		vec3 diffuse_frag = fColor*uLight_col[i]*uLight_attr[i][INTENSITY]*diffuse/attenuation;\n"
-"		vec3 specular_frag = fColor*uLight_col[i]*uLight_attr[i][INTENSITY]*specular/attenuation;\n"
-"		final_color += (diffuse_frag + specular_frag);\n"
-"	}\n"
+"	point_light_fragment2(l, v, normal, specular, diffuse);\n"
+"	vec3 diffuse_frag = fColor*uLight_col*uLight_attr[INTENSITY]*diffuse/attenuation;\n"
+"	vec3 specular_frag = fColor*uLight_col*uLight_attr[INTENSITY]*specular/attenuation;\n"
+"	final_color += (diffuse_frag + specular_frag);\n"
 "\n"
-"	point_light_fragment2(normalize(vec3(0.1, 0.9, 0.2)), v, fNormal, specular, diffuse);\n"
-"	final_color += (diffuse+specular)*fColor*ambient_color*ambient_intensity;\n"
+"	//point_light_fragment2(normalize(vec3(0.1, 0.9, 0.2)), v, fNormal, specular, diffuse);\n"
+"	//final_color += (diffuse+specular)*fColor*ambient_color*ambient_intensity;\n"
 "\n"
 "	//Tone mapping.\n"
 "	final_color = final_color / (final_color + vec3(1.0));\n"
@@ -337,7 +310,7 @@ const char *forward_fs_source[] = {
 "}\n"
 };
 const GLchar *forward_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *forward_uniform_names[] = {"model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
+const GLchar *forward_uniform_names[] = {"projection_view_matrix", "model_matrix", "projection_matrix", "light_color", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
 static const int forward_attribute_count = sizeof(forward_attribute_names)/sizeof(forward_attribute_names[0]);
 static const int forward_uniform_count = sizeof(forward_uniform_names)/sizeof(forward_uniform_names[0]);
 GLint forward_attributes[forward_attribute_count];
@@ -345,7 +318,7 @@ GLint forward_uniforms[forward_uniform_count];
 struct shader_prog forward_program = {
 	.handle = 0,
 	.attr = {0, 0, 0},
-	.unif = {0, 0, 0, 0, 0, 0, -1, -1, 0, -1, 0}
+	.unif = {0, 0, 0, -1, 0, 0, 0, 0, -1, -1, 0, -1, 0}
 };
 struct shader_info forward_info = {
 	.vs_source = forward_vs_source,
@@ -364,73 +337,62 @@ const char *shadow_vs_source[] = {
 "#version 330 \n"
 "\n"
 "in vec3 vPos; \n"
-"in vec3 vColor;\n"
-"in vec3 vNormal;\n"
-"\n"
+"uniform mat4 model_matrix;\n"
 "out vec3 gPos;\n"
+"\n"
 "\n"
 "void main()\n"
 "{\n"
-"	vec3 refattr = vColor + vNormal;\n"
-"	gPos = vPos;\n"
+"	gPos = vec3(model_matrix * vec4(vPos, 1));\n"
 "}\n"
 };
 const char *shadow_fs_source[] = {
 "#version 330\n"
 "\n"
-"out vec4 LFragment;\n"
+"uniform vec3 light_color;\n"
+"\n"
+"// out vec4 LFragment;\n"
 "\n"
 "void main() {\n"
-"	LFragment = vec4(1.0, 0.0, 0.0, 1.0);\n"
+"	vec3 ref = light_color;\n"
+"	// LFragment = vec4(light_color, 1.0);\n"
 "}\n"
 };
 const char *shadow_gs_source[] = {
 "#version 330 core\n"
 "layout (triangles_adjacency) in;\n"
-"layout (line_strip, max_vertices = 14) out;\n"
+"layout (triangle_strip, max_vertices = 18) out;\n"
 "\n"
-"uniform vec3 uOrigin;\n"
 "uniform vec3 gLightPos;\n"
 "\n"
 "in vec3 gPos[6];\n"
-"uniform mat4 model_view_matrix;\n"
-"uniform mat4 projection_matrix;\n"
+"uniform mat4 projection_view_matrix;\n"
 "\n"
 "float EPSILON = 0.0001;\n"
 "\n"
-"void EmitSegment(int StartIndex, int EndIndex)\n"
-"{\n"
-"	gl_Position = gl_in[StartIndex].gl_Position;\n"
-"	EmitVertex();\n"
-"	gl_Position = gl_in[EndIndex].gl_Position;\n"
-"	EmitVertex();\n"
-"	EndPrimitive();\n"
-"}\n"
-"\n"
 "// Emit a quad using a triangle strip\n"
-"void EmitQuadLines(vec3 StartVertex, vec3 EndVertex)\n"
+"//void EmitQuadLines(vec3 StartVertex, vec3 EndVertex, vec3 lvStart, vec3 lvEnd, vec3 lpStart, vec3 lpEnd)\n"
+"void EmitQuadLines(vec3 lvStart, vec3 lvEnd, vec3 lpStart, vec3 lpEnd)\n"
 "{\n"
-"    // Vertex #1: the starting vertex (just a tiny bit below the original edge)\n"
-"    vec3 LightDir = normalize(StartVertex - gLightPos); \n"
-"    gl_Position = projection_matrix * (model_view_matrix * vec4((StartVertex + LightDir * EPSILON), 1.0));\n"
-"    EmitVertex();\n"
+"	// Vertex #1: the starting vertex (just a tiny bit below the original edge)\n"
+"	gl_Position = projection_view_matrix * vec4(lpStart, 1.0);\n"
+"	EmitVertex();\n"
 "\n"
-"    // Vertex #2: the starting vertex projected to infinity\n"
-"    gl_Position = projection_matrix * (model_view_matrix * vec4(LightDir, 0.0));\n"
-"    EmitVertex();\n"
+"	// Vertex #2: the starting vertex projected to infinity\n"
+"	gl_Position = projection_view_matrix * vec4(lpEnd, 1.0);\n"
+"	EmitVertex();\n"
 "\n"
-"    EndPrimitive();\n"
+"	//EndPrimitive();\n"
 "\n"
-"    // Vertex #3: the ending vertex (just a tiny bit below the original edge)\n"
-"    LightDir = normalize(EndVertex - gLightPos);\n"
-"    gl_Position = projection_matrix * (model_view_matrix * vec4((EndVertex + LightDir * EPSILON), 1.0));\n"
-"    EmitVertex();\n"
+"	// Vertex #3: the ending vertex (just a tiny bit below the original edge)\n"
+"	gl_Position = projection_view_matrix * vec4(lvStart, 0.0);\n"
+"	EmitVertex();\n"
 "\n"
-"    // Vertex #4: the ending vertex projected to infinity\n"
-"    gl_Position = projection_matrix * (model_view_matrix * vec4(LightDir , 0.0));\n"
-"    EmitVertex();\n"
+"	// Vertex #4: the ending vertex projected to infinity\n"
+"	gl_Position = projection_view_matrix * vec4(lvEnd , 0.0);\n"
+"	EmitVertex();\n"
 "\n"
-"    EndPrimitive(); \n"
+"	EndPrimitive(); \n"
 "}\n"
 "\n"
 "void main() {\n"
@@ -441,56 +403,63 @@ const char *shadow_gs_source[] = {
 "	vec3 e5 = gPos[4] - gPos[2];\n"
 "	vec3 e6 = gPos[5] - gPos[0];\n"
 "	vec3 normal = cross(e1, e2);\n"
-"	vec3 LightDir = uOrigin - gLightPos;\n"
-"	LightDir = uOrigin - gPos[0];\n"
-"	if (dot(normal, LightDir) > 0) {\n"
+"	vec3 lv0 = gLightPos - gPos[0];\n"
+"	vec3 lv2 = gLightPos - gPos[2];\n"
+"	vec3 lv4 = gLightPos - gPos[4];\n"
+"	vec3 lp0 = (gPos[0] - normalize(lv0) * EPSILON);\n"
+"	vec3 lp2 = (gPos[2] - normalize(lv2) * EPSILON);\n"
+"	vec3 lp4 = (gPos[4] - normalize(lv4) * EPSILON);\n"
+"	if (dot(normal, lv0) > 0) {\n"
 "\n"
 "		normal = cross(e3,e1);\n"
 "\n"
-"		if (dot(normal, LightDir) <= 0) {\n"
-"			vec3 StartVertex = gPos[0];\n"
-"            vec3 EndVertex = gPos[2];\n"
-"            EmitQuadLines(StartVertex, EndVertex);\n"
-"			//EmitSegment(0, 2);\n"
-"		}\n"
+"		if (dot(normal, lv0) <= 0)\n"
+"			EmitQuadLines(-lv0, -lv2, lp0, lp2);\n"
 "\n"
 "		normal = cross(e4,e5);\n"
-"		LightDir = uOrigin - gPos[2];\n"
 "\n"
-"		if (dot(normal, LightDir) <=0) {\n"
-"			vec3 StartVertex = gPos[2];\n"
-"            vec3 EndVertex = gPos[4];\n"
-"            EmitQuadLines(StartVertex, EndVertex);\n"
-"			//EmitSegment(2, 4);\n"
-"		}\n"
+"		if (dot(normal, lv2) <= 0)\n"
+"			EmitQuadLines(-lv2, -lv4, lp2, lp4);\n"
 "\n"
 "		normal = cross(e2,e6);\n"
-"		LightDir = uOrigin - gPos[4];\n"
 "\n"
-"		if (dot(normal, LightDir) <= 0) {\n"
-"			vec3 StartVertex = gPos[4];\n"
-"            vec3 EndVertex = gPos[0];\n"
-"            EmitQuadLines(StartVertex, EndVertex);\n"
-"			EmitSegment(4, 0);\n"
-"		}\n"
+"		if (dot(normal, lv4) <= 0)\n"
+"			EmitQuadLines(-lv4, -lv0, lp4, lp0);\n"
+"\n"
+"		// render the front cap\n"
+"		gl_Position = projection_view_matrix * vec4(lp0, 1.0);\n"
+"		EmitVertex();\n"
+"\n"
+"		gl_Position = projection_view_matrix * vec4(lp4, 1.0);\n"
+"		EmitVertex();\n"
+"\n"
+"		gl_Position = projection_view_matrix * vec4(lp2, 1.0);\n"
+"		EmitVertex();\n"
+"		EndPrimitive();\n"
+"\n"
+"		// render the back cap\n"
+"		gl_Position = projection_view_matrix * vec4(-lv0, 0.0);\n"
+"		EmitVertex();\n"
+"\n"
+"		gl_Position = projection_view_matrix * vec4(-lv2, 0.0);\n"
+"		EmitVertex();\n"
+"\n"
+"		gl_Position = projection_view_matrix * vec4(-lv4, 0.0);\n"
+"		EmitVertex();\n"
+"		EndPrimitive();\n"
 "	}\n"
-"	gl_Position = vec4(-1, -1, 0.4, 1);\n"
-"	EmitVertex();\n"
-"	gl_Position = vec4(1, 1, 0.4, 1);\n"
-"	EmitVertex();\n"
-"	EndPrimitive();\n"
 "}\n"
 };
 const GLchar *shadow_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *shadow_uniform_names[] = {"model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
+const GLchar *shadow_uniform_names[] = {"projection_view_matrix", "model_matrix", "projection_matrix", "light_color", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
 static const int shadow_attribute_count = sizeof(shadow_attribute_names)/sizeof(shadow_attribute_names[0]);
 static const int shadow_uniform_count = sizeof(shadow_uniform_names)/sizeof(shadow_uniform_names[0]);
 GLint shadow_attributes[shadow_attribute_count];
 GLint shadow_uniforms[shadow_uniform_count];
 struct shader_prog shadow_program = {
 	.handle = 0,
-	.attr = {0, 0, 0},
-	.unif = {-1, 0, -1, -1, -1, 0, -1, 0, -1, 0, -1}
+	.attr = {-1, -1, 0},
+	.unif = {0, 0, -1, 0, -1, -1, -1, -1, -1, 0, -1, -1, -1}
 };
 struct shader_info shadow_info = {
 	.vs_source = shadow_vs_source,
@@ -555,7 +524,7 @@ const char *stars_fs_source[] = {
 "}\n"
 };
 const GLchar *stars_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *stars_uniform_names[] = {"model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
+const GLchar *stars_uniform_names[] = {"projection_view_matrix", "model_matrix", "projection_matrix", "light_color", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
 static const int stars_attribute_count = sizeof(stars_attribute_names)/sizeof(stars_attribute_names[0]);
 static const int stars_uniform_count = sizeof(stars_uniform_names)/sizeof(stars_uniform_names[0]);
 GLint stars_attributes[stars_attribute_count];
@@ -563,7 +532,7 @@ GLint stars_uniforms[stars_uniform_count];
 struct shader_prog stars_program = {
 	.handle = 0,
 	.attr = {-1, -1, 0},
-	.unif = {-1, 0, -1, -1, -1, 0, 0, -1, -1, -1, -1}
+	.unif = {-1, -1, 0, -1, -1, -1, -1, 0, 0, -1, -1, -1, -1}
 };
 struct shader_info stars_info = {
 	.vs_source = stars_vs_source,

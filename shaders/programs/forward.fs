@@ -1,10 +1,8 @@
 #version 330
 
-#define NUM_LIGHTS 4
-
-uniform vec3 uLight_pos[NUM_LIGHTS]; //Light position in world space.
-uniform vec3 uLight_col[NUM_LIGHTS]; //Light color.
-uniform vec4 uLight_attr[NUM_LIGHTS]; //Light attributes. Falloff factors, then intensity.
+uniform vec3 uLight_pos; //Light position in world space.
+uniform vec3 uLight_col; //Light color.
+uniform vec4 uLight_attr; //Light attributes. Falloff factors, then intensity.
 uniform vec3 camera_position; //Camera position in world space.
 
 #define CONSTANT    0
@@ -85,20 +83,18 @@ void main() {
 	float ambient_intensity = 0.1;
 	float specular, diffuse;
 	vec3 v = normalize(camera_position - fPos); //View vector.
-	for (int i = 0; i < NUM_LIGHTS; i++) {
-		float dist = distance(fPos, uLight_pos[i]);
-		float attenuation = uLight_attr[i][CONSTANT] + uLight_attr[i][LINEAR]*dist + uLight_attr[i][EXPONENTIAL]*dist*dist;
+	float dist = distance(fPos, uLight_pos);
+	float attenuation = uLight_attr[CONSTANT] + uLight_attr[LINEAR]*dist + uLight_attr[EXPONENTIAL]*dist*dist;
 
-		vec3 l = normalize(uLight_pos[i]-fPos); //Light vector.
+	vec3 l = normalize(uLight_pos-fPos); //Light vector.
 
-		point_light_fragment2(l, v, normal, specular, diffuse);
-		vec3 diffuse_frag = fColor*uLight_col[i]*uLight_attr[i][INTENSITY]*diffuse/attenuation;
-		vec3 specular_frag = fColor*uLight_col[i]*uLight_attr[i][INTENSITY]*specular/attenuation;
-		final_color += (diffuse_frag + specular_frag);
-	}
+	point_light_fragment2(l, v, normal, specular, diffuse);
+	vec3 diffuse_frag = fColor*uLight_col*uLight_attr[INTENSITY]*diffuse/attenuation;
+	vec3 specular_frag = fColor*uLight_col*uLight_attr[INTENSITY]*specular/attenuation;
+	final_color += (diffuse_frag + specular_frag);
 
-	point_light_fragment2(normalize(vec3(0.1, 0.9, 0.2)), v, fNormal, specular, diffuse);
-	final_color += (diffuse+specular)*fColor*ambient_color*ambient_intensity;
+	//point_light_fragment2(normalize(vec3(0.1, 0.9, 0.2)), v, fNormal, specular, diffuse);
+	//final_color += (diffuse+specular)*fColor*ambient_color*ambient_intensity;
 
 	//Tone mapping.
 	final_color = final_color / (final_color + vec3(1.0));

@@ -206,6 +206,19 @@ AMAT4 amat4_inverse(AMAT4 a)
 	};
 }
 
+void amat4_buf_mult(float * restrict a, float * restrict b, float * restrict out)
+{
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			out[i * 4 + j] =
+			a[i * 4 + 0] * b[ 0 + j]+
+			a[i * 4 + 1] * b[ 4 + j]+
+			a[i * 4 + 2] * b[ 8 + j]+
+			a[i * 4 + 3] * b[12 + j];
+		}
+	}
+}
+
 void amat4_print(AMAT4 a)
 {
 	printf("%f %f %f\n", a.A[0], a.A[1], a.A[2]);

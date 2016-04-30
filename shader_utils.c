@@ -10,11 +10,12 @@
 #include "shaders/shaders.h"
 #include "gl_utils.h"
 
-static int init_shader_attributes(struct shader_prog *program, struct shader_info info)
+static int init_shader_attributes(GLuint program_handle, struct shader_prog *program, struct shader_info info)
 {
 	for (int i = 0; i < LENGTH(program->attr); i++) {
 		if (program->attr[i] != -1) {
-			program->attr[i] = glGetAttribLocation(program->handle, info.attr_names[i]);
+			glBindAttribLocation(program_handle, i, info.attr_names[i]);
+			program->attr[i] = i;
 			if (program->attr[i] == -1) {
 				printf("%s is not a valid glsl program variable! It may have been optimized out.\n", info.attr_names[i]);
 				return -1;
@@ -24,12 +25,13 @@ static int init_shader_attributes(struct shader_prog *program, struct shader_inf
 	return 0;
 }
 
-static int init_shader_uniforms(struct shader_prog *program, struct shader_info info)
+static int init_shader_uniforms(GLuint program_handle, struct shader_prog *program, struct shader_info info)
 {
 	for (int i = 0; i < LENGTH(program->unif); i++) {
 		if (program->unif[i] != -1) {
-			program->unif[i] = glGetUniformLocation(program->handle, info.unif_names[i]);
+			program->unif[i] = glGetUniformLocation(program_handle, info.unif_names[i]);
 			if (program->unif[i] == -1) {
+				program->unif[i] = 0;
 				printf("%s is not a valid glsl uniform variable! It may have been optimized out.\n", info.unif_names[i]);
 				return -1;
 			}
@@ -60,65 +62,63 @@ void printLog(GLuint handle, bool is_program)
 	}
 }
 
-static int init_shader_program(struct shader_prog *program,
+char *shader_enum_to_string(GLenum shader_type)
+{
+	switch (shader_type) {
+	case GL_VERTEX_SHADER:   return "vertex shader";
+	case GL_FRAGMENT_SHADER: return "fragment shader";
+	case GL_GEOMETRY_SHADER: return "geometry shader";
+	default: return "unhandled shader type";
+	}
+}
+
+static int compile_and_attach_shader(GLenum type, const GLchar **source, const char *path, GLuint program_handle)
+{
+	if (source && path) {
+		const GLuint shader = glCreateShader(type);
+		glShaderSource(shader, 1, source, NULL);
+		glCompileShader(shader);
+		GLint success = false;
+		glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+		if (success != true) {
+			printf("Unable to compile %s %d! (Path: %s)\n", shader_enum_to_string(type), shader, path);
+			printLog(shader, false);
+			glDeleteShader(shader);
+			return 0;
+		}
+		glAttachShader(program_handle, shader);
+		return shader;
+	}
+	return 0;
+}
+
+static int init_shader_program(GLuint program_handle,
 	const GLchar **vs_source, const char *vs_path,
 	const GLchar **fs_source, const char *fs_path,
 	const GLchar **gs_source, const char *gs_path)
 {
-	program->handle = glCreateProgram();
-	const GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
-	const GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
-	const GLuint gshader = glCreateShader(GL_GEOMETRY_SHADER);
-	//Vertex shader part
-	glShaderSource(vshader, 1, vs_source, NULL);
-	glCompileShader(vshader);
-	GLint success = false;
-	glGetShaderiv(vshader, GL_COMPILE_STATUS, &success);
-	if (success != true) {
-		printf("Unable to compile vertex shader %d! (Path: %s)\n", vshader, vs_path);
-		printLog(vshader, false);
-		return -1;
-	}
-	glAttachShader(program->handle, vshader);
-	//Fragment shader part
-	glShaderSource(fshader, 1, fs_source, NULL);
-	glCompileShader(fshader);
-	success = false;
-	glGetShaderiv(fshader, GL_COMPILE_STATUS, &success);
-	if (success != true) {
-		printf("Unable to compile fragment shader %d! (Path: %s)\n", fshader, fs_path);
-		printLog(fshader, false);
-		return -1;
-	}
-	glAttachShader(program->handle, fshader);
-	//Geometry shader part, optional
-	if (gs_source && gs_path) {
-		glShaderSource(gshader, 1, gs_source, NULL);
-		glCompileShader(gshader);
-		GLint success = false;
-		glGetShaderiv(gshader, GL_COMPILE_STATUS, &success);
+	GLint success = true;
+	const GLuint vshader = compile_and_attach_shader(GL_VERTEX_SHADER, vs_source, vs_path, program_handle);
+	const GLuint fshader = compile_and_attach_shader(GL_FRAGMENT_SHADER, fs_source, fs_path, program_handle);
+	const GLuint gshader = compile_and_attach_shader(GL_GEOMETRY_SHADER, gs_source, gs_path, program_handle);
+	
+	if (vshader && fshader) {
+		glLinkProgram(program_handle);
+		glGetProgramiv(program_handle, GL_LINK_STATUS, &success);
 		if (success != true) {
-			printf("Unable to compile vertex shader %d! (Path: %s)\n", gshader, gs_path);
-			printLog(gshader, false);
-			return -1;
+			printf("Unable to link program %d! (%s, %s, %s)\n", program_handle, vs_path, fs_path, gs_path);
+			printLog(program_handle, true);
 		}
-		glAttachShader(program->handle, gshader);
 	}
-	glLinkProgram(program->handle);
-	success = true;
-	glGetProgramiv(program->handle, GL_LINK_STATUS, &success);
-	if (success != true) {
-		printf("Unable to link program %d! (%s, %s, %s)\n", program->handle, vs_path, fs_path, gs_path);
-		printLog(program->handle, true);
-		return -1;
-	}
-	glDeleteShader(vshader);
-	glDeleteShader(fshader);
-	glDeleteShader(gshader);
+
+	if (vshader) glDeleteShader(vshader);
+	if (fshader) glDeleteShader(fshader);
+	if (gshader) glDeleteShader(gshader);
+	if (!success) return -1;
 	return 0;
 }
 
-static int init_shader(struct shader_prog *program, struct shader_info info, bool reload)
+static int init_shader(GLuint program_handle, struct shader_info info, bool reload)
 {
 	if (reload) {
 		//Delete existing program
@@ -149,8 +149,7 @@ static int init_shader(struct shader_prog *program, struct shader_info info, boo
 			gs_source[buf.st_size] = '\0';
 		}
 
-		struct shader_prog program_copy = *program;
-		int error = init_shader_program(&program_copy,
+		int error = init_shader_program(program_handle,
 			(const GLchar **)&vs_source, *info.vs_file_path,
 			(const GLchar **)&fs_source, *info.fs_file_path,
 			(const GLchar **)&gs_source, info.gs_file_path?*info.gs_file_path:NULL);
@@ -162,22 +161,14 @@ static int init_shader(struct shader_prog *program, struct shader_info info, boo
 			printf("Could not compile shader program.\n");
 			return -1;
 		}
-		glDeleteProgram(program->handle);
-		*program = program_copy;
-	} else if (init_shader_program(program,
-		(const GLchar **)info.vs_source, *info.vs_file_path,
-		(const GLchar **)info.fs_source, *info.fs_file_path,
-		(const GLchar **)info.gs_source, info.gs_file_path?*info.gs_file_path:NULL)) {
-		printf("Could not compile shader program.\n");
-		return -1;
-	}
-	if (init_shader_attributes(program, info)) {
-		printf("Could not retrieve shader attributes.\n");
-		return -1;
-	}
-	if (init_shader_uniforms(program, info)) {
-		printf("Could not retrieve shader uniforms.\n");
-		return -1;
+	} else {
+		if (init_shader_program(program_handle,
+			(const GLchar **)info.vs_source, *info.vs_file_path,
+			(const GLchar **)info.fs_source, *info.fs_file_path,
+			(const GLchar **)info.gs_source, info.gs_file_path?*info.gs_file_path:NULL)) {
+			printf("Could not compile shader program.\n");
+			return -1;
+		}
 	}
 	return 0;
 }
@@ -185,11 +176,30 @@ static int init_shader(struct shader_prog *program, struct shader_info info, boo
 static int init_or_reload_shaders(struct shader_prog **programs, struct shader_info **infos, int numprogs, bool reload)
 {
 	for (int i = 0; i < numprogs; i++) {
-		int result = init_shader(programs[i], *infos[i], reload);
+		bool success = true;
+		GLuint program_handle = glCreateProgram();
+		if (init_shader_attributes(program_handle, programs[i], *infos[i])) {
+			printf("Could not bind shader attributes for program.\n");
+			success = false;
+		}
+		int result = init_shader(program_handle, *infos[i], reload);
 		if (result) {
 			char *errstr = reload?"reload":"init";
 			printf("Error: could not %s shader %i, aborting %s.\n", errstr, i, errstr);
-			return result;
+			success = false;
+		}
+		if (init_shader_uniforms(program_handle, programs[i], *infos[i])) {
+			printf("Could not retrieve shader uniforms.\n");
+			success = false;
+		}
+		if (success) {
+			if (reload)
+				glDeleteProgram(programs[i]->handle);
+			programs[i]->handle = program_handle;
+		} else {
+			glDeleteProgram(program_handle);
+			printf("Stopped at program [%s, %s]\n", *infos[i]->vs_file_path, *infos[i]->fs_file_path);
+			return -1;
 		}
 	}
 	return 0;
