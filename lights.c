@@ -30,6 +30,7 @@ int new_point_light(struct point_light_attributes *lights, VEC3 position, VEC3 c
 	lights->intensity[num_lights] = intensity;
 	lights->radius[num_lights] = point_light_radius(lights, num_lights);
 	lights->enabled_for_draw[num_lights] = true;
+	lights->shadowing[num_lights] = false;
 	lights->num_lights++;
 	return 0;
 }

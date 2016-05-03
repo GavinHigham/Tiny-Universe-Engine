@@ -50,7 +50,7 @@ const char *skybox_fs_source[] = {
 "}\n"
 };
 const GLchar *skybox_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *skybox_uniform_names[] = {"projection_view_matrix", "model_matrix", "projection_matrix", "light_color", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
+const GLchar *skybox_uniform_names[] = {"zpass", "projection_view_matrix", "model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
 static const int skybox_attribute_count = sizeof(skybox_attribute_names)/sizeof(skybox_attribute_names[0]);
 static const int skybox_uniform_count = sizeof(skybox_uniform_names)/sizeof(skybox_uniform_names[0]);
 GLint skybox_attributes[skybox_attribute_count];
@@ -58,7 +58,7 @@ GLint skybox_uniforms[skybox_uniform_count];
 struct shader_prog skybox_program = {
 	.handle = 0,
 	.attr = {-1, -1, 0},
-	.unif = {-1, 0, 0, -1, -1, -1, -1, 0, -1, -1, -1, -1, 0}
+	.unif = {-1, -1, 0, 0, -1, -1, -1, 0, -1, -1, -1, -1, 0}
 };
 struct shader_info skybox_info = {
 	.vs_source = skybox_vs_source,
@@ -152,7 +152,7 @@ const char *outline_gs_source[] = {
 "}\n"
 };
 const GLchar *outline_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *outline_uniform_names[] = {"projection_view_matrix", "model_matrix", "projection_matrix", "light_color", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
+const GLchar *outline_uniform_names[] = {"zpass", "projection_view_matrix", "model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
 static const int outline_attribute_count = sizeof(outline_attribute_names)/sizeof(outline_attribute_names[0]);
 static const int outline_uniform_count = sizeof(outline_uniform_names)/sizeof(outline_uniform_names[0]);
 GLint outline_attributes[outline_attribute_count];
@@ -160,7 +160,7 @@ GLint outline_uniforms[outline_uniform_count];
 struct shader_prog outline_program = {
 	.handle = 0,
 	.attr = {-1, -1, 0},
-	.unif = {-1, 0, 0, -1, -1, -1, -1, 0, -1, -1, -1, 0, -1}
+	.unif = {-1, -1, 0, 0, -1, -1, -1, 0, -1, -1, -1, 0, -1}
 };
 struct shader_info outline_info = {
 	.vs_source = outline_vs_source,
@@ -310,7 +310,7 @@ const char *forward_fs_source[] = {
 "}\n"
 };
 const GLchar *forward_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *forward_uniform_names[] = {"projection_view_matrix", "model_matrix", "projection_matrix", "light_color", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
+const GLchar *forward_uniform_names[] = {"zpass", "projection_view_matrix", "model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
 static const int forward_attribute_count = sizeof(forward_attribute_names)/sizeof(forward_attribute_names[0]);
 static const int forward_uniform_count = sizeof(forward_uniform_names)/sizeof(forward_uniform_names[0]);
 GLint forward_attributes[forward_attribute_count];
@@ -318,7 +318,7 @@ GLint forward_uniforms[forward_uniform_count];
 struct shader_prog forward_program = {
 	.handle = 0,
 	.attr = {0, 0, 0},
-	.unif = {0, 0, 0, -1, 0, 0, 0, 0, -1, -1, 0, -1, 0}
+	.unif = {-1, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, -1, 0}
 };
 struct shader_info forward_info = {
 	.vs_source = forward_vs_source,
@@ -336,26 +336,22 @@ const char *shadow_gs_file_path[] = {"shaders/programs/shadow.gs"};
 const char *shadow_vs_source[] = {
 "#version 330 \n"
 "\n"
-"in vec3 vPos; \n"
+"in vec3 vPos;\n"
+"in vec3 vNormal;\n"
 "uniform mat4 model_matrix;\n"
 "out vec3 gPos;\n"
-"\n"
+"out vec3 gNormal;\n"
 "\n"
 "void main()\n"
 "{\n"
 "	gPos = vec3(model_matrix * vec4(vPos, 1));\n"
+"	gNormal = vNormal;\n"
 "}\n"
 };
 const char *shadow_fs_source[] = {
 "#version 330\n"
 "\n"
-"uniform vec3 light_color;\n"
-"\n"
-"// out vec4 LFragment;\n"
-"\n"
 "void main() {\n"
-"	vec3 ref = light_color;\n"
-"	// LFragment = vec4(light_color, 1.0);\n"
 "}\n"
 };
 const char *shadow_gs_source[] = {
@@ -364,8 +360,10 @@ const char *shadow_gs_source[] = {
 "layout (triangle_strip, max_vertices = 18) out;\n"
 "\n"
 "uniform vec3 gLightPos;\n"
+"uniform int zpass;\n"
 "\n"
 "in vec3 gPos[6];\n"
+"in vec3 gNormal[6];\n"
 "uniform mat4 projection_view_matrix;\n"
 "\n"
 "float EPSILON = 0.0001;\n"
@@ -374,24 +372,14 @@ const char *shadow_gs_source[] = {
 "//void EmitQuadLines(vec3 StartVertex, vec3 EndVertex, vec3 lvStart, vec3 lvEnd, vec3 lpStart, vec3 lpEnd)\n"
 "void EmitQuadLines(vec3 lvStart, vec3 lvEnd, vec3 lpStart, vec3 lpEnd)\n"
 "{\n"
-"	// Vertex #1: the starting vertex (just a tiny bit below the original edge)\n"
 "	gl_Position = projection_view_matrix * vec4(lpStart, 1.0);\n"
 "	EmitVertex();\n"
-"\n"
-"	// Vertex #2: the starting vertex projected to infinity\n"
 "	gl_Position = projection_view_matrix * vec4(lpEnd, 1.0);\n"
 "	EmitVertex();\n"
-"\n"
-"	//EndPrimitive();\n"
-"\n"
-"	// Vertex #3: the ending vertex (just a tiny bit below the original edge)\n"
 "	gl_Position = projection_view_matrix * vec4(lvStart, 0.0);\n"
 "	EmitVertex();\n"
-"\n"
-"	// Vertex #4: the ending vertex projected to infinity\n"
 "	gl_Position = projection_view_matrix * vec4(lvEnd , 0.0);\n"
 "	EmitVertex();\n"
-"\n"
 "	EndPrimitive(); \n"
 "}\n"
 "\n"
@@ -402,14 +390,33 @@ const char *shadow_gs_source[] = {
 "	vec3 e4 = gPos[3] - gPos[2];\n"
 "	vec3 e5 = gPos[4] - gPos[2];\n"
 "	vec3 e6 = gPos[5] - gPos[0];\n"
-"	vec3 normal = cross(e1, e2);\n"
-"	vec3 lv0 = gLightPos - gPos[0];\n"
-"	vec3 lv2 = gLightPos - gPos[2];\n"
-"	vec3 lv4 = gLightPos - gPos[4];\n"
-"	vec3 lp0 = (gPos[0] - normalize(lv0) * EPSILON);\n"
-"	vec3 lp2 = (gPos[2] - normalize(lv2) * EPSILON);\n"
-"	vec3 lp4 = (gPos[4] - normalize(lv4) * EPSILON);\n"
+"	vec3 normal = cross(e1, e2); //The face normal.\n"
+"	vec3 lv0 = gLightPos - gPos[0]; //From vertex 0 to the light\n"
+"	vec3 lv2 = gLightPos - gPos[2]; //From vertex 2 to the light\n"
+"	vec3 lv4 = gLightPos - gPos[4]; //From vertex 4 to the light\n"
+"	vec3 lp0 = (gPos[0] - lv0 * EPSILON);\n"
+"	vec3 lp2 = (gPos[2] - lv2 * EPSILON);\n"
+"	vec3 lp4 = (gPos[4] - lv4 * EPSILON);\n"
 "	if (dot(normal, lv0) > 0) {\n"
+"		if (zpass == 0) {\n"
+"			//Front cap\n"
+"			gl_Position = projection_view_matrix * vec4(lp0, 1.0);\n"
+"			EmitVertex();\n"
+"			gl_Position = projection_view_matrix * vec4(lp4, 1.0);\n"
+"			EmitVertex();\n"
+"			gl_Position = projection_view_matrix * vec4(lp2, 1.0);\n"
+"			EmitVertex();\n"
+"			EndPrimitive();\n"
+"\n"
+"			//Back cap\n"
+"			gl_Position = projection_view_matrix * vec4(-lv0, 0.0);\n"
+"			EmitVertex();\n"
+"			gl_Position = projection_view_matrix * vec4(-lv2, 0.0);\n"
+"			EmitVertex();\n"
+"			gl_Position = projection_view_matrix * vec4(-lv4, 0.0);\n"
+"			EmitVertex();\n"
+"			EndPrimitive();\n"
+"		}\n"
 "\n"
 "		normal = cross(e3,e1);\n"
 "\n"
@@ -425,41 +432,19 @@ const char *shadow_gs_source[] = {
 "\n"
 "		if (dot(normal, lv4) <= 0)\n"
 "			EmitQuadLines(-lv4, -lv0, lp4, lp0);\n"
-"\n"
-"		// render the front cap\n"
-"		gl_Position = projection_view_matrix * vec4(lp0, 1.0);\n"
-"		EmitVertex();\n"
-"\n"
-"		gl_Position = projection_view_matrix * vec4(lp4, 1.0);\n"
-"		EmitVertex();\n"
-"\n"
-"		gl_Position = projection_view_matrix * vec4(lp2, 1.0);\n"
-"		EmitVertex();\n"
-"		EndPrimitive();\n"
-"\n"
-"		// render the back cap\n"
-"		gl_Position = projection_view_matrix * vec4(-lv0, 0.0);\n"
-"		EmitVertex();\n"
-"\n"
-"		gl_Position = projection_view_matrix * vec4(-lv2, 0.0);\n"
-"		EmitVertex();\n"
-"\n"
-"		gl_Position = projection_view_matrix * vec4(-lv4, 0.0);\n"
-"		EmitVertex();\n"
-"		EndPrimitive();\n"
 "	}\n"
 "}\n"
 };
 const GLchar *shadow_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *shadow_uniform_names[] = {"projection_view_matrix", "model_matrix", "projection_matrix", "light_color", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
+const GLchar *shadow_uniform_names[] = {"zpass", "projection_view_matrix", "model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
 static const int shadow_attribute_count = sizeof(shadow_attribute_names)/sizeof(shadow_attribute_names[0]);
 static const int shadow_uniform_count = sizeof(shadow_uniform_names)/sizeof(shadow_uniform_names[0]);
 GLint shadow_attributes[shadow_attribute_count];
 GLint shadow_uniforms[shadow_uniform_count];
 struct shader_prog shadow_program = {
 	.handle = 0,
-	.attr = {-1, -1, 0},
-	.unif = {0, 0, -1, 0, -1, -1, -1, -1, -1, 0, -1, -1, -1}
+	.attr = {0, -1, 0},
+	.unif = {0, 0, 0, -1, -1, -1, -1, -1, -1, 0, -1, -1, -1}
 };
 struct shader_info shadow_info = {
 	.vs_source = shadow_vs_source,
@@ -524,7 +509,7 @@ const char *stars_fs_source[] = {
 "}\n"
 };
 const GLchar *stars_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *stars_uniform_names[] = {"projection_view_matrix", "model_matrix", "projection_matrix", "light_color", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
+const GLchar *stars_uniform_names[] = {"zpass", "projection_view_matrix", "model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "uOrigin", "camera_position"};
 static const int stars_attribute_count = sizeof(stars_attribute_names)/sizeof(stars_attribute_names[0]);
 static const int stars_uniform_count = sizeof(stars_uniform_names)/sizeof(stars_uniform_names[0]);
 GLint stars_attributes[stars_attribute_count];
@@ -532,7 +517,7 @@ GLint stars_uniforms[stars_uniform_count];
 struct shader_prog stars_program = {
 	.handle = 0,
 	.attr = {-1, -1, 0},
-	.unif = {-1, -1, 0, -1, -1, -1, -1, 0, 0, -1, -1, -1, -1}
+	.unif = {-1, -1, -1, 0, -1, -1, -1, 0, 0, -1, -1, -1, -1}
 };
 struct shader_info stars_info = {
 	.vs_source = stars_vs_source,

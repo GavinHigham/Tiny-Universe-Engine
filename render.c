@@ -35,7 +35,7 @@ struct func_list update_func_list = {
 };
 
 struct buffer_group newship_buffers;
-//struct buffer_group teardropship_buffers;
+struct buffer_group teardropship_buffers;
 struct buffer_group ship_buffers;
 struct buffer_group ball_buffers;
 struct buffer_group thrust_flare_buffers;
@@ -48,7 +48,9 @@ GLuint gVAO = 0;
 extern bool draw_light_bounds;
 AMAT4 inv_eye_frame;
 AMAT4 eye_frame = {.a = MAT3_IDENT, .T = {6, 0, 0}};
-AMAT4 ship_frame = {.a = MAT3_IDENT, .T = {0, 0, -8}};
+AMAT4 ship_frame = {.a = MAT3_IDENT, .T = {-2.5, 0, -8}};
+AMAT4 newship_frame = {.a = MAT3_IDENT, .T = {3, 0, -8}};
+AMAT4 teardropship_frame = {.a = MAT3_IDENT, .T = {6, 0, -8}};
 AMAT4 room_frame = {.a = MAT3_IDENT, .T = {0, -4, -8}};
 AMAT4 grid_frame = {.a = MAT3_IDENT, .T = {-30, -3, -30}};
 AMAT4 big_asteroid_frame = {.a = MAT3_IDENT, .T = {0, -4, -20}};
@@ -68,7 +70,7 @@ static void init_models()
 {
 	ship_buffers = new_buffer_group(buffer_ship, &forward_program);
 	newship_buffers = new_buffer_group(buffer_newship, &forward_program);
-	//teardropship_buffers = new_buffer_group(buffer_teardropship, &forward_program);
+	teardropship_buffers = new_buffer_group(buffer_teardropship, &forward_program);
 	ball_buffers = new_buffer_group(buffer_ball, &forward_program);
 	thrust_flare_buffers = new_buffer_group(buffer_thrust_flare, &forward_program);
 	icosphere_buffers = new_custom_buffer_group(buffer_icosphere, 0);
@@ -96,6 +98,10 @@ static void init_lights()
 	new_point_light(&point_lights, (VEC3){{0, 2, 0}},   (VEC3){{1.0, 1.0, 1.0}}, 0.0,     0.0,    1,    5);
 	new_point_light(&point_lights, (VEC3){{0, 2, 0}},   (VEC3){{0.8, 0.8, 1.0}}, 0.0,     0.3,    0.04, 0.4);
 	new_point_light(&point_lights, (VEC3){{10, 4, -7}}, (VEC3){{0.4, 1.0, 0.4}}, 0.1,     0.14,   0.07, 0.75);
+	point_lights.shadowing[0] = true;
+	point_lights.shadowing[1] = true;
+	//point_lights.shadowing[2] = true;
+	//point_lights.shadowing[3] = true;
 
 	for (int i = 0; i < point_lights.num_lights; i++) {
 		printf("Light %i radius is %f\n", i, point_lights.radius[i]);
@@ -263,110 +269,74 @@ void render()
 	if (DEFERRED_MODE || key_state[SDL_SCANCODE_5]) {
 		// render_deferred();
 	} else {
-		int stencil_shadows = true;
-		struct buffer_group *pvs[] = {&room_buffers, &newship_buffers};
-		struct buffer_group *casters[] = {&newship_buffers};
-		AMAT4 *pvs_frames[] = {&room_frame, &ship_frame};
-		AMAT4 *casters_frames[] = {&ship_frame};
+		struct buffer_group *pvs[] = {&room_buffers, &newship_buffers, &teardropship_buffers, &ship_buffers};
+		AMAT4 *pvs_frames[] = {&room_frame, &newship_frame, &teardropship_frame, &ship_frame};
 		glDepthMask(GL_TRUE);
 		glClearStencil(0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
 		glEnable(GL_CULL_FACE);
 		glDepthFunc(GL_GREATER);
-		if (stencil_shadows ^ key_state[SDL_SCANCODE_7]) {
-			//Render into the depth buffer.
-			{
-				glDrawBuffer(GL_NONE);
-				glUseProgram(forward_program.handle);
-				glUniform3fv(forward_program.camera_position, 1, eye_frame.T);
-				for (int i = 0; i < LENGTH(pvs); i++)
-					draw_forward(&forward_program, *pvs[i], *pvs_frames[i]);
-				checkErrors("After drawing into depth");
-			}
-			for (int i = 0; i < point_lights.num_lights; i++) {
-				//Render shadow volumes into the stencil buffer.
-				{
-					glClear(GL_STENCIL_BUFFER_BIT);
-					glEnable(GL_DEPTH_CLAMP);
-					glDepthFunc(GL_GREATER);
-					glDisable(GL_CULL_FACE);
-					glDisable(GL_BLEND);
-					glDepthMask(GL_FALSE);
-					glEnable(GL_STENCIL_TEST);
-					glStencilFunc(GL_ALWAYS, 0, 0xff);
-					glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
-					glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP); 
-					glUseProgram(shadow_program.handle);
-					glUniform3fv(shadow_program.gLightPos, 1, point_lights.position[i].A);
-					glUniform3fv(shadow_program.light_color, 1, point_lights.color[i].A);
-					//glDrawBuffer(GL_BACK);
-					for (int i = 0; i < LENGTH(pvs); i++)
-						draw_forward_adjacent(&shadow_program, *pvs[i], *pvs_frames[i]);
-					glDisable(GL_DEPTH_CLAMP);
-					glEnable(GL_CULL_FACE);
-					checkErrors("After rendering shadow volumes");
-				}
-				//Draw the shadowed scene.
-				{
-					glDrawBuffer(GL_BACK);
-					glStencilFunc(GL_EQUAL, 0x0, 0xFF);
-					glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_KEEP);
-					glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_KEEP);
-					glUseProgram(forward_program.handle);
-					forward_update_point_light(&forward_program, &point_lights, i);
-					glEnable(GL_BLEND);
-					glBlendEquation(GL_FUNC_ADD);
-					glBlendFunc(GL_ONE, GL_ONE);
-					glDepthFunc(GL_EQUAL);
-					checkErrors("Before forward draw shadowed");
-					for (int i = 0; i < LENGTH(pvs); i++) {
-						draw_forward(&forward_program, *pvs[i], *pvs_frames[i]);
-						checkErrors("After forward draw shadowed");
-					}
-					glDisable(GL_BLEND);
-					checkErrors("After drawing shadowed");
-				}
-			}
-			glDisable(GL_STENCIL_TEST);
-		} else {
+		int zpass = key_state[SDL_SCANCODE_7];
+		//Render into the depth buffer.
+		{
 			glDrawBuffer(GL_NONE);
 			glUseProgram(forward_program.handle);
-			checkErrors("After glUseProgram(forward_program.handle)");
 			glUniform3fv(forward_program.camera_position, 1, eye_frame.T);
-			checkErrors("After updating camera_position vector");
-			for (int i = 0; i < LENGTH(pvs); i++) {
+			for (int i = 0; i < LENGTH(pvs); i++)
 				draw_forward(&forward_program, *pvs[i], *pvs_frames[i]);
-			}
-			glDepthFunc(GL_EQUAL);
-			//draw_forward(&forward_program, newship_buffers, ship_frame);
-			//draw_forward(&forward_program, room_buffers, room_frame);
-			glEnable(GL_BLEND);
-			glBlendEquation(GL_FUNC_ADD);
-			glBlendFunc(GL_ONE, GL_ONE);
-			glDrawBuffer(GL_BACK);
-			for (int i = 0; i < point_lights.num_lights; i++) {
-				forward_update_point_light(&forward_program, &point_lights, i);
-				for (int j = 0; j < LENGTH(pvs); j++) {
-					draw_forward(&forward_program, *pvs[j], *pvs_frames[j]);
+			checkErrors("After drawing into depth");
+		}
+		for (int i = 0; i < point_lights.num_lights; i++) {
+			glClear(GL_STENCIL_BUFFER_BIT);
+			//Render shadow volumes into the stencil buffer.
+			if (point_lights.shadowing[i]) {
+				glEnable(GL_DEPTH_CLAMP);
+				glDepthFunc(GL_GREATER);
+				glDisable(GL_CULL_FACE);
+				glDisable(GL_BLEND);
+				glDepthMask(GL_FALSE);
+				glEnable(GL_STENCIL_TEST);
+				glStencilFunc(GL_ALWAYS, 0, 0xff);
+				if (zpass) {
+					glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
+					glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_DECR_WRAP); 
+				} else {
+					glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
+					glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
 				}
+				glUseProgram(shadow_program.handle);
+				glUniform3fv(shadow_program.gLightPos, 1, point_lights.position[i].A);
+				//glUniform3fv(shadow_program.light_color, 1, point_lights.color[i].A);
+				glUniform1i(shadow_program.zpass, zpass);
+				checkErrors("After updating zpass uniform");
+				//glDrawBuffer(GL_BACK);
+				for (int i = 0; i < LENGTH(pvs); i++)
+					draw_forward_adjacent(&shadow_program, *pvs[i], *pvs_frames[i]);
+				glDisable(GL_DEPTH_CLAMP);
+				glEnable(GL_CULL_FACE);
+				checkErrors("After rendering shadow volumes");
 			}
-			checkErrors("After regular forward draw");
-			//draw_forward(&forward_program, grid_buffers, grid_frame);
-			checkErrors("After updating uOrigin");
-			glUseProgram(outline_program.handle);
-			glUniform3fv(outline_program.uOrigin, 1, eye_frame.T);
-			glDepthFunc(GL_GREATER);
-			draw_forward_adjacent(&outline_program, newship_buffers, ship_frame);
-			draw_forward_adjacent(&outline_program, room_buffers, room_frame);
-			checkErrors("After drawing outline");
-			checkErrors("After drawing shadow lines");
-			glUseProgram(skybox_program.handle);
-			AMAT4 skybox_frame = {
-				.a = mat3_scalemat(skybox_scale.x, skybox_scale.y, skybox_scale.z),
-				.t = eye_frame.t};
-			draw_skybox_forward(&skybox_program, cube_buffers, skybox_frame);
-			//draw_stars();
+			//Draw the shadowed scene.
+			if (point_lights.enabled_for_draw[i]) {
+				glDrawBuffer(GL_BACK);
+				glStencilFunc(GL_EQUAL, 0x0, 0xFF);
+				glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_KEEP);
+				glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_KEEP);
+				glUseProgram(forward_program.handle);
+				forward_update_point_light(&forward_program, &point_lights, i);
+				glEnable(GL_BLEND);
+				glBlendEquation(GL_FUNC_ADD);
+				glBlendFunc(GL_ONE, GL_ONE);
+				glDepthFunc(GL_EQUAL);
+				checkErrors("Before forward draw shadowed");
+				for (int i = 0; i < LENGTH(pvs); i++) {
+					draw_forward(&forward_program, *pvs[i], *pvs_frames[i]);
+					checkErrors("After forward draw shadowed");
+				}
+				glDisable(GL_BLEND);
+				checkErrors("After drawing shadowed");
+			}
 		}
 		checkErrors("After forward junk");
 	}

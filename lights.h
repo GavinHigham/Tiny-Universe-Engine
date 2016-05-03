@@ -14,6 +14,7 @@ struct point_light_attributes {
 	float intensity[MAX_NUM_LIGHTS]; //Light intensity.
 	float radius[MAX_NUM_LIGHTS];
 	bool enabled_for_draw[MAX_NUM_LIGHTS];
+	bool shadowing[MAX_NUM_LIGHTS];
 	int num_lights; //Number of created lights.
 };
 

@@ -25,10 +25,10 @@ struct shader_prog {
 	};
 	union {
 		struct {
+			GLint zpass;
 			GLint projection_view_matrix;
 			GLint model_matrix;
 			GLint projection_matrix;
-			GLint light_color;
 			GLint uLight_attr;
 			GLint uLight_col;
 			GLint uLight_pos;
