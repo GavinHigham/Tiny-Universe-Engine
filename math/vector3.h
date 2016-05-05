@@ -32,6 +32,8 @@ VEC3 vec3_neg(VEC3 a);
 VEC3 vec3_normalize(VEC3 a);
 //Returns a new vector that represents the cross product of a and b.
 VEC3 vec3_cross(VEC3 a, VEC3 b);
+//Returns a new vector that is linearly interpolated between a and by by parameter alpha.
+VEC3 vec3_lerp(VEC3 a, VEC3 b, float alpha);
 //Return the dot product of a and b.
 float vec3_dot(VEC3 a, VEC3 b);
 

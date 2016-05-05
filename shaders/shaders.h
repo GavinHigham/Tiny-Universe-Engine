@@ -32,14 +32,16 @@ struct shader_prog {
 			GLint uLight_attr;
 			GLint uLight_col;
 			GLint uLight_pos;
+			GLint sun_direction;
 			GLint model_view_matrix;
 			GLint eye_pos;
 			GLint gLightPos;
 			GLint model_view_normal_matrix;
+			GLint ambient_pass;
 			GLint uOrigin;
 			GLint camera_position;
 		};
-		GLint unif[13];
+		GLint unif[15];
 	};
 };
 extern struct shader_prog skybox_program;

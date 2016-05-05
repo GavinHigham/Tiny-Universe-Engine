@@ -4,6 +4,7 @@ uniform vec3 uLight_pos; //Light position in world space.
 uniform vec3 uLight_col; //Light color.
 uniform vec4 uLight_attr; //Light attributes. Falloff factors, then intensity.
 uniform vec3 camera_position; //Camera position in world space.
+uniform int ambient_pass;
 
 #define CONSTANT    0
 #define LINEAR      1
@@ -79,22 +80,24 @@ void main() {
 	float gamma = 2.2;
 	vec3 normal = normalize(fNormal);
 	vec3 final_color = vec3(0.0);
-	vec3 ambient_color = vec3(1.0, 0.9, 0.9);
-	float ambient_intensity = 0.1;
 	float specular, diffuse;
+	vec3 diffuse_frag = vec3(0.0);
+	vec3 specular_frag = vec3(0.0);
 	vec3 v = normalize(camera_position - fPos); //View vector.
-	float dist = distance(fPos, uLight_pos);
-	float attenuation = uLight_attr[CONSTANT] + uLight_attr[LINEAR]*dist + uLight_attr[EXPONENTIAL]*dist*dist;
+	if (ambient_pass == 1) {
+		point_light_fragment2(uLight_pos, v, normal, specular, diffuse);
+		diffuse_frag = fColor*uLight_col*diffuse;
+		specular_frag = fColor*uLight_col*specular;
+	} else {
+		float dist = distance(fPos, uLight_pos);
+		float attenuation = uLight_attr[CONSTANT] + uLight_attr[LINEAR]*dist + uLight_attr[EXPONENTIAL]*dist*dist;
+		vec3 l = normalize(uLight_pos-fPos); //Light vector.
+		point_light_fragment2(l, v, normal, specular, diffuse);
+		diffuse_frag = fColor*uLight_col*uLight_attr[INTENSITY]*diffuse/attenuation;
+		specular_frag = fColor*uLight_col*uLight_attr[INTENSITY]*specular/attenuation;
+	}
 
-	vec3 l = normalize(uLight_pos-fPos); //Light vector.
-
-	point_light_fragment2(l, v, normal, specular, diffuse);
-	vec3 diffuse_frag = fColor*uLight_col*uLight_attr[INTENSITY]*diffuse/attenuation;
-	vec3 specular_frag = fColor*uLight_col*uLight_attr[INTENSITY]*specular/attenuation;
 	final_color += (diffuse_frag + specular_frag);
-
-	//point_light_fragment2(normalize(vec3(0.1, 0.9, 0.2)), v, fNormal, specular, diffuse);
-	//final_color += (diffuse+specular)*fColor*ambient_color*ambient_intensity;
 
 	//Tone mapping.
 	final_color = final_color / (final_color + vec3(1.0));

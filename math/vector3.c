@@ -38,6 +38,12 @@ VEC3 vec3_cross(VEC3 u, VEC3 v)
 	return (VEC3){{u.y*v.z-u.z*v.y, u.z*v.x-u.x*v.z, u.x*v.y-u.y*v.x}};
 }
 
+VEC3 vec3_lerp(VEC3 a, VEC3 b, float alpha)
+{
+	float beta = 1 - alpha;
+	return (VEC3){{a.x * alpha + b.x * beta, a.y * alpha + b.y * beta, a.z * alpha + b.z * beta, }};
+}
+
 float vec3_dot(VEC3 u, VEC3 v)
 {
 	return (u.x * v.x + u.y * v.y + u.z * v.z);
