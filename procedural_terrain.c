@@ -1,11 +1,15 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <assert.h>
 #include <GL/glew.h>
 #include "procedural_terrain.h"
 #include "math/vector3.h"
 #include "buffer_group.h"
 #include "macros.h"
 #include "render.h"
+
+VEC3 *gpositions;
 
 extern int PRIMITIVE_RESTART_INDEX;
 
@@ -14,7 +18,8 @@ VEC3 height_map1(float x, float z)
 	float height = 0;
 	int octaves = 5;
 	for (int i = 1; i <= octaves; i++)
-		height += i*sin(z/i) + i*sin(x/i);
+	 	height += i*sin(z/i) + i*sin(x/i);
+	// float height = sqrt((x-50)*(x-50) + (z-50)*(z-50)) - 10;
 	return (VEC3){{x, height, z}};
 }
 
@@ -30,64 +35,228 @@ VEC3 height_map_normal1(float x, float z)
 	//return (VEC3){{0, 1, 0}};
 }
 
-struct buffer_group buffer_grid(int numrows, int numcols)
+struct terrain new_terrain(int numrows, int numcols)
 {
-	//Sort of green color
-	VEC3 color = {{0.8, 0.8, 0.8}};
-	struct buffer_group tmp;
-	tmp.index_count = (2 * numcols + 1) * (numrows - 1);
-	glGenVertexArrays(1, &tmp.vao);
-	glBindVertexArray(tmp.vao);
-	glGenBuffers(1, &tmp.ibo);
-	glGenBuffers(LENGTH(tmp.buffer_handles), tmp.buffer_handles);
-	int atrlen = sizeof(VEC3) * numrows * numcols;
-	int indlen = sizeof(GLuint) * tmp.index_count;
-	VEC3 *positions = (VEC3 *)malloc(atrlen);
-	VEC3 *normals = (VEC3 *)malloc(atrlen);
-	VEC3 *colors = (VEC3 *)malloc(atrlen);
-	GLuint *indices = (GLuint *)malloc(indlen);
-
-	//Generate vertices.
-	for (int i = 0; i < numrows; i++) {
-		for (int j = 0; j < numcols; j++) {
-			int offset = (numcols * i) + j;
-			VEC3 pos = height_map1(i, j);
-			VEC3 norm = height_map_normal1(i, j);
-			positions[offset] = pos;
-			normals[offset] = norm;
-			colors[offset] = color;
-		}
-	}
+	struct terrain tmp;
+	tmp.bg.index_count = (2 * numcols + 1) * (numrows - 1);
+	tmp.atrlen = sizeof(VEC3) * numrows * numcols;
+	tmp.indlen = sizeof(GLuint) * tmp.bg.index_count;
+	tmp.positions = (VEC3 *)malloc(tmp.atrlen);
+	tmp.normals   = (VEC3 *)malloc(tmp.atrlen);
+	tmp.colors    = (VEC3 *)malloc(tmp.atrlen);
+	tmp.indices = (GLuint *)malloc(tmp.indlen);
+	gpositions = tmp.positions;
+	tmp.numrows = numrows;
+	tmp.numcols = numcols;
+	if (!tmp.positions || !tmp.normals || !tmp.colors || !tmp.indices)
+		printf("Malloc didn't work lol\n");
+	tmp.bg.primitive_type = GL_TRIANGLE_STRIP;
+	glGenVertexArrays(1, &tmp.bg.vao);
+	glGenBuffers(LENGTH(tmp.bg.buffer_handles), tmp.bg.buffer_handles);
+	glGenBuffers(1, &tmp.bg.ibo);
+	glBindVertexArray(tmp.bg.vao);
+	setup_attrib_for_draw(forward_program.vPos,    tmp.bg.vbo, GL_FLOAT, 3);
+	setup_attrib_for_draw(forward_program.vNormal, tmp.bg.nbo, GL_FLOAT, 3);
+	setup_attrib_for_draw(forward_program.vColor,  tmp.bg.cbo, GL_FLOAT, 3);
 	//Generate indices
 	for (int i = 0; i < (numrows - 1); i++) {
 		int j = 0;
 		int col_offset = i*(numcols*2+1);
 		for (j = 0; j < numcols; j++) {
-			indices[col_offset + j*2]     = i*numcols + j + numcols;
-			indices[col_offset + j*2 + 1] = i*numcols + j;
+			tmp.indices[col_offset + j*2]     = i*numcols + j + numcols;
+			tmp.indices[col_offset + j*2 + 1] = i*numcols + j;
 		}
-		indices[col_offset + j*2] = PRIMITIVE_RESTART_INDEX;
+		tmp.indices[col_offset + j*2] = PRIMITIVE_RESTART_INDEX;
 	}
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tmp.bg.ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, tmp.indlen, tmp.indices, GL_STATIC_DRAW);
+	return tmp;
+}
 
-	setup_attrib_for_draw(forward_program.vPos,    tmp.vbo, GL_FLOAT, 3);
-	setup_attrib_for_draw(forward_program.vNormal, tmp.nbo, GL_FLOAT, 3);
-	setup_attrib_for_draw(forward_program.vColor,  tmp.cbo, GL_FLOAT, 3);
+void free_terrain(struct terrain *t)
+{
+	free(t->positions);
+	free(t->normals);
+	free(t->colors);
+	free(t->indices);
+	glDeleteVertexArrays(1, &t->bg.vao);
+	glDeleteBuffers(1, &t->bg.ibo);
+	glDeleteBuffers(LENGTH(t->bg.buffer_handles), t->bg.buffer_handles);
+}
+
+VEC3 * tpos(struct terrain *t, float fx, float fy)
+{
+	static struct terrain *tref = NULL;
+	if (t == NULL) {
+		unsigned int x = fmod(fmod(fx, tref->numcols) + tref->numcols, tref->numcols);
+		unsigned int y = fmod(fmod(fy, tref->numrows) + tref->numrows, tref->numrows);
+		unsigned int coord = x + y*tref->numcols;
+		assert(coord >= 0);
+		assert(coord < tref->numrows*tref->numcols);
+		return &(tref->positions[coord]);
+	}
+	else {
+		tref = t;
+		return t->positions;
+	}
+}
+
+VEC3 * tnorm(struct terrain *t, float fx, float fy)
+{
+	static struct terrain *tref = NULL;
+	if (t == NULL) {
+		unsigned int x = fmod(fmod(fx, tref->numcols) + tref->numcols, tref->numcols);
+		unsigned int y = fmod(fmod(fy, tref->numrows) + tref->numrows, tref->numrows);
+		unsigned int coord = x + y*tref->numcols;
+		assert(coord >= 0);
+		assert(coord < tref->numrows*tref->numcols);
+		return &(tref->normals[coord]);
+	}
+	else {
+		tref = t;
+		return t->normals;
+	}
+}
+
+struct raindrop {
+	VEC3 pos;
+	VEC3 vel;
+	float load;
+	int steps;
+};
+
+#define RAINDROP_CAPACITY 0.1
+#define RAINDROP_SPEEDFLOOR 0.01
+#define DRAG_COEFFICIENT 0.7
+#define MAX_RAINDROP_STEPS 1000
+#define ACCELERATION_DUE_TO_GRAVITY 9.81 //Units are meters/s^2
+
+//∆GPE = -∆KE
+//mgh = -(1/2)mv^2
+//-2gh = v^2
+//v = √(-2gh) 
+
+void simulate_raindrop(struct terrain *t, int x, int z)
+{
+	tpos(t, 0, 0);
+	//Raindrop starts at x, y.
+	struct raindrop r = {.pos = {{x, 0, z}}, .vel = {{0, 0, 0}}, .load = 0, .steps = 0};
+	float deltah = 1;
+	do {
+		VEC3 *p = tpos(NULL, r.pos.x,   r.pos.z);
+		VEC3 *c1 = tpos(NULL, r.pos.x-1, r.pos.z);
+		VEC3 *c2 = tpos(NULL, r.pos.x+1, r.pos.z);
+		VEC3 *c3 = tpos(NULL, r.pos.x,   r.pos.z-1);
+		VEC3 *c4 = tpos(NULL, r.pos.x,   r.pos.z+1);
+		VEC3 grad = vec3_normalize((VEC3){{c1->y - c2->y, 0, c3->y - c4->y}});
+		r.vel.x = (r.vel.x + grad.x*sqrt(deltah*ACCELERATION_DUE_TO_GRAVITY*2)) * DRAG_COEFFICIENT;
+		r.vel.z = (r.vel.z + grad.z*sqrt(deltah*ACCELERATION_DUE_TO_GRAVITY*2)) * DRAG_COEFFICIENT;
+		r.pos = vec3_add(r.pos, vec3_normalize(r.vel)); //Move the raindrop by one unit in its velocity direction.
+		VEC3 *newp = tpos(NULL, r.pos.x, r.pos.z);
+		//The change in elevation will affect its kinetic energy. Total drop energy is mgh + (1/2)mv^2.
+		//The drop loses energy as a result of air resistance and friction.
+		//Air resistance proportional to v^2, friction proportional to normal force.
+		//Drop sediment as the drop loses energy?
+		deltah = newp->y - p->y;
+		if (deltah > 0) {
+			p->y += r.load;
+			r.load = 0;
+		} else {
+			float sediment = fmin(RAINDROP_CAPACITY - r.load, fabs(deltah));
+			p->y -= sediment;
+			r.load += sediment;
+		}
+		r.steps++;
+		if (r.steps >= MAX_RAINDROP_STEPS) {
+			//printf("Raindrop hit max step count, finishing.\n");
+			break;
+		}
+	} while (vec3_mag(r.vel) > RAINDROP_SPEEDFLOOR);
+	tpos(NULL, r.pos.x, r.pos.y)->y += r.load; //Simulate evaporation.
+	//Picks up sediment controlled by ground cohesion, up to its capacity
+	//Ground that is eroded becomes more cohesive
+	//Raindrop rolls downhill
+	//Raindrop picks up speed as it descends, slowed by friction
+	//When raindrop becomes slower than a certain threshold, it evaporates, leaving sediment
+	//Velocity is determined by accelerating raindrop according to gradient of surface
+	//Ground that has received sediment becomes less cohesive
+}
+
+void recalculate_terrain_normals(struct terrain *t)
+{
+	tpos(t, 0, 0);
+	tnorm(t, 0, 0);
+	for (int x = 0; x < t->numcols; x++) {
+		for (int z = 0; z < t->numrows; z++) {
+			// float h[9];
+			// for (int j = -1; j < 2; j++) {
+			// 	for (int k = -1; k < 2; k++) {
+			// 		h[j + k*3] = tpos(NULL, x+k, z+j)->y;
+			// 	}
+			// }
+			// float scale = 5;
+			// *tnorm(NULL, x, z) = vec3_normalize((VEC3){{
+			// 	scale * -(h[2]-h[0]+2*(h[5]-h[3])+h[8]-h[6]),
+			// 	1.0,
+			// 	scale * -(h[6]-h[0]+2*(h[7]-h[1])+h[8]-h[2])
+			// }});
+			VEC3 *p0 = tpos(NULL, x,   z);
+			VEC3 *p1 = tpos(NULL, x+1, z);
+			VEC3 *p2 = tpos(NULL, x+1, z+1);
+			VEC3 *p3 = tpos(NULL, x,   z+1);
+			VEC3 *p4 = tpos(NULL, x-1, z+1);
+			VEC3 *p5 = tpos(NULL, x-1, z);
+			VEC3 *p6 = tpos(NULL, x-1, z-1);
+			VEC3 *p7 = tpos(NULL, x, z-1);
+			VEC3 *p8 = tpos(NULL, x+1, z-1);
+			*tnorm(NULL, x, z) = vec3_normalize(
+				vec3_add(
+					vec3_add(
+						vec3_cross(vec3_sub(*p1, *p0), vec3_sub(*p3, *p0)),
+						vec3_cross(vec3_sub(*p5, *p0), vec3_sub(*p7, *p0))
+					),
+					vec3_add(
+						vec3_cross(vec3_sub(*p2, *p0), vec3_sub(*p4, *p0)),
+						vec3_cross(vec3_sub(*p6, *p0), vec3_sub(*p8, *p0))
+					)
+				)
+			);
+		}
+	}
+}
+
+void erode_terrain(struct terrain *t, int iterations)
+{
+	for (int i = 0; i < iterations; i++)
+		simulate_raindrop(t, rand()%t->numcols, rand()%t->numrows);
+}
+
+void populate_terrain(struct terrain *t, VEC3 (*height_map)(float x, float y), VEC3 (*height_map_normal)(float x, float y))
+{
+	//Generate vertices.
+	VEC3 color = {{0.7, 0.65, 0.65}};
+	for (int i = 0; i < t->numrows; i++) {
+		for (int j = 0; j < t->numcols; j++) {
+			int offset = (t->numcols * i) + j;
+			VEC3 pos = height_map(i, j);
+			VEC3 norm = height_map_normal(i, j);
+			t->positions[offset] = pos;
+			t->normals[offset] = norm;
+			t->colors[offset] = color;
+		}
+	}
+}
+
+void buffer_terrain(struct terrain *t)
+{
+	assert(gpositions == t->positions);
 	glEnable(GL_PRIMITIVE_RESTART);
 	glPrimitiveRestartIndex(PRIMITIVE_RESTART_INDEX);
-	tmp.primitive_type = GL_TRIANGLE_STRIP;
-	glBindBuffer(GL_ARRAY_BUFFER, tmp.vbo);
-	glBufferData(GL_ARRAY_BUFFER, atrlen, positions, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, tmp.nbo);
-	glBufferData(GL_ARRAY_BUFFER, atrlen, normals, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, tmp.cbo);
-	glBufferData(GL_ARRAY_BUFFER, atrlen, colors, GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tmp.ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indlen, indices, GL_STATIC_DRAW);
-
-	free(positions);
-	free(normals);
-	free(colors);
-	free(indices);
-
-	return tmp;
+	glBindBuffer(GL_ARRAY_BUFFER, t->bg.vbo);
+	glBufferData(GL_ARRAY_BUFFER, t->atrlen, t->positions, GL_DYNAMIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, t->bg.nbo);
+	glBufferData(GL_ARRAY_BUFFER, t->atrlen, t->normals, GL_DYNAMIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, t->bg.cbo);
+	glBufferData(GL_ARRAY_BUFFER, t->atrlen, t->colors, GL_DYNAMIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, t->bg.ibo);
 }

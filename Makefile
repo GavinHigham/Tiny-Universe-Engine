@@ -7,8 +7,8 @@ MODELS_OBJECTS = models/models.o
 SHADERS_OBJECTS = shaders/shaders.o
 CONFIGURATION_OBJECTS = configuration/configuration_file.o
 OBJECTS = main.o init.o image_load.o keyboard.o render.o buffer_group.o controller.o \
-deferred_framebuffer.o lights.o func_list.o shader_utils.o gl_utils.o stars.o \
-procedural_terrain.o $(MATH_OBJECTS) $(MODELS_OBJECTS) $(SHADERS_OBJECTS) $(CONFIGURATION_OBJECTS)
+deferred_framebuffer.o lights.o func_list.o shader_utils.o gl_utils.o stars.o procedural_terrain.o \
+$(MATH_OBJECTS) $(MODELS_OBJECTS) $(SHADERS_OBJECTS) $(CONFIGURATION_OBJECTS)
 EXE = sock
 
 all: $(OBJECTS) math_module models_module shaders_module configuration_module

@@ -24,7 +24,6 @@ struct buffer_group new_buffer_group(int (*buffering_function)(struct buffer_gro
 		if (program->attr[i] != -1)
 			setup_attrib_for_draw(program->attr[i], tmp.buffer_handles[i], GL_FLOAT, 3);
 	}
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tmp.ibo);
 	tmp.index_count = buffering_function(tmp);
 	tmp.primitive_type = GL_TRIANGLES;
 	return tmp;

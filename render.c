@@ -44,6 +44,7 @@ struct buffer_group icosphere_buffers;
 struct buffer_group big_asteroid_buffers;
 struct buffer_group grid_buffers;
 struct buffer_group cube_buffers;
+struct terrain height_map_test;
 GLuint gVAO = 0;
 extern bool draw_light_bounds;
 AMAT4 inv_eye_frame;
@@ -52,11 +53,12 @@ AMAT4 ship_frame = {.a = MAT3_IDENT, .T = {-2.5, 0, -8}};
 AMAT4 newship_frame = {.a = MAT3_IDENT, .T = {3, 0, -8}};
 AMAT4 teardropship_frame = {.a = MAT3_IDENT, .T = {6, 0, -8}};
 AMAT4 room_frame = {.a = MAT3_IDENT, .T = {0, -4, -8}};
-AMAT4 grid_frame = {.a = MAT3_IDENT, .T = {-30, -3, -30}};
+AMAT4 grid_frame = {.a = MAT3_IDENT, .T = {-50, -3, -50}};
 AMAT4 big_asteroid_frame = {.a = MAT3_IDENT, .T = {0, -4, -20}};
 static VEC3 skybox_scale;
-static VEC3 sun_direction = {{1.0, 1.0, 1.0}};
 static VEC3 ambient_color = {{0.01, 0.01, 0.01}};
+static VEC3 sun_direction = {{0.1, 0.8, 0.1}};
+static VEC3 sun_color     = {{0.1, 0.8, 0.1}};
 struct point_light_attributes point_lights = {.num_lights = 0};
 
 GLfloat proj_mat[16];
@@ -79,7 +81,10 @@ static void init_models()
 	room_buffers = new_buffer_group(buffer_newroom, &forward_program);
 	//big_asteroid_buffers = new_buffer_group(buffer_big_asteroid, &forward_program);
 	cube_buffers = new_buffer_group(buffer_cube, &skybox_program);
-	grid_buffers = buffer_grid(128, 128);
+	//grid_buffers = buffer_grid(128, 128);
+	height_map_test = new_terrain(100, 100);
+	populate_terrain(&height_map_test, height_map1, height_map_normal1);
+	buffer_terrain(&height_map_test);
 }
 
 static void deinit_models()
@@ -90,7 +95,8 @@ static void deinit_models()
 	delete_buffer_group(thrust_flare_buffers);
 	delete_buffer_group(icosphere_buffers);
 	delete_buffer_group(room_buffers);
-	delete_buffer_group(grid_buffers);
+	//delete_buffer_group(grid_buffers);
+	free_terrain(&height_map_test);
 }
 
 static void init_lights()
@@ -269,23 +275,41 @@ void render()
 {
 	inv_eye_frame = amat4_inverse(eye_frame); //Only need to do this once per frame.
 
-	static struct buffer_group *pvs[] = {&room_buffers, &newship_buffers, &teardropship_buffers, &ship_buffers};
-	static AMAT4 *pvs_frames[] = {&room_frame, &newship_frame, &teardropship_frame, &ship_frame};
+	static struct buffer_group *pvs[] = {
+		//&room_buffers,
+		//&newship_buffers,
+		//&teardropship_buffers,
+		//&ship_buffers,
+		&height_map_test.bg
+	};
+	static struct buffer_group *pvs_shadowers[] = {
+		//&room_buffers,
+		//&newship_buffers,
+		//&teardropship_buffers,
+		&ship_buffers
+	};
+	static AMAT4 *pvs_frames[] = {
+		//&room_frame,
+		//&newship_frame,
+		//&teardropship_frame,
+		//&ship_frame,
+		&grid_frame
+	};
 	glDepthMask(GL_TRUE);
 	glClearStencil(0);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glDepthFunc(GL_GREATER);
 	int zpass = key_state[SDL_SCANCODE_7];
-	int apass = key_state[SDL_SCANCODE_5];
+	int apass = !key_state[SDL_SCANCODE_5];
 	//Render into the depth buffer.
 	{
 		//glDrawBuffer(GL_NONE);
 		glUseProgram(forward_program.handle);
 		if (apass) {
 			glUniform1i(forward_program.ambient_pass, 1);
-			glUniform3fv(forward_program.uLight_col, 1, ambient_color.A);
+			glUniform3fv(forward_program.uLight_col, 1, sun_color.A);
 			glUniform3fv(forward_program.uLight_pos, 1, sun_direction.A);
 		}
 		glUniform3fv(forward_program.camera_position, 1, eye_frame.T);
@@ -295,7 +319,6 @@ void render()
 		glUniform1i(forward_program.ambient_pass, 0);
 	}
 	for (int i = 0; i < point_lights.num_lights; i++) {
-		glClear(GL_STENCIL_BUFFER_BIT);
 		//Render shadow volumes into the stencil buffer.
 		if (point_lights.shadowing[i]) {
 			glEnable(GL_DEPTH_CLAMP);
@@ -318,8 +341,8 @@ void render()
 			glUniform1i(shadow_program.zpass, zpass);
 			checkErrors("After updating zpass uniform");
 			//glDrawBuffer(GL_BACK);
-			for (int i = 0; i < LENGTH(pvs); i++)
-				draw_forward_adjacent(&shadow_program, *pvs[i], *pvs_frames[i]);
+			for (int i = 0; i < LENGTH(pvs_shadowers); i++)
+				draw_forward_adjacent(&shadow_program, *pvs_shadowers[i], *pvs_frames[i]);
 			glDisable(GL_DEPTH_CLAMP);
 			glEnable(GL_CULL_FACE);
 			checkErrors("After rendering shadow volumes");
@@ -344,8 +367,17 @@ void render()
 			glDisable(GL_BLEND);
 			checkErrors("After drawing shadowed");
 		}
+		glClear(GL_STENCIL_BUFFER_BIT);
 	}
-	//draw_skybox_forward(&skybox_program, cube_buffers, (AMAT4)AMAT4_IDENT);
+	glDisable(GL_BLEND);
+	glDepthFunc(GL_GREATER);
+	glUseProgram(skybox_program.handle);
+	glUniform3fv(skybox_program.sun_direction, 1, sun_direction.A);
+	glUniform3fv(skybox_program.sun_color, 1, sun_color.A);
+	AMAT4 skybox_frame = {
+	.a = mat3_scalemat(skybox_scale.x, skybox_scale.y, skybox_scale.z),
+	.t = eye_frame.t};
+	draw_skybox_forward(&skybox_program, cube_buffers, skybox_frame);
 	checkErrors("After forward junk");
 }
 
@@ -360,12 +392,18 @@ void update(float dt)
 
 	float ts = 1/300000.0;
 	float rs = 1/600000.0;
+	if (key_state[SDL_SCANCODE_9])
+		recalculate_terrain_normals(&height_map_test);
+	if (key_state[SDL_SCANCODE_8])
+		erode_terrain(&height_map_test, 1000);
+	if (key_state[SDL_SCANCODE_8] || key_state[SDL_SCANCODE_9])
+		buffer_terrain(&height_map_test);
 
 	//If you're moving forward, turn the light on to show it.
 	//point_lights.enabled_for_draw[2] = (axes[LEFTY] < 0)?true:false;
 	point_lights.enabled_for_draw[2] = key_state[SDL_SCANCODE_6];
 	float camera_speed = 20;
-	float ship_speed = 1;
+	float ship_speed = 20;
 	// if (key_state[SDL_SCANCODE_2])
 	// 	draw_light_bounds = true;
 	// else
@@ -378,7 +416,7 @@ void update(float dt)
 	ship_cam.t = vec3_add(ship_cam.t,
 		mat3_multvec(eye_frame.a, (VEC3){{
 		(key_state[SDL_SCANCODE_D] - key_state[SDL_SCANCODE_A]) * dt * camera_speed,
-		0,
+		(key_state[SDL_SCANCODE_Q] - key_state[SDL_SCANCODE_E]) * dt * camera_speed,
 		(key_state[SDL_SCANCODE_S] - key_state[SDL_SCANCODE_W]) * dt * camera_speed}}));
 
 	//grid_frame.t = point_lights.position[3];
@@ -397,8 +435,8 @@ void update(float dt)
 	//Add our acceleration to our velocity to change our speed.
 	//velocity.t = vec3_add(vec3_scale(velocity.t, dt), acceleration);
 	//Linear motion just sets the velocity directly.
-	//velocity.t = vec3_scale(acceleration, dt*ship_speed);
-	velocity.t = vec3_add(velocity.t, acceleration);
+	velocity.t = vec3_scale(acceleration, dt*ship_speed);
+	//velocity.t = vec3_add(velocity.t, acceleration);
 	//Rotate the ship by applying the angular velocity to the angular orientation.
 	ship_frame.a = mat3_mult(ship_frame.a, velocity.a);
 	//Move the ship by applying the velocity to the position.
@@ -417,4 +455,11 @@ void update(float dt)
 		mat3_multvec(ship_frame.a, (VEC3){{0, 1, 0}}));
 	//Move the engine light to just behind the ship.
 	point_lights.position[2] = amat4_multpoint(ship_frame, (VEC3){{0, 0, 6}});
+
+	static float sunscale = 1.0;
+	if (key_state[SDL_SCANCODE_EQUALS])
+		sunscale += 0.1;
+	if (key_state[SDL_SCANCODE_MINUS])
+		sunscale -= 0.1;
+	sun_color = vec3_scale(ambient_color, sunscale);
 }

@@ -18,9 +18,9 @@
 int init_gl(SDL_GLContext *context, SDL_Window *window);
 int init_glew();
 
-void reload_shaders_void_wrapper()
+void reload_effects_void_wrapper()
 {
-	if (!reload_shaders(shader_programs, shader_infos, LENGTH(shader_programs))) {
+	if (!reload_effects(shader_programs, shader_infos, LENGTH(shader_programs))) {
 		deinit_render();
 		init_render();
 	}
@@ -28,7 +28,7 @@ void reload_shaders_void_wrapper()
 
 static void reload_signal_handler(int signo) {
 	printf("Received SIGUSR1! Reloading shaders!\n");
-	func_list_add(&update_func_list, 1, reload_shaders_void_wrapper);
+	func_list_add(&update_func_list, 1, reload_effects_void_wrapper);
 }
 
 int init(SDL_GLContext *context, SDL_Window **window)
@@ -57,7 +57,7 @@ int init(SDL_GLContext *context, SDL_Window **window)
 		return -1;
 	}
 
-	if (init_shaders(shader_programs, shader_infos, LENGTH(shader_programs))) {
+	if (init_effects(shader_programs, shader_infos, LENGTH(shader_programs))) {
 		printf("Something went wrong with shader program initialization!\n");
 		return -1;
 	}

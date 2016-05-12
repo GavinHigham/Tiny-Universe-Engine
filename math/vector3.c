@@ -48,3 +48,8 @@ float vec3_dot(VEC3 u, VEC3 v)
 {
 	return (u.x * v.x + u.y * v.y + u.z * v.z);
 }
+
+float vec3_mag(VEC3 a)
+{
+	return sqrt(a.x*a.x + a.y*a.y + a.z*a.z);
+}

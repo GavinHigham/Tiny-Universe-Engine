@@ -76,6 +76,13 @@ void point_light_fragment2(in vec3 l, in vec3 v, in vec3 normal, out float specu
 	diffuse = max(0.0, dot(l, normal));
 }
 
+vec3 sky_color(vec3 v, vec3 s, vec3 c)
+{
+	float sun = clamp(dot(v, s), 0.0, 1.0); //sun direction, determines brightness
+	return mix(vec3(0.0), vec3(0.0, 0.0, 1.0)*length(c), sun) + c*pow(sun, 2);
+}
+
+
 void main() {
 	float gamma = 2.2;
 	vec3 normal = normalize(fNormal);
@@ -86,8 +93,8 @@ void main() {
 	vec3 v = normalize(camera_position - fPos); //View vector.
 	if (ambient_pass == 1) {
 		point_light_fragment2(uLight_pos, v, normal, specular, diffuse);
-		diffuse_frag = fColor*uLight_col*diffuse;
-		specular_frag = fColor*uLight_col*specular;
+		diffuse_frag = fColor*diffuse*sky_color(normal, normalize(vec3(0.1, 0.8, 0.1)), uLight_col);
+		specular_frag = fColor*specular*sky_color(reflect(v, normal), normalize(vec3(0.1, 0.8, 0.1)), uLight_col);
 	} else {
 		float dist = distance(fPos, uLight_pos);
 		float attenuation = uLight_attr[CONSTANT] + uLight_attr[LINEAR]*dist + uLight_attr[EXPONENTIAL]*dist*dist;

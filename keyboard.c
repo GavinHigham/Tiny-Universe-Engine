@@ -10,7 +10,7 @@
 extern SDL_Window *window;
 const Uint8 *key_state = NULL;
 extern int loop_iter_ave;
-extern void reload_shaders_void_wrapper();
+extern void reload_effects_void_wrapper();
 
 void init_keyboard()
 {
@@ -41,7 +41,7 @@ void keyevent(SDL_Keysym keysym, SDL_EventType type)
 		break;
 	case SDL_SCANCODE_1:
 		if (!keydown) {
-			func_list_add(&update_func_list, 1, reload_shaders_void_wrapper);
+			func_list_add(&update_func_list, 1, reload_effects_void_wrapper);
 		}
 		break;
 	default:

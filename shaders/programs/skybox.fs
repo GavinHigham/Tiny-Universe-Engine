@@ -2,25 +2,27 @@
 
 uniform vec3 camera_position;
 uniform vec3 sun_direction;
+uniform vec3 sun_color;
 
 in vec3 fPos;
 out vec4 LFragment;
 
+vec3 sky_color(vec3 v, vec3 s, vec3 c)
+{
+	float sun = clamp(dot(v, s), 0.0, 1.0); //sun direction, determines brightness
+	return mix(vec3(0.0), vec3(0.0, 0.0, 1.0)*length(c), sun) + c*pow(sun, 2);
+}
+
 void main() {
 	float gamma = 2.2;
-	vec3 v = normalize(camera_position-fPos); //View vector.
-	float sky = dot(v, vec3(0, 1, 0)); //sky direction, determines whiteness
-	float sun = dot(v, sun_direction); //sun direction, determines brightness
-	vec3 ambient = vec3(0.0, 0.05, 0.2); //minimum amount of light
-	vec3 sky_color = sun*vec3(0.1, 0.1, 1) + ambient;
-	//vec3 sky_color = 4*s*vec3(0.1,0.3,0.8)+ambient;//*vec3(.6)+vec3(0.1,0.3,0.8);
-
-	vec3 final_color = sky_color;
+	vec3 v = normalize(fPos-camera_position); //View vector.
+	vec3 sunref = sun_color;
+	vec3 final_color = sky_color(v, sun_direction, sun_color);
 
 	//Tone mapping.
 	final_color = final_color / (final_color + vec3(1.0));
 	//Gamma correction.
 	final_color = pow(final_color, vec3(1.0 / gamma));
    	LFragment = vec4(final_color, 1.0);
-   	//LFragment = vec4(fColor, 1.0);
+   	// LFragment = vec4(fColor, 1.0);
 }

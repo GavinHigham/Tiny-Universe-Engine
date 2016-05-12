@@ -36,5 +36,7 @@ VEC3 vec3_cross(VEC3 a, VEC3 b);
 VEC3 vec3_lerp(VEC3 a, VEC3 b, float alpha);
 //Return the dot product of a and b.
 float vec3_dot(VEC3 a, VEC3 b);
+//Return the magnitude of a.
+float vec3_mag(VEC3 a);
 
 #endif

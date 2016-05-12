@@ -26,31 +26,33 @@ const char *skybox_fs_source[] = {
 "\n"
 "uniform vec3 camera_position;\n"
 "uniform vec3 sun_direction;\n"
+"uniform vec3 sun_color;\n"
 "\n"
 "in vec3 fPos;\n"
 "out vec4 LFragment;\n"
 "\n"
+"vec3 sky_color(vec3 v, vec3 s, vec3 c)\n"
+"{\n"
+"	float sun = clamp(dot(v, s), 0.0, 1.0); //sun direction, determines brightness\n"
+"	return mix(vec3(0.0), vec3(0.0, 0.0, 1.0)*length(c), sun) + c*pow(sun, 2);\n"
+"}\n"
+"\n"
 "void main() {\n"
 "	float gamma = 2.2;\n"
-"	vec3 v = normalize(camera_position-fPos); //View vector.\n"
-"	float sky = dot(v, vec3(0, 1, 0)); //sky direction, determines whiteness\n"
-"	float sun = dot(v, sun_direction); //sun direction, determines brightness\n"
-"	vec3 ambient = vec3(0.0, 0.05, 0.2); //minimum amount of light\n"
-"	vec3 sky_color = sun*vec3(0.1, 0.1, 1) + ambient;\n"
-"	//vec3 sky_color = 4*s*vec3(0.1,0.3,0.8)+ambient;//*vec3(.6)+vec3(0.1,0.3,0.8);\n"
-"\n"
-"	vec3 final_color = sky_color;\n"
+"	vec3 v = normalize(fPos-camera_position); //View vector.\n"
+"	vec3 sunref = sun_color;\n"
+"	vec3 final_color = sky_color(v, sun_direction, sun_color);\n"
 "\n"
 "	//Tone mapping.\n"
 "	final_color = final_color / (final_color + vec3(1.0));\n"
 "	//Gamma correction.\n"
 "	final_color = pow(final_color, vec3(1.0 / gamma));\n"
 "   	LFragment = vec4(final_color, 1.0);\n"
-"   	//LFragment = vec4(fColor, 1.0);\n"
+"   	// LFragment = vec4(fColor, 1.0);\n"
 "}\n"
 };
 const GLchar *skybox_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *skybox_uniform_names[] = {"zpass", "projection_view_matrix", "model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "sun_direction", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "ambient_pass", "uOrigin", "camera_position"};
+const GLchar *skybox_uniform_names[] = {"zpass", "projection_view_matrix", "model_matrix", "projection_matrix", "sun_color", "uLight_attr", "uLight_col", "uLight_pos", "sun_direction", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "ambient_pass", "uOrigin", "camera_position"};
 static const int skybox_attribute_count = sizeof(skybox_attribute_names)/sizeof(skybox_attribute_names[0]);
 static const int skybox_uniform_count = sizeof(skybox_uniform_names)/sizeof(skybox_uniform_names[0]);
 GLint skybox_attributes[skybox_attribute_count];
@@ -58,7 +60,7 @@ GLint skybox_uniforms[skybox_uniform_count];
 struct shader_prog skybox_program = {
 	.handle = 0,
 	.attr = {-1, -1, 0},
-	.unif = {-1, -1, 0, 0, -1, -1, -1, 0, 0, -1, -1, -1, -1, -1, 0}
+	.unif = {-1, -1, 0, 0, 0, -1, -1, -1, 0, 0, -1, -1, -1, -1, -1, 0}
 };
 struct shader_info skybox_info = {
 	.vs_source = skybox_vs_source,
@@ -152,7 +154,7 @@ const char *outline_gs_source[] = {
 "}\n"
 };
 const GLchar *outline_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *outline_uniform_names[] = {"zpass", "projection_view_matrix", "model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "sun_direction", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "ambient_pass", "uOrigin", "camera_position"};
+const GLchar *outline_uniform_names[] = {"zpass", "projection_view_matrix", "model_matrix", "projection_matrix", "sun_color", "uLight_attr", "uLight_col", "uLight_pos", "sun_direction", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "ambient_pass", "uOrigin", "camera_position"};
 static const int outline_attribute_count = sizeof(outline_attribute_names)/sizeof(outline_attribute_names[0]);
 static const int outline_uniform_count = sizeof(outline_uniform_names)/sizeof(outline_uniform_names[0]);
 GLint outline_attributes[outline_attribute_count];
@@ -160,7 +162,7 @@ GLint outline_uniforms[outline_uniform_count];
 struct shader_prog outline_program = {
 	.handle = 0,
 	.attr = {-1, -1, 0},
-	.unif = {-1, -1, 0, 0, -1, -1, -1, -1, 0, -1, -1, -1, -1, 0, -1}
+	.unif = {-1, -1, 0, 0, -1, -1, -1, -1, -1, 0, -1, -1, -1, -1, 0, -1}
 };
 struct shader_info outline_info = {
 	.vs_source = outline_vs_source,
@@ -281,6 +283,13 @@ const char *forward_fs_source[] = {
 "	diffuse = max(0.0, dot(l, normal));\n"
 "}\n"
 "\n"
+"vec3 sky_color(vec3 v, vec3 s, vec3 c)\n"
+"{\n"
+"	float sun = clamp(dot(v, s), 0.0, 1.0); //sun direction, determines brightness\n"
+"	return mix(vec3(0.0), vec3(0.0, 0.0, 1.0)*length(c), sun) + c*pow(sun, 2);\n"
+"}\n"
+"\n"
+"\n"
 "void main() {\n"
 "	float gamma = 2.2;\n"
 "	vec3 normal = normalize(fNormal);\n"
@@ -291,8 +300,8 @@ const char *forward_fs_source[] = {
 "	vec3 v = normalize(camera_position - fPos); //View vector.\n"
 "	if (ambient_pass == 1) {\n"
 "		point_light_fragment2(uLight_pos, v, normal, specular, diffuse);\n"
-"		diffuse_frag = fColor*uLight_col*diffuse;\n"
-"		specular_frag = fColor*uLight_col*specular;\n"
+"		diffuse_frag = fColor*diffuse*sky_color(normal, normalize(vec3(0.1, 0.8, 0.1)), uLight_col);\n"
+"		specular_frag = fColor*specular*sky_color(reflect(v, normal), normalize(vec3(0.1, 0.8, 0.1)), uLight_col);\n"
 "	} else {\n"
 "		float dist = distance(fPos, uLight_pos);\n"
 "		float attenuation = uLight_attr[CONSTANT] + uLight_attr[LINEAR]*dist + uLight_attr[EXPONENTIAL]*dist*dist;\n"
@@ -313,7 +322,7 @@ const char *forward_fs_source[] = {
 "}\n"
 };
 const GLchar *forward_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *forward_uniform_names[] = {"zpass", "projection_view_matrix", "model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "sun_direction", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "ambient_pass", "uOrigin", "camera_position"};
+const GLchar *forward_uniform_names[] = {"zpass", "projection_view_matrix", "model_matrix", "projection_matrix", "sun_color", "uLight_attr", "uLight_col", "uLight_pos", "sun_direction", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "ambient_pass", "uOrigin", "camera_position"};
 static const int forward_attribute_count = sizeof(forward_attribute_names)/sizeof(forward_attribute_names[0]);
 static const int forward_uniform_count = sizeof(forward_uniform_names)/sizeof(forward_uniform_names[0]);
 GLint forward_attributes[forward_attribute_count];
@@ -321,7 +330,7 @@ GLint forward_uniforms[forward_uniform_count];
 struct shader_prog forward_program = {
 	.handle = 0,
 	.attr = {0, 0, 0},
-	.unif = {-1, 0, 0, 0, 0, 0, 0, -1, 0, -1, -1, 0, 0, -1, 0}
+	.unif = {-1, 0, 0, 0, -1, 0, 0, 0, -1, 0, -1, -1, 0, 0, -1, 0}
 };
 struct shader_info forward_info = {
 	.vs_source = forward_vs_source,
@@ -439,7 +448,7 @@ const char *shadow_gs_source[] = {
 "}\n"
 };
 const GLchar *shadow_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *shadow_uniform_names[] = {"zpass", "projection_view_matrix", "model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "sun_direction", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "ambient_pass", "uOrigin", "camera_position"};
+const GLchar *shadow_uniform_names[] = {"zpass", "projection_view_matrix", "model_matrix", "projection_matrix", "sun_color", "uLight_attr", "uLight_col", "uLight_pos", "sun_direction", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "ambient_pass", "uOrigin", "camera_position"};
 static const int shadow_attribute_count = sizeof(shadow_attribute_names)/sizeof(shadow_attribute_names[0]);
 static const int shadow_uniform_count = sizeof(shadow_uniform_names)/sizeof(shadow_uniform_names[0]);
 GLint shadow_attributes[shadow_attribute_count];
@@ -447,7 +456,7 @@ GLint shadow_uniforms[shadow_uniform_count];
 struct shader_prog shadow_program = {
 	.handle = 0,
 	.attr = {0, -1, 0},
-	.unif = {0, 0, 0, -1, -1, -1, -1, -1, -1, -1, 0, -1, -1, -1, -1}
+	.unif = {0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1, 0, -1, -1, -1, -1}
 };
 struct shader_info shadow_info = {
 	.vs_source = shadow_vs_source,
@@ -512,7 +521,7 @@ const char *stars_fs_source[] = {
 "}\n"
 };
 const GLchar *stars_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *stars_uniform_names[] = {"zpass", "projection_view_matrix", "model_matrix", "projection_matrix", "uLight_attr", "uLight_col", "uLight_pos", "sun_direction", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "ambient_pass", "uOrigin", "camera_position"};
+const GLchar *stars_uniform_names[] = {"zpass", "projection_view_matrix", "model_matrix", "projection_matrix", "sun_color", "uLight_attr", "uLight_col", "uLight_pos", "sun_direction", "model_view_matrix", "eye_pos", "gLightPos", "model_view_normal_matrix", "ambient_pass", "uOrigin", "camera_position"};
 static const int stars_attribute_count = sizeof(stars_attribute_names)/sizeof(stars_attribute_names[0]);
 static const int stars_uniform_count = sizeof(stars_uniform_names)/sizeof(stars_uniform_names[0]);
 GLint stars_attributes[stars_attribute_count];
@@ -520,7 +529,7 @@ GLint stars_uniforms[stars_uniform_count];
 struct shader_prog stars_program = {
 	.handle = 0,
 	.attr = {-1, -1, 0},
-	.unif = {-1, -1, -1, 0, -1, -1, -1, -1, 0, 0, -1, -1, -1, -1, -1}
+	.unif = {-1, -1, -1, 0, -1, -1, -1, -1, -1, 0, 0, -1, -1, -1, -1, -1}
 };
 struct shader_info stars_info = {
 	.vs_source = stars_vs_source,
