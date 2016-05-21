@@ -16,7 +16,7 @@ MAT3 mat3_ident();
 //Multiply a by b
 MAT3 mat3_mult(MAT3 a, MAT3 b);
 //Multiply a by the column vector b.
-VEC3 mat3_multvec(MAT3 a, VEC3 b);
+vec3 mat3_multvec(MAT3 a, vec3 b);
 //Rotate a about <ux, uy, uz> by "angle" radians. 
 MAT3 mat3_rot(MAT3 a, float ux, float uy, float uz, float angle);
 //Rotate a about the three basis vectors by "angle" radians. Slightly more efficient?
@@ -35,9 +35,9 @@ MAT3 mat3_scale(MAT3 a, float x, float y, float z);
 MAT3 mat3_scalemat(float x, float y, float z);
 MAT3 mat3_transp(MAT3 a);
 //Produce a rotation matrix that will look from p to q, with u up.
-MAT3 mat3_lookat(VEC3 p, VEC3 q, VEC3 u);
+MAT3 mat3_lookat(vec3 p, vec3 q, vec3 u);
 //Takes a mat3 and a vec3, and copies them into a buffer representing a true, row-major 4x4 matrix.
 //a becomes the rotation portion, and b becomes the translation.
-void mat3_vec3_to_array(float *buf, int len, MAT3 a, VEC3 b);
+void mat3_vec3_to_array(float *buf, int len, MAT3 a, vec3 b);
 
 #endif

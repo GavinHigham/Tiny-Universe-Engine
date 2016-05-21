@@ -55,10 +55,10 @@ AMAT4 teardropship_frame = {.a = MAT3_IDENT, .T = {6, 0, -8}};
 AMAT4 room_frame = {.a = MAT3_IDENT, .T = {0, -4, -8}};
 AMAT4 grid_frame = {.a = MAT3_IDENT, .T = {-50, -3, -50}};
 AMAT4 big_asteroid_frame = {.a = MAT3_IDENT, .T = {0, -4, -20}};
-static VEC3 skybox_scale;
-static VEC3 ambient_color = {{0.01, 0.01, 0.01}};
-static VEC3 sun_direction = {{0.1, 0.8, 0.1}};
-static VEC3 sun_color     = {{0.1, 0.8, 0.1}};
+static vec3 skybox_scale;
+static vec3 ambient_color = {{0.01, 0.01, 0.01}};
+static vec3 sun_direction = {{0.1, 0.8, 0.1}};
+static vec3 sun_color     = {{0.1, 0.8, 0.1}};
 struct point_light_attributes point_lights = {.num_lights = 0};
 
 GLfloat proj_mat[16];
@@ -102,10 +102,10 @@ static void deinit_models()
 static void init_lights()
 {
 	//                             Position,            color,                atten_c, atten_l, atten_e, intensity
-	new_point_light(&point_lights, (VEC3){{0, 2, 0}},   (VEC3){{1.0, 0.2, 0.2}}, 0.0,     0.0,    1,    20);
-	new_point_light(&point_lights, (VEC3){{0, 2, 0}},   (VEC3){{1.0, 1.0, 1.0}}, 0.0,     0.0,    1,    5);
-	new_point_light(&point_lights, (VEC3){{0, 2, 0}},   (VEC3){{0.8, 0.8, 1.0}}, 0.0,     0.3,    0.04, 0.4);
-	new_point_light(&point_lights, (VEC3){{10, 4, -7}}, (VEC3){{0.4, 1.0, 0.4}}, 0.1,     0.14,   0.07, 0.75);
+	new_point_light(&point_lights, (vec3){{0, 2, 0}},   (vec3){{1.0, 0.2, 0.2}}, 0.0,     0.0,    1,    20);
+	new_point_light(&point_lights, (vec3){{0, 2, 0}},   (vec3){{1.0, 1.0, 1.0}}, 0.0,     0.0,    1,    5);
+	new_point_light(&point_lights, (vec3){{0, 2, 0}},   (vec3){{0.8, 0.8, 1.0}}, 0.0,     0.3,    0.04, 0.4);
+	new_point_light(&point_lights, (vec3){{10, 4, -7}}, (vec3){{0.4, 1.0, 0.4}}, 0.1,     0.14,   0.07, 0.75);
 	point_lights.shadowing[0] = true;
 	point_lights.shadowing[1] = true;
 	point_lights.shadowing[2] = true;
@@ -138,7 +138,7 @@ void init_render()
 	init_stars();
 
 	float skybox_distance = sqrt((far_distance*far_distance)/2);
-	skybox_scale = (VEC3){{skybox_distance, skybox_distance, skybox_distance}};
+	skybox_scale = (vec3){{skybox_distance, skybox_distance, skybox_distance}};
 	//Setup unchanging deferred uniforms.
 	glUseProgram(skybox_program.handle);
 	glUniformMatrix4fv(skybox_program.projection_matrix, 1, GL_TRUE, proj_mat);
@@ -218,7 +218,7 @@ static void draw_forward(struct shader_prog *program, struct buffer_group bg, AM
 	amat4_to_array(m_buf, LENGTH(m_buf), model_matrix);
 	glUniformMatrix4fv(program->model_matrix, 1, GL_TRUE, m_buf);
 	//Send normal_model_view_matrix
-	mat3_vec3_to_array(m_buf, LENGTH(m_buf), mat3_transp(model_matrix.a), (VEC3){{0, 0, 0}});
+	mat3_vec3_to_array(m_buf, LENGTH(m_buf), mat3_transp(model_matrix.a), (vec3){{0, 0, 0}});
 	glUniformMatrix4fv(program->model_view_normal_matrix, 1, GL_TRUE, m_buf);
 	glDrawElements(bg.primitive_type, bg.index_count, GL_UNSIGNED_INT, NULL);
 }
@@ -242,7 +242,7 @@ static void draw_forward_adjacent(struct shader_prog *program, struct buffer_gro
 	amat4_to_array(m_buf, LENGTH(m_buf), model_matrix);
 	glUniformMatrix4fv(program->model_matrix, 1, GL_TRUE, m_buf);
 	//Send normal_model_view_matrix
-	mat3_vec3_to_array(m_buf, LENGTH(m_buf), mat3_transp(model_matrix.a), (VEC3){{0, 0, 0}});
+	mat3_vec3_to_array(m_buf, LENGTH(m_buf), mat3_transp(model_matrix.a), (vec3){{0, 0, 0}});
 	glUniformMatrix4fv(program->model_view_normal_matrix, 1, GL_TRUE, m_buf);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
 	glDrawElements(GL_TRIANGLES_ADJACENCY, bg.index_count*2, GL_UNSIGNED_INT, NULL);
@@ -252,7 +252,7 @@ static void draw_forward_adjacent(struct shader_prog *program, struct buffer_gro
 
 static void forward_update_point_light(struct shader_prog *program, struct point_light_attributes *lights, int i)
 {
-	VEC3 position = lights->position[i];
+	vec3 position = lights->position[i];
 	glUniform3fv(program->uLight_pos, 1, position.A);
 	glUniform3fv(program->uLight_col, 1, lights->color[i].A);
 	glUniform4f(program->uLight_attr, lights->atten_c[i], lights->atten_l[i], lights->atten_e[i], lights->enabled_for_draw[i]?lights->intensity[i]:0.0);
@@ -408,25 +408,25 @@ void update(float dt)
 	// 	draw_light_bounds = true;
 	// else
 	// 	draw_light_bounds = false;
-	// point_lights.position[3] = vec3_add(point_lights.position[3], (VEC3){{
+	// point_lights.position[3] = vec3_add(point_lights.position[3], (vec3){{
 	// 	(key_state[SDL_SCANCODE_RIGHT] - key_state[SDL_SCANCODE_LEFT]) * dt * camera_speed,
 	// 	0,
 	// 	(key_state[SDL_SCANCODE_DOWN] - key_state[SDL_SCANCODE_UP]) * dt * camera_speed}});
 	//Translate the camera using WASD.
 	ship_cam.t = vec3_add(ship_cam.t,
-		mat3_multvec(eye_frame.a, (VEC3){{
+		mat3_multvec(eye_frame.a, (vec3){{
 		(key_state[SDL_SCANCODE_D] - key_state[SDL_SCANCODE_A]) * dt * camera_speed,
 		(key_state[SDL_SCANCODE_Q] - key_state[SDL_SCANCODE_E]) * dt * camera_speed,
 		(key_state[SDL_SCANCODE_S] - key_state[SDL_SCANCODE_W]) * dt * camera_speed}}));
 
 	//grid_frame.t = point_lights.position[3];
 	//Set the ship's acceleration using the controller axes.
-	VEC3 acceleration = mat3_multvec(ship_frame.a, (VEC3){{
+	vec3 acceleration = mat3_multvec(ship_frame.a, (vec3){{
 		axes[LEFTX] * ts,
 		0,
 		axes[LEFTY] * ts}});
 	//Set the ship's acceleration using the arrow keys.
-	acceleration = mat3_multvec(ship_frame.a, (VEC3){{
+	acceleration = mat3_multvec(ship_frame.a, (vec3){{
 		(key_state[SDL_SCANCODE_RIGHT] - key_state[SDL_SCANCODE_LEFT]) * dt * ship_speed,
 		0,
 		(key_state[SDL_SCANCODE_DOWN] - key_state[SDL_SCANCODE_UP]) * dt * ship_speed}});
@@ -445,16 +445,16 @@ void update(float dt)
 	float alpha = 0.8;
 	//eye_frame.t = amat4_multpoint(ship_frame, ship_cam.t);
 	eye_frame.t = vec3_lerp(eye_frame.t, amat4_multpoint(ship_frame, ship_cam.t), alpha);
-	static VEC3 eye_target = VEC3_ZERO;
-	//eye_target = vec3_lerp(eye_target, amat4_multpoint(ship_frame, (VEC3){{0, 0, -4}}), alpha);
-	eye_target = amat4_multpoint(ship_frame, (VEC3){{0, 0, -4}}); //The camera points a little bit ahead of the ship.
+	static vec3 eye_target = vec3_ZERO;
+	//eye_target = vec3_lerp(eye_target, amat4_multpoint(ship_frame, (vec3){{0, 0, -4}}), alpha);
+	eye_target = amat4_multpoint(ship_frame, (vec3){{0, 0, -4}}); //The camera points a little bit ahead of the ship.
 	//The eye should look from itself to a point in front of the ship, and its "up" should be "up" from the ship's orientation.
 	eye_frame.a = mat3_lookat(
 		eye_frame.t,
 		eye_target,
-		mat3_multvec(ship_frame.a, (VEC3){{0, 1, 0}}));
+		mat3_multvec(ship_frame.a, (vec3){{0, 1, 0}}));
 	//Move the engine light to just behind the ship.
-	point_lights.position[2] = amat4_multpoint(ship_frame, (VEC3){{0, 0, 6}});
+	point_lights.position[2] = amat4_multpoint(ship_frame, (vec3){{0, 0, 6}});
 
 	static float sunscale = 50.0;
 	if (key_state[SDL_SCANCODE_EQUALS])

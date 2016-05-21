@@ -16,7 +16,7 @@ int main()
 	int some_special_int = 4;
 	int some_other_int = 20;
 	float some_float = .01;
-	VEC3 some_vector = {{0.0, 0.0, 0.0}};
+	vec3 some_vector = {{0.0, 0.0, 0.0}};
 	bool some_bool = 0;
 	bool some_other_bool = 1;
 	bool some_unchanging_bool = 1;

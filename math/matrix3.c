@@ -51,9 +51,9 @@ MAT3 mat3_mult(MAT3 a, MAT3 b)
 		}
 	};
 }
-VEC3 mat3_multvec(MAT3 a, VEC3 b)
+vec3 mat3_multvec(MAT3 a, vec3 b)
 {
-	return (VEC3){
+	return (vec3){
 		.A = {
 			a.A[0]*b.x + a.A[1]*b.y + a.A[2]*b.z,
 			a.A[3]*b.x + a.A[4]*b.y + a.A[5]*b.z,
@@ -152,11 +152,11 @@ MAT3 mat3_transp(MAT3 a)
 	};
 }
 
-MAT3 mat3_lookat(VEC3 p, VEC3 q, VEC3 u)
+MAT3 mat3_lookat(vec3 p, vec3 q, vec3 u)
 {
-	VEC3 z = vec3_normalize(vec3_sub(p, q)); //Swapped p and q from the book.
-	VEC3 x = vec3_normalize(vec3_cross(u, z));
-	VEC3 y = vec3_cross(z, x);
+	vec3 z = vec3_normalize(vec3_sub(p, q)); //Swapped p and q from the book.
+	vec3 x = vec3_normalize(vec3_cross(u, z));
+	vec3 y = vec3_cross(z, x);
 	return (MAT3){{
 		x.x, y.x, z.x,
 		x.y, y.y, z.y,
@@ -164,7 +164,7 @@ MAT3 mat3_lookat(VEC3 p, VEC3 q, VEC3 u)
 	}};
 }
 
-void mat3_vec3_to_array(float *buf, int len, MAT3 a, VEC3 b)
+void mat3_vec3_to_array(float *buf, int len, MAT3 a, vec3 b)
 {
 	assert(len == 16);
 	float tmp[] = {

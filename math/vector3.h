@@ -2,7 +2,7 @@
 #define VECTOR3_H
 
 //Typedef as a union later!
-typedef union VEC3 {
+typedef union vec3 {
 	float A[3];
 	struct {
 		float x, y, z;
@@ -10,36 +10,36 @@ typedef union VEC3 {
 	struct {
 		float r, g, b;
 	};
-} VEC3;
+} vec3;
 
-#define VEC3_UP {{0, 0, 1}}
-#define VEC3_ZERO {{0, 0, 0}}
-VEC3 vec3_zero;
+#define vec3_UP {{0, 0, 1}}
+#define vec3_ZERO {{0, 0, 0}}
+vec3 vec3_zero;
 
-//Produces a new vector. Equivalent to (VEC3){{{x, y, z}}}.
-VEC3 vec3_new(float x, float y, float z);
+//Produces a new vector. Equivalent to (vec3){{{x, y, z}}}.
+vec3 vec3_new(float x, float y, float z);
 //Returns a new vector that represents the addition of respective components of a and b.
 //(a+b)
-VEC3 vec3_add(VEC3 a, VEC3 b);
+vec3 vec3_add(vec3 a, vec3 b);
 //Returns a new vector that represents the scaling of a by factor b.
-VEC3 vec3_scale(VEC3 a, float b);
+vec3 vec3_scale(vec3 a, float b);
 //Returns a new vector that represents the subtraction of respective components of a and b.
 //(a - b)
-VEC3 vec3_sub(VEC3 a, VEC3 b);
+vec3 vec3_sub(vec3 a, vec3 b);
 //Returns a new vector that represents the negation of each component of a.
 //(-a)
-VEC3 vec3_neg(VEC3 a);
+vec3 vec3_neg(vec3 a);
 //Returns a new vector that represents the normalization of a.
-VEC3 vec3_normalize(VEC3 a);
+vec3 vec3_normalize(vec3 a);
 //Returns a new vector that represents the normalization of a. Correctly handles zero-vectors, but slower.
-VEC3 vec3_normalize_safe(VEC3 a);
+vec3 vec3_normalize_safe(vec3 a);
 //Returns a new vector that represents the cross product of a and b.
-VEC3 vec3_cross(VEC3 a, VEC3 b);
+vec3 vec3_cross(vec3 a, vec3 b);
 //Returns a new vector that is linearly interpolated between a and by by parameter alpha.
-VEC3 vec3_lerp(VEC3 a, VEC3 b, float alpha);
+vec3 vec3_lerp(vec3 a, vec3 b, float alpha);
 //Return the dot product of a and b.
-float vec3_dot(VEC3 a, VEC3 b);
+float vec3_dot(vec3 a, vec3 b);
 //Return the magnitude of a.
-float vec3_mag(VEC3 a);
+float vec3_mag(vec3 a);
 
 #endif

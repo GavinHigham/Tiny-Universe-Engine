@@ -13,12 +13,12 @@ typedef struct AMAT4 {
 		struct {
 			float x, y, z;
 		};
-		VEC3 t;
+		vec3 t;
 	};
 	char type;
 } AMAT4;
 
-#define AMAT4_IDENT {.a = MAT3_IDENT, .t = VEC3_ZERO}
+#define AMAT4_IDENT {.a = MAT3_IDENT, .t = vec3_ZERO}
 //Multiply a by b and return the result as a new affine matrix.
 //This version has branches to try to reduce multiplications. (Faster on ARM?)
 AMAT4 amat4_mult_b(AMAT4 a, AMAT4 b);
@@ -26,11 +26,11 @@ AMAT4 amat4_mult_b(AMAT4 a, AMAT4 b);
 AMAT4 amat4_mult(AMAT4 a, AMAT4 b);
 //Multiply a by b as a column vector and return a new vector.
 //b is implied to be a 4-vec with the form <x, y, z, 1>
-VEC3 amat4_multpoint(AMAT4 a, VEC3 b);
+vec3 amat4_multpoint(AMAT4 a, vec3 b);
 //Multiply a by b as a column vector and return a new vector.
 //b is implied to be a 4-vec with the form <x, y, z, 0>
 //It's probably faster to do mat3_multvec(a.a, b), since that copies less.
-VEC3 amat4_multvec(AMAT4 a, VEC3 b);
+vec3 amat4_multvec(AMAT4 a, vec3 b);
 //Produce a new matrix that is the result of rotating a about the axis <ux, uy, uz> by angle, in radians.
 //<ux, uy, uz> should be normalized beforehand.
 AMAT4 amat4_rot(AMAT4 a, float ux, float uy, float uz, float angle);
@@ -46,7 +46,7 @@ AMAT4 amat4_rotmat(float ux, float uy, float uz, float angle);
 //This version tries to reduce multiplications at the cost of more interdependant local variables.
 AMAT4 amat4_rotmat_lomult(float ux, float uy, float uz, float angle);
 //Produce a lookat matrix that points from point p to point q, with u as "up".
-AMAT4 amat4_lookat(VEC3 p, VEC3 q, VEC3 u);
+AMAT4 amat4_lookat(vec3 p, vec3 q, vec3 u);
 //Produce the inverse matrix to a, provided that a represents a rotation and a translation.
 //Does not work if a represents a scale (or a skew?).
 AMAT4 amat4_inverse(AMAT4 a);

@@ -6,7 +6,7 @@
 #define config_expose(cb, ptr, tag) config_expose_generic( _Generic((ptr), \
 	int   *: _CONFIG_INT,    \
 	float *: _CONFIG_FLOAT,  \
-	VEC3  *: _CONFIG_FLOAT3, \
+	vec3  *: _CONFIG_FLOAT3, \
 	bool  *: _CONFIG_BOOL,   \
 	default: _CONFIG_UNSUPPORTED) , cb, ptr, tag)
 
