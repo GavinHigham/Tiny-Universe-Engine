@@ -23,7 +23,7 @@
 #include "stars.h"
 
 #define FOV M_PI/2.5
-int PRIMITIVE_RESTART_INDEX = 0xFFFF;
+int PRIMITIVE_RESTART_INDEX = 0xFFFFFFFF;
 
 #define DEFERRED_MODE false
 
@@ -106,10 +106,10 @@ static void init_lights()
 	new_point_light(&point_lights, (VEC3){{0, 2, 0}},   (VEC3){{1.0, 1.0, 1.0}}, 0.0,     0.0,    1,    5);
 	new_point_light(&point_lights, (VEC3){{0, 2, 0}},   (VEC3){{0.8, 0.8, 1.0}}, 0.0,     0.3,    0.04, 0.4);
 	new_point_light(&point_lights, (VEC3){{10, 4, -7}}, (VEC3){{0.4, 1.0, 0.4}}, 0.1,     0.14,   0.07, 0.75);
-	//point_lights.shadowing[0] = true;
-	//point_lights.shadowing[1] = true;
-	//point_lights.shadowing[2] = true;
-	//point_lights.shadowing[3] = true;
+	point_lights.shadowing[0] = true;
+	point_lights.shadowing[1] = true;
+	point_lights.shadowing[2] = true;
+	point_lights.shadowing[3] = true;
 
 	for (int i = 0; i < point_lights.num_lights; i++) {
 		printf("Light %i radius is %f\n", i, point_lights.radius[i]);
@@ -276,23 +276,23 @@ void render()
 	inv_eye_frame = amat4_inverse(eye_frame); //Only need to do this once per frame.
 
 	static struct buffer_group *pvs[] = {
-		//&room_buffers,
-		//&newship_buffers,
+		&room_buffers,
 		//&teardropship_buffers,
 		//&ship_buffers,
+		&newship_buffers,
 		&height_map_test.bg
 	};
 	static struct buffer_group *pvs_shadowers[] = {
-		//&room_buffers,
-		//&newship_buffers,
+		&room_buffers,
 		//&teardropship_buffers,
-		&ship_buffers
+		&newship_buffers
+		//&ship_buffers
 	};
 	static AMAT4 *pvs_frames[] = {
-		//&room_frame,
+		&room_frame,
 		//&newship_frame,
 		//&teardropship_frame,
-		//&ship_frame,
+		&ship_frame,
 		&grid_frame
 	};
 	glDepthMask(GL_TRUE);
@@ -456,7 +456,7 @@ void update(float dt)
 	//Move the engine light to just behind the ship.
 	point_lights.position[2] = amat4_multpoint(ship_frame, (VEC3){{0, 0, 6}});
 
-	static float sunscale = 1.0;
+	static float sunscale = 50.0;
 	if (key_state[SDL_SCANCODE_EQUALS])
 		sunscale += 0.1;
 	if (key_state[SDL_SCANCODE_MINUS])

@@ -1,5 +1,8 @@
 #include <math.h>
+#include <string.h>
 #include "vector3.h"
+
+VEC3 vec3_zero = VEC3_ZERO;
 
 VEC3 vec3_new(float x, float y, float z)
 {
@@ -31,6 +34,14 @@ VEC3 vec3_normalize(VEC3 a)
 {
 	float m = sqrt(a.x*a.x + a.y*a.y + a.z*a.z);
 	return (VEC3){{a.x/m, a.y/m, a.z/m}};
+}
+
+VEC3 vec3_normalize_safe(VEC3 a)
+{
+	if (memcmp(&a, &vec3_zero, 3*sizeof(float)) == 0)
+		return vec3_zero;
+	else
+		return vec3_normalize(a);
 }
 
 VEC3 vec3_cross(VEC3 u, VEC3 v)

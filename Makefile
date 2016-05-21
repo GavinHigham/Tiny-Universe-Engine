@@ -1,6 +1,6 @@
 CC = gcc
-SDL = -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW 
-CFLAGS = -Wall -c -std=c99 -g -O3 -pthread
+SDL = -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW
+CFLAGS = -Wall -c -std=c99 -g -pthread
 LDFLAGS = $(SDL)
 MATH_OBJECTS = math/affine_matrix4.o math/matrix3.o math/vector3.o
 MODELS_OBJECTS = models/models.o

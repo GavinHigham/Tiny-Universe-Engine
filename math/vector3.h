@@ -14,6 +14,7 @@ typedef union VEC3 {
 
 #define VEC3_UP {{0, 0, 1}}
 #define VEC3_ZERO {{0, 0, 0}}
+VEC3 vec3_zero;
 
 //Produces a new vector. Equivalent to (VEC3){{{x, y, z}}}.
 VEC3 vec3_new(float x, float y, float z);
@@ -30,6 +31,8 @@ VEC3 vec3_sub(VEC3 a, VEC3 b);
 VEC3 vec3_neg(VEC3 a);
 //Returns a new vector that represents the normalization of a.
 VEC3 vec3_normalize(VEC3 a);
+//Returns a new vector that represents the normalization of a. Correctly handles zero-vectors, but slower.
+VEC3 vec3_normalize_safe(VEC3 a);
 //Returns a new vector that represents the cross product of a and b.
 VEC3 vec3_cross(VEC3 a, VEC3 b);
 //Returns a new vector that is linearly interpolated between a and by by parameter alpha.
