@@ -2,7 +2,7 @@ CC = gcc
 SDL = -framework OpenGL -lGLEW 
 CFLAGS = -Wall -c -std=c99 -g -O3
 OBJECTS = shaders.o
-SHADERS = programs/*
+SHADERS = programs/*.vs programs/*.fs programs/*.gs
 SHADER_GENERATORS = generate_shader_source.awk generate_shader_header.awk
 
 shaders.c: $(SHADERS) $(SHADER_GENERATORS) shaders.h

@@ -1,49 +1,66 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdbool.h>
 #include <math.h>
 #include <assert.h>
 #include <GL/glew.h>
+#include <glalgebra.h>
 #include "procedural_terrain.h"
-#include "math/vector3.h"
+#include "open-simplex-noise-in-c/open-simplex-noise.h"
+#include "math/utility.h"
 #include "buffer_group.h"
 #include "macros.h"
 #include "render.h"
 
-vec3 *gpositions;
+#define ACCELERATION_DUE_TO_GRAVITY 9.81
 
 extern int PRIMITIVE_RESTART_INDEX;
+extern struct osn_context *osnctx;
 
-static float rand_float()
-{
-	return (float)((double)rand()/RAND_MAX); //Discard precision after the division.
-}
-
+//Defines a height map.
+//Given an x and z coordinate, returns a vector including a new y coordinate.
+//Possibly returns changed x and z as well.
 vec3 height_map1(float x, float z)
 {
 	float height = 0;
 	int octaves = 8;
 	for (int i = 1; i <= octaves; i++)
 	 	height += i*sin(z/i) + i*sin(x/i);
-	//height = sqrt((x-50)*(x-50) + (z-50)*(z-50)) - 10;
+	return (vec3){{x, height, z}};
+}
+
+vec3 height_map2(float x, float z)
+{
+	float height = 20;
+	int octaves = 6;
+	float amplitude = height * pow(2, octaves);
+	float sharpness = 4;
+	for (int i = 0; i < octaves; i++) {
+		amplitude /= 2;
+		height += amplitude * pow(open_simplex_noise2(osnctx, x/amplitude, z/amplitude), sharpness);
+	}
 	return (vec3){{x, height, z}};
 }
 
 //Cheap trick to get normals, should replace with something faster eventually.
-vec3 height_map_normal1(float x, float z)
+vec3 height_map_normal(vec3 (*height_map)(float, float), float x, float z)
 {
-	float delta = 0.0001;
-	vec3 v0 = height_map1(x, z);
-	vec3 v1 = height_map1(x+delta, z);
-	vec3 v2 = height_map1(x, z+delta);
+	float epsilon = 0.0001;
+	vec3 v0 = height_map(x, z);
+	vec3 v1 = height_map(x+epsilon, z);
+	vec3 v2 = height_map(x, z+epsilon);
 
 	return vec3_normalize(vec3_cross(vec3_sub(v2, v0), vec3_sub(v1, v0)));
-	//return (vec3){{0, 1, 0}};
 }
 
+//Creates a terrain struct, including handles for various OpenGL objects
+//and storage for the positions, normals, colors, and indices.
+//Should be freed by the caller, using free_terrain.
 struct terrain new_terrain(int numrows, int numcols)
 {
 	struct terrain tmp;
+	tmp.in_frustrum = true;
 	tmp.bg.index_count = (2 * numcols + 1) * (numrows - 1);
 	tmp.atrlen = sizeof(vec3) * numrows * numcols;
 	tmp.indlen = sizeof(GLuint) * tmp.bg.index_count;
@@ -51,7 +68,6 @@ struct terrain new_terrain(int numrows, int numcols)
 	tmp.normals   = (vec3 *)malloc(tmp.atrlen);
 	tmp.colors    = (vec3 *)malloc(tmp.atrlen);
 	tmp.indices = (GLuint *)malloc(tmp.indlen);
-	gpositions = tmp.positions;
 	tmp.numrows = numrows;
 	tmp.numcols = numcols;
 	if (!tmp.positions || !tmp.normals || !tmp.colors || !tmp.indices)
@@ -79,6 +95,8 @@ struct terrain new_terrain(int numrows, int numcols)
 	return tmp;
 }
 
+//Frees the dynamic storage and OpenGL objects held by a terrain struct.
+//After calling, *t should be considered invalid, and not used again.
 void free_terrain(struct terrain *t)
 {
 	free(t->positions);
@@ -90,15 +108,17 @@ void free_terrain(struct terrain *t)
 	glDeleteBuffers(LENGTH(t->bg.buffer_handles), t->bg.buffer_handles);
 }
 
-vec3 * tpos(struct terrain *t, float fx, float fy)
+//Calculates an array index for t->positions.
+//Will return a pointer to the vec3 nearest <fx, fz>, wrapping around as on a torus.
+//To initialize, call with t as the struct you wish to navigate, and any fx/fz.
+//On subsequent calls, leave t as NULL and pass actual fx and fz coordinates.
+vec3 * tpos(struct terrain *t, float fx, float fz)
 {
 	static struct terrain *tref = NULL;
 	if (t == NULL) {
 		unsigned int x = fmod(fmod(fx, tref->numcols) + tref->numcols, tref->numcols);
-		unsigned int y = fmod(fmod(fy, tref->numrows) + tref->numrows, tref->numrows);
-		unsigned int coord = x + y*tref->numcols;
-		assert(coord >= 0);
-		assert(coord < tref->numrows*tref->numcols);
+		unsigned int z = fmod(fmod(fz, tref->numrows) + tref->numrows, tref->numrows);
+		unsigned int coord = x + z*tref->numcols;
 		return &(tref->positions[coord]);
 	}
 	else {
@@ -107,15 +127,17 @@ vec3 * tpos(struct terrain *t, float fx, float fy)
 	}
 }
 
-vec3 * tnorm(struct terrain *t, float fx, float fy)
+//Calculates an array index for t->normals.
+//Will return a pointer to the vec3 nearest <fx, fz>, wrapping around as on a torus.
+//To initialize, call with t as the struct you wish to navigate, and any fx/fz.
+//On subsequent calls, leave t as NULL and pass actual fx and fz coordinates.
+vec3 * tnorm(struct terrain *t, float fx, float fz)
 {
 	static struct terrain *tref = NULL;
 	if (t == NULL) {
 		unsigned int x = fmod(fmod(fx, tref->numcols) + tref->numcols, tref->numcols);
-		unsigned int y = fmod(fmod(fy, tref->numrows) + tref->numrows, tref->numrows);
-		unsigned int coord = x + y*tref->numcols;
-		assert(coord >= 0);
-		assert(coord < tref->numrows*tref->numcols);
+		unsigned int z = fmod(fmod(fz, tref->numrows) + tref->numrows, tref->numrows);
+		unsigned int coord = x + z*tref->numcols;
 		return &(tref->normals[coord]);
 	}
 	else {
@@ -124,33 +146,27 @@ vec3 * tnorm(struct terrain *t, float fx, float fy)
 	}
 }
 
+//State needed for a raindrop to be simulated on some heightmap terrain.
 struct raindrop {
 	vec3 pos;
 	vec3 vel;
-	float load;
-	int steps;
+	float load; //Amount of sediment drop is carrying, should be < capacity.
+	int steps; //Number of steps this raindrop has been simulated for.
 };
 
-#define DRAG_COEFFICIENT 0.8
-#define MAX_RAINDROP_STEPS 1000
-#define ACCELERATION_DUE_TO_GRAVITY 9.81 //Units are meters/s^2
-#define RAINDROP_MASS 1
-#define RAINDROP_FRICTION 0.2
-#define RAINDROP_CAPACITY 0.1
-#define RAINDROP_SPEEDFLOOR 0.0001
-#define FRICTION_COEFFICIENT 0.3
+struct raindrop_config {
+	float mass;
+	float friction; //Kinetic friction coefficient between drop and terrain.
+	float capacity; //Maximum amount of sediment this raindrop can carry.
+	float speedfloor; //Drop is considered immobile at or below this speed.
+	int max_steps; //Maximum number of steps this raindrop will be simulated for.
+};
 
-//∆GPE = -∆KE
-//mgh = -(1/2)mv^2
-//-2gh = v^2
-//v = √(-2gh) 
-
-int simulate_raindrop(struct terrain *t, float x, float z)
+int simulate_raindrop(struct terrain *t, struct raindrop_config rc, float x, float z)
 {
 	tpos(t, 0, 0);
 	//Raindrop starts at x, y.
 	struct raindrop r = {.pos = {{x, 0, z}}, .vel = {{0, 0, 0}}, .load = 0, .steps = 0};
-	//r.vel = vec3_normalize((vec3){{rand_float(), rand_float(), rand_float()}});
 	float deltah = 1;
 	float timescale = 1;
 	int hit_steplimit = 0;
@@ -159,21 +175,23 @@ int simulate_raindrop(struct terrain *t, float x, float z)
 		vec3 *c1 = tpos(NULL, r.pos.x+1, r.pos.z);
 		vec3 *c2 = tpos(NULL, r.pos.x+1, r.pos.z+1);
 		vec3 *c3 = tpos(NULL, r.pos.x,   r.pos.z+1);
-		vec3 grad = vec3_normalize_safe((vec3){{
+		vec3 grad = (vec3){{
 			p->y + c3->y - c1->y - c2->y,
 			0,
 			c2->y + c3->y - p->y - c1->y
-		}});
+		}};
+		if (vec3_mag(grad) > 0)
+			grad = vec3_normalize(grad);
 
 		//Force of gravity pulls down, some becomes normal force, some becomes a force along the slope.
 		//If the downward velocity was higher than would keep it on the surface of the next slope segment,
 		//calculate the deceleration needed to keep it on the slope, and add it to the normal force.
 		//Add up all the forces that acted on the drop in the last segment, apply them, and determine the new
 		//direction of travel by normalizing the velocity vector.
-		float Fg = ACCELERATION_DUE_TO_GRAVITY * RAINDROP_MASS;
+		float Fg = ACCELERATION_DUE_TO_GRAVITY * rc.mass;
 		float b = sqrt(1 + deltah*deltah);
 		float Fn = Fg / b;
-		float Af = -Fn * (FRICTION_COEFFICIENT / RAINDROP_MASS); //Acceleration (deceleration) due to friction.
+		float Af = -Fn * (rc.friction / rc.mass); //Acceleration (deceleration) due to friction.
 		float Ag = deltah / b; //Acceleration due to gravity aligned down the gradient.
 		float A = Ag + Af; //Total acceleration experienced by the drop.
 		vec3 a_vec = {{
@@ -181,17 +199,19 @@ int simulate_raindrop(struct terrain *t, float x, float z)
 			grad.y*A,
 			grad.z*A
 		}};
-		//r.vel.x = (r.vel.x + grad.x*deltah*ACCELERATION_DUE_TO_GRAVITY) * DRAG_COEFFICIENT;
-		//r.vel.z = (r.vel.z + grad.z*deltah*ACCELERATION_DUE_TO_GRAVITY) * DRAG_COEFFICIENT;
 		r.vel = vec3_add(r.vel, vec3_scale(a_vec, timescale));
-		timescale = 1/vec3_mag(r.vel);
+		float vmag = vec3_mag(r.vel);
+		if (vmag == 0)
+			timescale = 1;
+		else
+			timescale = 1/vmag;
 		assert(timescale != NAN);
 		r.pos = vec3_add(r.pos, vec3_scale(r.vel, timescale)); //Move the raindrop by one unit in its velocity direction.
 		// r.pos  = vec3_add(r.pos, grad); //Move the raindrop along the gradient.
 		vec3 *newp = tpos(NULL, r.pos.x, r.pos.z);
 		deltah = newp->y - p->y;
 		if (deltah < 0) { //The drop moves downhill
-			float sediment = fmin(RAINDROP_CAPACITY - r.load, -deltah);
+			float sediment = fmin(rc.capacity - r.load, -deltah);
 			p->y -= sediment;
 			r.load += sediment;
 		} else {
@@ -200,11 +220,11 @@ int simulate_raindrop(struct terrain *t, float x, float z)
 			r.load -= sediment;
 		}
 		r.steps++;
-		if (r.steps >= MAX_RAINDROP_STEPS) {
+		if (r.steps >= rc.max_steps) {
 			hit_steplimit = 1;
 			break;
 		}
-	} while (vec3_mag(r.vel) > RAINDROP_SPEEDFLOOR);
+	} while (vec3_mag(r.vel) > rc.speedfloor);
 	vec3 *finalp = tpos(NULL, r.pos.x, r.pos.y);
 	finalp->y += r.load; //Simulate evaporation.
 	// if (finalp == t->positions)
@@ -219,25 +239,14 @@ int simulate_raindrop(struct terrain *t, float x, float z)
 	return hit_steplimit;
 }
 
+//Updates the t->normals
 void recalculate_terrain_normals(struct terrain *t)
 {
 	tpos(t, 0, 0);
 	tnorm(t, 0, 0);
 	for (int x = 0; x < t->numcols; x++) {
 		for (int z = 0; z < t->numrows; z++) {
-			// float h[9];
-			// for (int j = -1; j < 2; j++) {
-			// 	for (int k = -1; k < 2; k++) {
-			// 		h[j + k*3] = tpos(NULL, x+k, z+j)->y;
-			// 	}
-			// }
-			// float scale = 5;
-			// *tnorm(NULL, x, z) = vec3_normalize((vec3){{
-			// 	scale * -(h[2]-h[0]+2*(h[5]-h[3])+h[8]-h[6]),
-			// 	1.0,
-			// 	scale * -(h[6]-h[0]+2*(h[7]-h[1])+h[8]-h[2])
-			// }});
-			vec3 *p0 = tpos(NULL, x,   z);
+			vec3 p0 = *tpos(NULL, x,   z);
 			vec3 *p1 = tpos(NULL, x+1, z);
 			vec3 *p2 = tpos(NULL, x+1, z+1);
 			vec3 *p3 = tpos(NULL, x,   z+1);
@@ -249,12 +258,12 @@ void recalculate_terrain_normals(struct terrain *t)
 			*tnorm(NULL, x, z) = vec3_normalize(
 				vec3_add(
 					vec3_add(
-						vec3_cross(vec3_sub(*p1, *p0), vec3_sub(*p3, *p0)),
-						vec3_cross(vec3_sub(*p5, *p0), vec3_sub(*p7, *p0))
+						vec3_cross(vec3_sub(*p1, p0), vec3_sub(*p3, p0)),
+						vec3_cross(vec3_sub(*p5, p0), vec3_sub(*p7, p0))
 					),
 					vec3_add(
-						vec3_cross(vec3_sub(*p2, *p0), vec3_sub(*p4, *p0)),
-						vec3_cross(vec3_sub(*p6, *p0), vec3_sub(*p8, *p0))
+						vec3_cross(vec3_sub(*p2, p0), vec3_sub(*p4, p0)),
+						vec3_cross(vec3_sub(*p6, p0), vec3_sub(*p8, p0))
 					)
 				)
 			);
@@ -264,21 +273,33 @@ void recalculate_terrain_normals(struct terrain *t)
 
 void erode_terrain(struct terrain *t, int iterations)
 {
+	struct raindrop_config rc = {
+		.mass = 1.0,
+		.friction = 0.8, //Kinetic friction coefficient between drop and terrain.
+		.capacity = .7, //Maximum amount of sediment this raindrop can carry.
+		.speedfloor = 0.07, //Drop is considered immobile at or below this speed.
+		.max_steps = 1000 //Maximum number of steps this raindrop will be simulated for.
+	};
+
 	int steplimit_drops = 0;
 	for (int i = 0; i < iterations; i++)
-		steplimit_drops += simulate_raindrop(t, rand_float()*(t->numcols-1), rand_float()*(t->numrows-1));
+		steplimit_drops += simulate_raindrop(t, rc, rand_float()*(t->numcols-1), rand_float()*(t->numrows-1));
 	printf("%i drops hit the steplimit this iteration.\n", steplimit_drops);
 }
 
-void populate_terrain(struct terrain *t, vec3 (*height_map)(float x, float y), vec3 (*height_map_normal)(float x, float y))
+//Generates an initial heightmap terrain and associated normals.
+void populate_terrain(struct terrain *t, vec3 world_pos, vec3 (*height_map)(float x, float y))
 {
+	t->pos = world_pos;
 	//Generate vertices.
-	vec3 color = {{0.7, 0.65, 0.65}};
+	vec3 color = {{0.85, 0.35, 0.35}};
 	for (int i = 0; i < t->numrows; i++) {
 		for (int j = 0; j < t->numcols; j++) {
 			int offset = (t->numcols * i) + j;
-			vec3 pos = height_map(i, j);
-			vec3 norm = height_map_normal(i, j);
+			float x = (i + world_pos.x) - (t->numcols/2.0);
+			float y = (j + world_pos.z) - (t->numrows/2.0);
+			vec3 pos = height_map(x, y);
+			vec3 norm = height_map_normal(height_map, x, y);
 			t->positions[offset] = pos;
 			t->normals[offset] = norm;
 			t->colors[offset] = color;
@@ -286,9 +307,67 @@ void populate_terrain(struct terrain *t, vec3 (*height_map)(float x, float y), v
 	}
 }
 
+/*
+bool terrain_in_frustrum(struct terrain *t, amat4 camera, float projection_matrix[16])
+{
+	//TODO
+	return true;
+}
+*/
+
+struct terrain_grid {
+	struct terrain *ts;
+	int numx;
+	int numz;
+};
+
+//Calculates an array index for a 2d grid of terrains.
+//Will return a pointer to the terrain struct nearest <fx, fy>, wrapping around as on a torus.
+//To initialize, call with ts as the struct array you wish to navigate, and any fx/fy.
+//On subsequent calls, leave ts as NULL and pass actual fx and fy coordinates.
+struct terrain * tgpos(struct terrain_grid *tg, float fx, float fy)
+{
+	static struct terrain_grid *tref = NULL;
+	static float tilex;
+	static float tilez;
+	if (tg == NULL) {
+		unsigned int x = fmod(fmod(fx/tilex, tref->numx) + tref->numx, tref->numx);
+		unsigned int y = fmod(fmod(fy/tilez, tref->numz) + tref->numz, tref->numz);
+		unsigned int coord = x + y*tref->numx;
+		return &(tref->ts[coord]);
+	}
+	else {
+		tref = tg;
+		tilex = tg->ts->numcols;
+		tilez = tg->ts->numrows;
+		return NULL;
+	}
+}
+
+vec3 nearest_terrain_origin(vec3 pos, float terrain_width, float terrain_depth)
+{
+		unsigned int x = fmod(fmod(pos.x, terrain_width) + terrain_width, terrain_width);
+		unsigned int z = fmod(fmod(pos.z, terrain_depth) + terrain_depth, terrain_depth);
+		return (vec3){{pos.x - x, 0, pos.z - z}};
+}
+
+// //Use only terrain grids with odd numbers of tiles!
+// void terrain_grid_make_current(struct terrain_grid *tg, int numx, int numz, vec3 pos)
+// {
+// 	tgpos(tg, 0, 0);
+// 	for (int i = 0; i < tg->numx; i++) {
+// 		for (int j = 0; j < tg->numz; j++) {
+// 			struct terrain *expected = tgpos(NULL, i - tg->numx/2.0, j - tg->numz/2.0);
+// 			if (memcmp(&(tg->ts[i + tg->numx*j].pos), &(expected->pos), sizeof(vec3)) != 0) {
+// 				populate_terrain(&(tg->ts[i + tg->numx*j]), )
+// 			}
+// 		}
+// 	}
+// }
+
+//Buffers the position, normal and color buffers of a terrain struct onto the GPU.
 void buffer_terrain(struct terrain *t)
 {
-	assert(gpositions == t->positions);
 	glEnable(GL_PRIMITIVE_RESTART);
 	glPrimitiveRestartIndex(PRIMITIVE_RESTART_INDEX);
 	glBindBuffer(GL_ARRAY_BUFFER, t->bg.vbo);

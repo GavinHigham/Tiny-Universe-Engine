@@ -2,11 +2,9 @@
 #include <math.h>
 #include <assert.h>
 #include <string.h>
+#include <glalgebra.h>
 #include <GL/glew.h>
 #include "render.h"
-#include "math/affine_matrix4.h"
-#include "math/matrix3.h"
-#include "math/vector3.h"
 #include "models/models.h"
 #include "shaders/shaders.h"
 #include "keyboard.h"
@@ -22,10 +20,13 @@
 #include "procedural_terrain.h"
 #include "stars.h"
 
-#define FOV M_PI/2.5
+float FOV = M_PI/2.5;
+float far_distance = 2000;
 int PRIMITIVE_RESTART_INDEX = 0xFFFFFFFF;
-
-#define DEFERRED_MODE false
+int num_x_tiles = 1;
+int num_z_tiles = 1;
+bool DEFERRED_MODE = false;
+extern bool draw_light_bounds;
 
 static struct counted_func update_funcs_storage[10];
 struct func_list update_func_list = {
@@ -34,6 +35,7 @@ struct func_list update_func_list = {
 	LENGTH(update_funcs_storage)
 };
 
+//Buffer group declarations. Need a better system for this.
 struct buffer_group newship_buffers;
 struct buffer_group teardropship_buffers;
 struct buffer_group ship_buffers;
@@ -44,17 +46,18 @@ struct buffer_group icosphere_buffers;
 struct buffer_group big_asteroid_buffers;
 struct buffer_group grid_buffers;
 struct buffer_group cube_buffers;
-struct terrain height_map_test;
+struct buffer_group triangle_buffers;
+struct terrain ground[5*5];
 GLuint gVAO = 0;
-extern bool draw_light_bounds;
-AMAT4 inv_eye_frame;
-AMAT4 eye_frame = {.a = MAT3_IDENT, .T = {6, 0, 0}};
-AMAT4 ship_frame = {.a = MAT3_IDENT, .T = {-2.5, 0, -8}};
-AMAT4 newship_frame = {.a = MAT3_IDENT, .T = {3, 0, -8}};
-AMAT4 teardropship_frame = {.a = MAT3_IDENT, .T = {6, 0, -8}};
-AMAT4 room_frame = {.a = MAT3_IDENT, .T = {0, -4, -8}};
-AMAT4 grid_frame = {.a = MAT3_IDENT, .T = {-50, -3, -50}};
-AMAT4 big_asteroid_frame = {.a = MAT3_IDENT, .T = {0, -4, -20}};
+amat4 inv_eye_frame;
+amat4 eye_frame = {.a = MAT3_IDENT, .T = {6, 0, 0}};
+//Object frames. Need a better system for this.
+amat4 ship_frame = {.a = MAT3_IDENT, .T = {-2.5, 0, -8}};
+amat4 newship_frame = {.a = MAT3_IDENT, .T = {3, 0, -8}};
+amat4 teardropship_frame = {.a = MAT3_IDENT, .T = {6, 0, -8}};
+amat4 room_frame = {.a = MAT3_IDENT, .T = {0, -4, -8}};
+amat4 grid_frame = {.a = MAT3_IDENT, .T = {-50, -50, -50}};
+amat4 big_asteroid_frame = {.a = MAT3_IDENT, .T = {0, -4, -20}};
 static vec3 skybox_scale;
 static vec3 ambient_color = {{0.01, 0.01, 0.01}};
 static vec3 sun_direction = {{0.1, 0.8, 0.1}};
@@ -62,12 +65,23 @@ static vec3 sun_color     = {{0.1, 0.8, 0.1}};
 struct point_light_attributes point_lights = {.num_lights = 0};
 
 GLfloat proj_mat[16];
-extern void init_deferred_render();
-extern void deinit_deferred_render();
+GLfloat proj_view_mat[16];
 
-static void init_forward_render()
+int buffer_triangle(struct buffer_group bg)
 {
-
+	GLfloat positions[] = {
+		1.0, 0.0, 0.0,
+		cos(2*M_PI/3), sin(2*M_PI/3), 0,
+		cos(4*M_PI/3), sin(4*M_PI/3), 0
+	};
+	GLuint indices[] = {
+		0, 1, 2
+	};
+	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+	return sizeof(indices)/sizeof(indices[0]);
 }
 
 static void init_models()
@@ -77,26 +91,40 @@ static void init_models()
 	teardropship_buffers = new_buffer_group(buffer_teardropship, &forward_program);
 	ball_buffers = new_buffer_group(buffer_ball, &forward_program);
 	thrust_flare_buffers = new_buffer_group(buffer_thrust_flare, &forward_program);
-	icosphere_buffers = new_custom_buffer_group(buffer_icosphere, 0);
+	icosphere_buffers = new_custom_buffer_group(buffer_icosphere, 0, GL_TRIANGLES);
+	triangle_buffers = new_custom_buffer_group(buffer_triangle, 0, GL_TRIANGLES);
 	room_buffers = new_buffer_group(buffer_newroom, &forward_program);
 	//big_asteroid_buffers = new_buffer_group(buffer_big_asteroid, &forward_program);
 	cube_buffers = new_buffer_group(buffer_cube, &skybox_program);
 	//grid_buffers = buffer_grid(128, 128);
-	height_map_test = new_terrain(100, 100);
-	populate_terrain(&height_map_test, height_map1, height_map_normal1);
-	buffer_terrain(&height_map_test);
+	float terrain_x = 300;
+	float terrain_y = 300;
+	for (int i = 0; i < num_x_tiles; i++) {
+		for (int j = 0; j < num_z_tiles; j++) {
+			struct terrain *tmp = &ground[j + i * 5];
+			*tmp = new_terrain(terrain_x+1, terrain_y+1);
+			populate_terrain(tmp, (vec3){{(i-num_x_tiles/2)*terrain_x, 0, (j-num_z_tiles/2)*terrain_y}}, height_map2);
+			buffer_terrain(tmp);
+		}
+	}
+	// height_map_test = new_terrain(100, 100);
+	// populate_terrain(&height_map_test, (vec3){{0,0,0}}, height_map1, height_map_normal1);
+	// buffer_terrain(&height_map_test);
 }
 
 static void deinit_models()
 {
 	delete_buffer_group(newship_buffers);
-	//delete_buffer_group(teardropship_buffers);
+	delete_buffer_group(teardropship_buffers);
 	delete_buffer_group(ball_buffers);
 	delete_buffer_group(thrust_flare_buffers);
 	delete_buffer_group(icosphere_buffers);
 	delete_buffer_group(room_buffers);
+	delete_buffer_group(triangle_buffers);
 	//delete_buffer_group(grid_buffers);
-	free_terrain(&height_map_test);
+	//free_terrain(&height_map_test);
+	for (int i = 0; i < 5 * 5; i++)
+		free_terrain(&ground[i]);
 }
 
 static void init_lights()
@@ -116,12 +144,29 @@ static void init_lights()
 	}
 }
 
+// //Later I should put the projection matrix in a uniform block
+// static void send_projection_matrix()
+// {
+// 	glUseProgram(skybox_program.handle);
+// 	glUniformMatrix4fv(skybox_program.projection_matrix, 1, GL_TRUE, proj_mat);
+// 	glUseProgram(forward_program.handle);
+// 	glUniformMatrix4fv(forward_program.projection_matrix, 1, GL_TRUE, proj_mat);
+// 	glUseProgram(outline_program.handle);
+// 	glUniformMatrix4fv(outline_program.projection_matrix, 1, GL_TRUE, proj_mat);
+// 	glUseProgram(shadow_program.handle);
+// 	glUniformMatrix4fv(outline_program.projection_matrix, 1, GL_TRUE, proj_mat);
+// }
+
+void handle_resize(int width, int height)
+{
+	glViewport(0, 0, width, height);
+	make_projection_matrix(FOV, (float)width/(float)height, -1, -far_distance, proj_mat, LENGTH(proj_mat));	
+	//send_projection_matrix();
+}
+
 //Set up everything needed to start rendering frames.
 void init_render()
 {
-	glGenVertexArrays(1, &gVAO);
-	glBindVertexArray(gVAO);
-
 	glUseProgram(0);
 	glClearDepth(0.0);
 	glEnable(GL_DEPTH_TEST);
@@ -129,25 +174,16 @@ void init_render()
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-	float far_distance = 2000;
 	make_projection_matrix(FOV, (float)SCREEN_WIDTH/(float)SCREEN_HEIGHT, -1, -far_distance, proj_mat, LENGTH(proj_mat));
 
-	init_forward_render();
 	init_models();
 	init_lights();
 	init_stars();
 
 	float skybox_distance = sqrt((far_distance*far_distance)/2);
 	skybox_scale = (vec3){{skybox_distance, skybox_distance, skybox_distance}};
-	//Setup unchanging deferred uniforms.
-	glUseProgram(skybox_program.handle);
-	glUniformMatrix4fv(skybox_program.projection_matrix, 1, GL_TRUE, proj_mat);
-	glUseProgram(forward_program.handle);
-	glUniformMatrix4fv(forward_program.projection_matrix, 1, GL_TRUE, proj_mat);
-	glUseProgram(outline_program.handle);
-	glUniformMatrix4fv(outline_program.projection_matrix, 1, GL_TRUE, proj_mat);
-	glUseProgram(shadow_program.handle);
-	glUniformMatrix4fv(outline_program.projection_matrix, 1, GL_TRUE, proj_mat);
+	//send_projection_matrix();
+
 	glPointSize(3);
 	glEnable(GL_PROGRAM_POINT_SIZE);
 
@@ -182,68 +218,66 @@ void make_projection_matrix(GLfloat fov, GLfloat a, GLfloat n, GLfloat f, GLfloa
 	memcpy(buf, tmp, sizeof(tmp));
 }
 
-static void draw_skybox_forward(struct shader_prog *program, struct buffer_group bg, AMAT4 model_matrix)
+static void draw_skybox_forward(struct shader_prog *program, struct buffer_group bg, amat4 model_matrix)
 {
 	glBindVertexArray(bg.vao);
-	GLfloat mvm_buf[16];
-	AMAT4 model_view_matrix = amat4_mult(inv_eye_frame, model_matrix);
-	//Send model_view_matrix.
-	amat4_to_array(mvm_buf, LENGTH(mvm_buf), model_view_matrix);
-	glUniformMatrix4fv(program->model_view_matrix, 1, GL_TRUE, mvm_buf);
+	GLfloat tmp[16];
+	GLfloat model_matrix_buf[16];
+	amat4_to_array(model_matrix, model_matrix_buf);
+	amat4_buf_mult(proj_view_mat, model_matrix_buf, tmp);
+	//Send model_view_projection_matrix.
+	glUniformMatrix4fv(program->model_view_projection_matrix, 1, GL_TRUE, tmp);
 	//Send model_matrix
-	amat4_to_array(mvm_buf, LENGTH(mvm_buf), model_matrix);
-	glUniformMatrix4fv(program->model_matrix, 1, GL_TRUE, mvm_buf);
+	glUniformMatrix4fv(program->model_matrix, 1, GL_TRUE, model_matrix_buf);
 	glUniform3fv(program->camera_position, 1, eye_frame.T);
 	glUniform3fv(program->sun_direction, 1, sun_direction.A);
 	//Draw!
 	glDrawElements(GL_TRIANGLES, bg.index_count, GL_UNSIGNED_INT, NULL);
 }
 
-static void draw_forward(struct shader_prog *program, struct buffer_group bg, AMAT4 model_matrix)
+static void draw_forward(struct shader_prog *program, struct buffer_group bg, amat4 model_matrix)
 {
 	glBindVertexArray(bg.vao);
-	GLfloat m_buf[16];
-	AMAT4 model_view_matrix = amat4_mult(inv_eye_frame, model_matrix);
-	//Send model_view_matrix.
-	amat4_to_array(m_buf, LENGTH(m_buf), model_view_matrix);
-	glUniformMatrix4fv(program->model_view_matrix, 1, GL_TRUE, m_buf);
-	{
-		//Send projection_model_matrix
-		GLfloat pvm_buf[16];
-		amat4_to_array(m_buf, LENGTH(m_buf), inv_eye_frame);
-		amat4_buf_mult(proj_mat, m_buf, pvm_buf);
-		glUniformMatrix4fv(program->projection_view_matrix, 1, GL_TRUE, pvm_buf);
-	}
+	GLfloat tmp[16];
+	GLfloat model_matrix_buf[16];
+	amat4_to_array(model_matrix, model_matrix_buf);
+	amat4_buf_mult(proj_view_mat, model_matrix_buf, tmp);
+	//Send model_view_projection_matrix.
+	glUniformMatrix4fv(program->model_view_projection_matrix, 1, GL_TRUE, tmp);
 	//Send model_matrix
-	amat4_to_array(m_buf, LENGTH(m_buf), model_matrix);
-	glUniformMatrix4fv(program->model_matrix, 1, GL_TRUE, m_buf);
+	glUniformMatrix4fv(program->model_matrix, 1, GL_TRUE, model_matrix_buf);
 	//Send normal_model_view_matrix
-	mat3_vec3_to_array(m_buf, LENGTH(m_buf), mat3_transp(model_matrix.a), (vec3){{0, 0, 0}});
-	glUniformMatrix4fv(program->model_view_normal_matrix, 1, GL_TRUE, m_buf);
+	mat3_vec3_to_array(mat3_transp(model_matrix.a), (vec3){{0, 0, 0}}, tmp);
+	glUniformMatrix4fv(program->model_view_normal_matrix, 1, GL_TRUE, tmp);
 	glDrawElements(bg.primitive_type, bg.index_count, GL_UNSIGNED_INT, NULL);
 }
 
-static void draw_forward_adjacent(struct shader_prog *program, struct buffer_group bg, AMAT4 model_matrix)
+static void draw_wireframe(struct shader_prog *program, struct buffer_group bg, amat4 model_matrix)
 {
 	glBindVertexArray(bg.vao);
-	GLfloat m_buf[16];
-	AMAT4 model_view_matrix = amat4_mult(inv_eye_frame, model_matrix);
-	//Send model_view_matrix.
-	amat4_to_array(m_buf, LENGTH(m_buf), model_view_matrix);
-	glUniformMatrix4fv(program->model_view_matrix, 1, GL_TRUE, m_buf);
-	{
-		//Send projection_model_matrix
-		GLfloat pvm_buf[16];
-		amat4_to_array(m_buf, LENGTH(m_buf), inv_eye_frame);
-		amat4_buf_mult(proj_mat, m_buf, pvm_buf);
-		glUniformMatrix4fv(program->projection_view_matrix, 1, GL_TRUE, pvm_buf);
-	}
-	//Send model_matrix
-	amat4_to_array(m_buf, LENGTH(m_buf), model_matrix);
-	glUniformMatrix4fv(program->model_matrix, 1, GL_TRUE, m_buf);
+	GLfloat tmp[16];
+	GLfloat model_matrix_buf[16];
+	amat4_to_array(model_matrix, model_matrix_buf);
+	amat4_buf_mult(proj_view_mat, model_matrix_buf, tmp);
+	//Send model_view_projection_matrix.
+	glUniformMatrix4fv(program->model_view_projection_matrix, 1, GL_TRUE, tmp);
+	glDrawElements(bg.primitive_type, bg.index_count, GL_UNSIGNED_INT, NULL);
+}
+
+static void draw_forward_adjacent(struct shader_prog *program, struct buffer_group bg, amat4 model_matrix)
+{
+	glBindVertexArray(bg.vao);
+	GLfloat tmp[16];
+	GLfloat model_matrix_buf[16];
+	amat4_to_array(model_matrix, model_matrix_buf);
+	amat4_buf_mult(proj_view_mat, model_matrix_buf, tmp);
+	//Send model_view_projection_matrix.
+	glUniformMatrix4fv(program->model_view_projection_matrix, 1, GL_TRUE, tmp);
+	//Send model_matrixh
+	glUniformMatrix4fv(program->model_matrix, 1, GL_TRUE, model_matrix_buf);
 	//Send normal_model_view_matrix
-	mat3_vec3_to_array(m_buf, LENGTH(m_buf), mat3_transp(model_matrix.a), (vec3){{0, 0, 0}});
-	glUniformMatrix4fv(program->model_view_normal_matrix, 1, GL_TRUE, m_buf);
+	mat3_vec3_to_array(mat3_transp(model_matrix.a), (vec3){{0, 0, 0}}, tmp);
+	glUniformMatrix4fv(program->model_view_normal_matrix, 1, GL_TRUE, tmp);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
 	glDrawElements(GL_TRIANGLES_ADJACENCY, bg.index_count*2, GL_UNSIGNED_INT, NULL);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
@@ -259,7 +293,7 @@ static void forward_update_point_light(struct shader_prog *program, struct point
 }
 
 
-void render_depth(struct shader_prog *program, struct buffer_group *bgs[], AMAT4 *frames[], int len)
+void render_depth(struct shader_prog *program, struct buffer_group *bgs[], amat4 *frames[], int len)
 {
 	glDepthMask(GL_TRUE);
 	glDisable(GL_BLEND);
@@ -271,29 +305,110 @@ void render_depth(struct shader_prog *program, struct buffer_group *bgs[], AMAT4
 	checkErrors("After drawing into depth");
 }
 
+/*
+START LOD PLANET STUFF
+*/
+#define VEC3_3AVERAGE(v1, v2, v3) vec3_scale(vec3_add(vec3_add(v1,v2), v3), 1.0/3.0)
+#define VEC3_2AVERAGE(v1, v2) vec3_scale(vec3_add(v1,v2),0.5)
+#define CLAMP(val, low, high) val<low?low:(val>high?high:val)
+
+static void draw_triangle(vec3 center, vec3 p1, vec3 p2, vec3 p3)
+{
+	float s = vec3_mag(vec3_sub(p1, p2));
+	vec3 triangle_center = VEC3_3AVERAGE(p1, p2, p3);
+	draw_wireframe(&wireframe_program, triangle_buffers, (amat4){.a = mat3_scale(mat3_lookat(triangle_center, center, (vec3){{1.0, 0.0, 0.0}}), s, s, s), .t = triangle_center});
+}
+
+static void draw_recursive(vec3 p1, vec3 p2, vec3 p3, vec3 center, float size);
+static void draw_recursive(vec3 p1, vec3 p2, vec3 p3, vec3 center, float size)
+{
+	float ratio = 1;//gui.screen[0].slider["lod.ratio"].val; // default : 1
+	float minsize = 0.01; //gui.screen[0].slider["detail"].val;  // default : 0.01
+
+	double dot = vec3_dot(VEC3_3AVERAGE(p1, p2, p3), center);
+	double dist = acos(CLAMP(dot, -1, 1)) / M_PI;
+
+	if (dist > 0.5) return;//culling
+
+	if (dist > ratio * size || size < minsize) 
+	{ 
+		draw_triangle(center, p1, p2, p3); 
+		return; 
+	}
+
+	// Recurse
+	vec3 p[6] = { p1, p2, p3, VEC3_2AVERAGE(p1, p2), VEC3_2AVERAGE(p2, p3), VEC3_2AVERAGE(p3, p1)};
+	int idx[12] = { 0, 3, 5, 5, 3, 4, 3, 1, 4, 5, 4, 2 };
+
+	for (int i = 0; i < 4; i++) {
+		draw_recursive(
+			vec3_normalize(p[idx[3 * i + 0]]), 
+			vec3_normalize(p[idx[3 * i + 1]]),
+			vec3_normalize(p[idx[3 * i + 2]]),
+			center, size/2);
+	}
+}
+
+static void draw(vec3 center)
+{
+	glDisable(GL_CULL_FACE);
+	// create icosahedron
+	float t = (1.0 + sqrt(5.0)) / 2.0;
+
+	vec3 p[] = { 
+		{{ -1, t, 0 }}, {{ 1, t, 0 }}, {{ -1, -t, 0 }}, {{ 1, -t, 0 }},
+		{{ 0, -1, t }}, {{ 0, 1, t }}, {{ 0, -1, -t }}, {{ 0, 1, -t }},
+		{{ t, 0, -1 }}, {{ t, 0, 1 }}, {{ -t, 0, -1 }}, {{ -t, 0, 1 }},
+	};
+	GLuint idx[] = { 
+		0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11,
+		1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 10, 7, 6, 7, 1, 8,
+		3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9,
+		4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1
+	};
+
+	for (int i = 0; i < LENGTH(idx)/3; i++) {
+		draw_recursive(
+			vec3_normalize(p[idx[i * 3 + 0]]), // triangle point 1
+			vec3_normalize(p[idx[i * 3 + 1]]), // triangle point 2
+			vec3_normalize(p[idx[i * 3 + 2]]), // triangle point 3
+			center, 1);
+	}
+	glEnable(GL_CULL_FACE);
+}
+
+/*
+END LOD PLANET STUFF
+*/
+
 void render()
 {
-	inv_eye_frame = amat4_inverse(eye_frame); //Only need to do this once per frame.
+	{
+		inv_eye_frame = amat4_inverse(eye_frame); //Only need to do this once per frame.
+		float tmp[16];
+		amat4_to_array(inv_eye_frame, tmp);
+		amat4_buf_mult(proj_mat, tmp, proj_view_mat);
+	}
 
 	static struct buffer_group *pvs[] = {
-		&room_buffers,
+		//&room_buffers,
 		//&teardropship_buffers,
 		//&ship_buffers,
-		&newship_buffers,
-		&height_map_test.bg
+		//&newship_buffers,
+		//&height_map_test.bg
 	};
 	static struct buffer_group *pvs_shadowers[] = {
-		&room_buffers,
+		//&room_buffers,
 		//&teardropship_buffers,
-		&newship_buffers
+		//&newship_buffers
 		//&ship_buffers
 	};
-	static AMAT4 *pvs_frames[] = {
-		&room_frame,
+	static amat4 *pvs_frames[] = {
+		//&room_frame,
 		//&newship_frame,
 		//&teardropship_frame,
-		&ship_frame,
-		&grid_frame
+		//&ship_frame,
+		//&grid_frame
 	};
 	glDepthMask(GL_TRUE);
 	glClearStencil(0);
@@ -313,8 +428,16 @@ void render()
 			glUniform3fv(forward_program.uLight_pos, 1, sun_direction.A);
 		}
 		glUniform3fv(forward_program.camera_position, 1, eye_frame.T);
+		//Draw entities
 		for (int i = 0; i < LENGTH(pvs); i++)
 			draw_forward(&forward_program, *pvs[i], *pvs_frames[i]);
+		//Draw terrain
+		for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
+			draw_forward(&forward_program, ground[i].bg, grid_frame);
+			//draw_forward(&forward_program, ground[i].bg, (amat4){.a = grid_frame.a, .t = ground[i].pos});
+		glUseProgram(wireframe_program.handle);
+		//draw(vec3_sub((vec3){{0, 0, 0}}, eye_frame.t));
+		glUseProgram(forward_program.handle);
 		checkErrors("After drawing into depth");
 		glUniform1i(forward_program.ambient_pass, 0);
 	}
@@ -374,7 +497,7 @@ void render()
 	glUseProgram(skybox_program.handle);
 	glUniform3fv(skybox_program.sun_direction, 1, sun_direction.A);
 	glUniform3fv(skybox_program.sun_color, 1, sun_color.A);
-	AMAT4 skybox_frame = {
+	amat4 skybox_frame = {
 	.a = mat3_scalemat(skybox_scale.x, skybox_scale.y, skybox_scale.z),
 	.t = eye_frame.t};
 	draw_skybox_forward(&skybox_program, cube_buffers, skybox_frame);
@@ -385,19 +508,22 @@ void update(float dt)
 {
 	func_list_call(&update_func_list);
 	static float light_time = 0;
-	static AMAT4 velocity = AMAT4_IDENT;
-	static AMAT4 ship_cam = {.a = MAT3_IDENT, .T = {0, 4, 8}}; //Camera position, relative to the ship's frame.
+	static amat4 velocity = AMAT4_IDENT;
+	static amat4 ship_cam = {.a = MAT3_IDENT, .T = {0, 4, 8}}; //Camera position, relative to the ship's frame.
 	light_time += dt * 0.2;
 	point_lights.position[0] = vec3_new(10*cos(light_time), 4, 10*sin(light_time)-8);
 
 	float ts = 1/300000.0;
 	float rs = 1/600000.0;
 	if (key_state[SDL_SCANCODE_9])
-		recalculate_terrain_normals(&height_map_test);
+		for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
+			recalculate_terrain_normals(&ground[i]);
 	if (key_state[SDL_SCANCODE_8])
-		erode_terrain(&height_map_test, 1000);
+		for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
+			erode_terrain(&ground[i], 100);
 	if (key_state[SDL_SCANCODE_8] || key_state[SDL_SCANCODE_9])
-		buffer_terrain(&height_map_test);
+		for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
+			buffer_terrain(&ground[i]);
 
 	//If you're moving forward, turn the light on to show it.
 	//point_lights.enabled_for_draw[2] = (axes[LEFTY] < 0)?true:false;
@@ -431,7 +557,8 @@ void update(float dt)
 		0,
 		(key_state[SDL_SCANCODE_DOWN] - key_state[SDL_SCANCODE_UP]) * dt * ship_speed}});
 	//Angular velocity is currently determined by how much each axis is deflected.
-	velocity.a = mat3_rot(mat3_rotmat(0, 0, 1, -axes[RIGHTX]*rs), 1, 0, 0, axes[RIGHTY]*rs);
+	float angle = -axes[RIGHTX]*rs;
+	velocity.a = mat3_rot(mat3_rotmat(0, 0, 1, sin(angle), cos(angle)), 1, 0, 0, sin(-angle), cos(-angle));
 	//Add our acceleration to our velocity to change our speed.
 	//velocity.t = vec3_add(vec3_scale(velocity.t, dt), acceleration);
 	//Linear motion just sets the velocity directly.
@@ -445,7 +572,7 @@ void update(float dt)
 	float alpha = 0.8;
 	//eye_frame.t = amat4_multpoint(ship_frame, ship_cam.t);
 	eye_frame.t = vec3_lerp(eye_frame.t, amat4_multpoint(ship_frame, ship_cam.t), alpha);
-	static vec3 eye_target = vec3_ZERO;
+	static vec3 eye_target = {{0.0, 0.0, 0.0}};
 	//eye_target = vec3_lerp(eye_target, amat4_multpoint(ship_frame, (vec3){{0, 0, -4}}), alpha);
 	eye_target = amat4_multpoint(ship_frame, (vec3){{0, 0, -4}}); //The camera points a little bit ahead of the ship.
 	//The eye should look from itself to a point in front of the ship, and its "up" should be "up" from the ship's orientation.

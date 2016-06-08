@@ -1,7 +1,9 @@
 #ifndef FUNC_LIST_H
 #define FUNC_LIST_H
 
-#define CALL_EVERY_TIME -1
+enum {
+	CALL_EVERY_TIME = -1
+};
 
 struct counted_func {
 	void (*func)(void);

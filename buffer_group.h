@@ -3,9 +3,12 @@
 #include <GL/glew.h>
 #include "shaders/shaders.h"
 
-#define BG_BUFFER_NORMALS   1
-#define BG_BUFFER_COLORS    2
-#define BG_USING_ADJACENCIES  4
+enum {
+	BG_BUFFER_NORMALS    = 1,
+	BG_BUFFER_COLORS     = 2,
+	BG_USING_ADJACENCIES = 4 //These are bitflags, each new flag should be double the last one.
+};
+
 //Add more vertex attribute buffer flags as powers-of-two
 
 struct buffer_group {
@@ -22,7 +25,7 @@ struct buffer_group {
 };
 
 struct buffer_group new_buffer_group(int (*buffering_function)(struct buffer_group), struct shader_prog *program);
-struct buffer_group new_custom_buffer_group(int (*buffering_function)(struct buffer_group), int buffer_flags);
+struct buffer_group new_custom_buffer_group(int (*buffering_function)(struct buffer_group), int buffer_flags, GLenum primitive_type);
 void delete_buffer_group(struct buffer_group tmp);
 void setup_attrib_for_draw(GLuint attr_handle, GLuint buffer, GLenum attr_type, int attr_size);
 

@@ -1,9 +1,11 @@
 #ifndef LIGHTS_H
 #define LIGHTS_H
 #include <stdbool.h>
-#include "math/vector3.h"
+#include <glalgebra.h>
 
-#define MAX_NUM_LIGHTS 10
+enum default_light_settings {
+	MAX_NUM_LIGHTS = 10
+};
 
 struct point_light_attributes {
 	vec3 position[MAX_NUM_LIGHTS];

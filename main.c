@@ -12,10 +12,11 @@
 #include "render.h"
 #include "controller.h"
 
-#define FPS 60.0
-#define MS_PER_SECOND 1000.0
-#define FRAME_TIME_MS MS_PER_SECOND/FPS
-#define WAKE_EARLY_MS 2 //How many ms early should the main loop wake from sleep to avoid oversleeping.
+enum {
+	MS_PER_SECOND = 1000
+};
+static int fps = 60; //Frames per second.
+static int wake_early_ms = 2; //How many ms early should the main loop wake from sleep to avoid oversleeping.
 
 //Average number of tight loop iterations. Global so it can be accessed from keyboard.c
 int loop_iter_ave = 0;
@@ -37,6 +38,7 @@ int main()
 	}
 	//renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
 	SDL_AddEventWatch(quit_event, NULL);
+	Uint32 windowID = SDL_GetWindowID(window);
 	Uint32 last_swap_timestamp = SDL_GetTicks();
 	int loop_iter = 0;
 	while (!quit) { //Loop until quit
@@ -49,22 +51,32 @@ int main()
 				break;
 			case SDL_CONTROLLERAXISMOTION: axisevent(e);
 				break;
+			case SDL_WINDOWEVENT:
+				if (e.window.windowID == windowID) {
+            		switch (e.window.event)  {
+					case SDL_WINDOWEVENT_SIZE_CHANGED:
+						handle_resize(e.window.data1, e.window.data2);
+		                break;
+		            }
+	            }
 			}
 		}
-		Uint32 ms_since_update = (SDL_GetTicks() - last_swap_timestamp);
-		if (ms_since_update >= FRAME_TIME_MS - 1) {
+		int frame_time_ms = MS_PER_SECOND/fps;
+		Uint32 since_update_ms = (SDL_GetTicks() - last_swap_timestamp);
+		if (since_update_ms >= frame_time_ms - 1) {
 				//Since user input is handled above, game state is "locked" when we enter this block.
 				last_swap_timestamp = SDL_GetTicks();
 				SDL_GL_SwapWindow(window); //Display a new screen to the user every 16 ms, on the dot.
-				update(ms_since_update/MS_PER_SECOND); //At 16 ms intervals, begin an update. HOPEFULLY DOESN'T TAKE MORE THAN 16 MS.
+				update((float)since_update_ms/MS_PER_SECOND); //At 16 ms intervals, begin an update. HOPEFULLY DOESN'T TAKE MORE THAN 16 MS.
 				render(); //This will be a picture of the state as of (hopefully exactly) 16 ms ago.
 				//Get a rolling average of the number of tight loop iterations per frame.
 				loop_iter_ave = (loop_iter_ave + loop_iter)/2; //Average the current number of loop iterations with the average.
 				loop_iter = 0;
-		} else if ((FRAME_TIME_MS - ms_since_update) > WAKE_EARLY_MS) { //If there's more than WAKE_EARLY_MS milliseconds left...
-			SDL_Delay(FRAME_TIME_MS - ms_since_update - WAKE_EARLY_MS); //Sleep up until WAKE_EARLY_MS milliseconds left. (Busywait the rest)
+		} else if ((frame_time_ms - since_update_ms) > wake_early_ms) { //If there's more than wake_early_ms milliseconds left...
+			SDL_Delay(frame_time_ms - since_update_ms - wake_early_ms); //Sleep up until wake_early_ms milliseconds left. (Busywait the rest)
 		}
 	}
+	deinit_render();
 	deinit(context, window);
 	return 0;
 }

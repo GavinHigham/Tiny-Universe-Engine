@@ -4,7 +4,7 @@
 #include <string.h>
 #include <assert.h>
 #include "configuration_file.h"
-#include "../math/vector3.h"
+#include <glalgebra.h>
 
 //Parse config file. Will need a mechanism to register configurable variables.
 //When the config file is parsed, they will be set.

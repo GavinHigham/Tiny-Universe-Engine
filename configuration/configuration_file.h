@@ -1,7 +1,7 @@
 #ifndef CONFIGURATION_FILE_H
 #define CONFIGURATION_FILE_H
 #include <stdbool.h>
-#include "../math/vector3.h"
+#include <glalgebra.h>
 
 #define config_expose(cb, ptr, tag) config_expose_generic( _Generic((ptr), \
 	int   *: _CONFIG_INT,    \

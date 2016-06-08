@@ -10,7 +10,7 @@ out vec4 LFragment;
 vec3 sky_color(vec3 v, vec3 s, vec3 c)
 {
 	float sun = clamp(dot(v, s), 0.0, 1.0); //sun direction, determines brightness
-	float sky = clamp(dot(v, vec3(0.0, 1.0, 0.0)) + 0.1, 0.0, 1.0);
+	float sky = clamp(dot(v, vec3(0.0, 1.0, 0.0)) + 1.1, 0.0, 1.0);
 	return mix(vec3(0.0), vec3(0.0, 0.0, 1.0)*length(c), sky) + c*pow(sky, 2);
 }
 

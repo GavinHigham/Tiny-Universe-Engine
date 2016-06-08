@@ -25,16 +25,15 @@ struct shader_prog {
 	};
 	union {
 		struct {
-			GLint zpass;
 			GLint projection_view_matrix;
+			GLint zpass;
 			GLint model_matrix;
-			GLint projection_matrix;
 			GLint sun_color;
 			GLint uLight_attr;
 			GLint uLight_col;
 			GLint uLight_pos;
+			GLint model_view_projection_matrix;
 			GLint sun_direction;
-			GLint model_view_matrix;
 			GLint eye_pos;
 			GLint gLightPos;
 			GLint model_view_normal_matrix;
@@ -42,7 +41,7 @@ struct shader_prog {
 			GLint uOrigin;
 			GLint camera_position;
 		};
-		GLint unif[16];
+		GLint unif[15];
 	};
 };
 extern struct shader_prog skybox_program;
@@ -50,7 +49,8 @@ extern struct shader_prog outline_program;
 extern struct shader_prog forward_program;
 extern struct shader_prog shadow_program;
 extern struct shader_prog stars_program;
-extern struct shader_prog *shader_programs[5];
-extern struct shader_info *shader_infos[5];
+extern struct shader_prog wireframe_program;
+extern struct shader_prog *shader_programs[6];
+extern struct shader_info *shader_infos[6];
 
 #endif

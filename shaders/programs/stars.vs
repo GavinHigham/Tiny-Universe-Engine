@@ -2,8 +2,7 @@
 
 in vec3 vPos; 
 
-uniform mat4 model_view_matrix;
-uniform mat4 projection_matrix;
+uniform mat4 model_view_projection_matrix;
 uniform vec3 eye_pos;
 
 out vec3 fPos;
@@ -26,7 +25,7 @@ void main()
 	vec4 pos = vec4(pos_ship_relative, 1);
 	*/
 	vec4 pos = vec4(vPos, 1);
-	gl_Position = projection_matrix * (model_view_matrix * pos);
+	gl_Position = model_view_projection_matrix * pos;
 	gl_PointSize = 1;//(1-(star_dist / 700)) + 2;
 	fPos = pos.xyz;
 }

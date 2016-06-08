@@ -1,17 +1,18 @@
 CC = gcc
 SDL = -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW
 CFLAGS = -Wall -c -std=c99 -g -pthread
-LDFLAGS = $(SDL)
-MATH_OBJECTS = math/affine_matrix4.o math/matrix3.o math/vector3.o
+LDFLAGS = $(SDL) -lglalgebra
+MATH_OBJECTS = math/utility.o
 MODELS_OBJECTS = models/models.o
 SHADERS_OBJECTS = shaders/shaders.o
 CONFIGURATION_OBJECTS = configuration/configuration_file.o
 OBJECTS = main.o init.o image_load.o keyboard.o render.o buffer_group.o controller.o \
 deferred_framebuffer.o lights.o func_list.o shader_utils.o gl_utils.o stars.o procedural_terrain.o \
+open-simplex-noise-in-c/open-simplex-noise.o \
 $(MATH_OBJECTS) $(MODELS_OBJECTS) $(SHADERS_OBJECTS) $(CONFIGURATION_OBJECTS)
 EXE = sock
 
-all: $(OBJECTS) math_module models_module shaders_module configuration_module
+all: $(OBJECTS) math_module models_module shaders_module configuration_module open-simplex-noise
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(EXE)
 
 init.o: shaders_module
@@ -27,6 +28,9 @@ shaders_module:
 
 configuration_module:
 	cd configuration; make
+
+open-simplex-noise:
+	cd open-simplex-noise-in-c; make
 
 render.o: shaders_module models_module
 

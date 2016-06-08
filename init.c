@@ -14,6 +14,10 @@
 #include "macros.h"
 #include "func_list.h"
 #include "keyboard.h"
+#include "open-simplex-noise-in-c/open-simplex-noise.h"
+
+int open_simplex_noise_seed = 83619; //No special significance, I just mashed on the keyboard.
+struct osn_context *osnctx;
 
 int init_gl(SDL_GLContext *context, SDL_Window *window);
 int init_glew();
@@ -38,7 +42,7 @@ int init(SDL_GLContext *context, SDL_Window **window)
 		printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
 		return error;
 	}
-	*window = SDL_CreateWindow("Sock Engine", WINDOW_OFFSET_X, WINDOW_OFFSET_Y, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL);
+	*window = SDL_CreateWindow("Sock Engine", WINDOW_OFFSET_X, WINDOW_OFFSET_Y, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 	if (window == NULL) {
 		printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
 		return -1;
@@ -61,6 +65,8 @@ int init(SDL_GLContext *context, SDL_Window **window)
 		printf("Something went wrong with shader program initialization!\n");
 		return -1;
 	}
+
+	open_simplex_noise(open_simplex_noise_seed, &osnctx);
 
 	SDL_GameControllerEventState(SDL_ENABLE);
 	/* Open the first available controller. */
@@ -126,6 +132,7 @@ void deinit(SDL_GLContext context, SDL_Window *window)
 {
 	SDL_DestroyWindow(window);
 	SDL_GL_DeleteContext(context);
+	open_simplex_noise_free(osnctx);
 	IMG_Quit();
 	SDL_Quit();
 }

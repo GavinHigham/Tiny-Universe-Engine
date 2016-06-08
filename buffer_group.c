@@ -24,25 +24,25 @@ struct buffer_group new_buffer_group(int (*buffering_function)(struct buffer_gro
 		if (program->attr[i] != -1)
 			setup_attrib_for_draw(program->attr[i], tmp.buffer_handles[i], GL_FLOAT, 3);
 	}
-	tmp.index_count = buffering_function(tmp);
 	tmp.primitive_type = GL_TRIANGLES;
+	tmp.index_count = buffering_function(tmp);
 	return tmp;
 }
 
-struct buffer_group new_custom_buffer_group(int (*buffering_function)(struct buffer_group), int buffer_flags)
+struct buffer_group new_custom_buffer_group(int (*buffering_function)(struct buffer_group), int buffer_flags, GLenum primitive_type)
 {
 	struct buffer_group tmp;
 	glGenBuffers(1, &tmp.vbo);
 	glGenBuffers(1, &tmp.ibo);
-	if (buffer_flags & BG_BUFFER_NORMALS) {
+	if (buffer_flags & BG_USING_ADJACENCIES)
+		glGenBuffers(1, &tmp.aibo);
+	if (buffer_flags & BG_BUFFER_NORMALS)
 		glGenBuffers(1, &tmp.nbo);
-	}
-	if (buffer_flags & BG_BUFFER_COLORS) {
+	if (buffer_flags & BG_BUFFER_COLORS)
 		glGenBuffers(1, &tmp.cbo);
-	}
-	tmp.index_count = buffering_function(tmp);
-	tmp.primitive_type = GL_TRIANGLES;
 	tmp.flags = buffer_flags;
+	tmp.primitive_type = primitive_type;
+	tmp.index_count = buffering_function(tmp);
 	return tmp;
 }
 
@@ -50,8 +50,11 @@ void delete_buffer_group(struct buffer_group tmp)
 {
 	glDeleteBuffers(1, &tmp.vbo);
 	glDeleteBuffers(1, &tmp.ibo);
+	if (tmp.flags & BG_USING_ADJACENCIES)
+		glDeleteBuffers(1, &tmp.aibo);
 	if (tmp.flags & BG_BUFFER_NORMALS)
 		glDeleteBuffers(1, &tmp.nbo);
 	if (tmp.flags & BG_BUFFER_COLORS)
 		glDeleteBuffers(1, &tmp.cbo);
+	glDeleteVertexArrays(1, &tmp.vao);
 }

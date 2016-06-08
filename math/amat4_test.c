@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "affine_matrix4.h"
+#include <glalgebra.h>
 
 int main()
 {
