@@ -1,9 +1,15 @@
 //GENERATED FILE, CHANGES WILL BE LOST ON NEXT RUN OF MAKE.
 #include <GL/glew.h>
 #include "shaders.h"
-const char *skybox_vs_file_path[] = {"shaders/programs/skybox.vs"};
-const char *skybox_fs_file_path[] = {"shaders/programs/skybox.fs"};
+const GLchar *attribute_names[] = {"vNormal", "vColor", "vPos"};
+const GLchar *uniform_names[] = {"projection_view_matrix", "zpass", "model_matrix", "sun_color", "uLight_attr", "uLight_col", "uLight_pos", "model_view_projection_matrix", "sun_direction", "eye_pos", "gLightPos", "model_view_normal_matrix", "ambient_pass", "uOrigin", "camera_position"};
+const GLchar **effect_attribute_names = attribute_names;
+const GLchar **effect_uniform_names = uniform_names;
+static const int attribute_count = sizeof(attribute_names)/sizeof(attribute_names[0]);
+static const int uniform_count = sizeof(uniform_names)/sizeof(uniform_names[0]);
 
+char *skybox_vs_file_path[] = {"shaders/programs/skybox.vs"};
+char *skybox_fs_file_path[] = {"shaders/programs/skybox.fs"};
 const char *skybox_vs_source[] = {
 "#version 330 \n"
 "\n"
@@ -50,30 +56,29 @@ const char *skybox_fs_source[] = {
 "   	// LFragment = vec4(fColor, 1.0);\n"
 "}\n"
 };
-const GLchar *skybox_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *skybox_uniform_names[] = {"projection_view_matrix", "zpass", "model_matrix", "sun_color", "uLight_attr", "uLight_col", "uLight_pos", "model_view_projection_matrix", "sun_direction", "eye_pos", "gLightPos", "model_view_normal_matrix", "ambient_pass", "uOrigin", "camera_position"};
-static const int skybox_attribute_count = sizeof(skybox_attribute_names)/sizeof(skybox_attribute_names[0]);
-static const int skybox_uniform_count = sizeof(skybox_uniform_names)/sizeof(skybox_uniform_names[0]);
-GLint skybox_attributes[skybox_attribute_count];
-GLint skybox_uniforms[skybox_uniform_count];
+GLint skybox_attributes[attribute_count];
+GLint skybox_uniforms[uniform_count];
 struct shader_prog skybox_program = {
 	.handle = 0,
 	.attr = {-1, -1, 0},
 	.unif = {-1, -1, 0, 0, -1, -1, -1, 0, 0, -1, -1, -1, -1, -1, 0}
 };
 struct shader_info skybox_info = {
-	.vs_source = skybox_vs_source,
-	.fs_source = skybox_fs_source,
-	.gs_source = NULL,
-	.attr_names = skybox_attribute_names,
-	.unif_names = skybox_uniform_names,
-	.vs_file_path = skybox_vs_file_path,
-	.fs_file_path = skybox_fs_file_path,
-	.gs_file_path = NULL
+	.shader_texts = {
+		skybox_vs_source,
+		NULL,
+		skybox_fs_source
+	},
+	.file_paths = {
+		skybox_vs_file_path,
+		NULL,
+		skybox_fs_file_path
+	}
 };
-const char *outline_vs_file_path[] = {"shaders/programs/outline.vs"};
-const char *outline_fs_file_path[] = {"shaders/programs/outline.fs"};
-const char *outline_gs_file_path[] = {"shaders/programs/outline.gs"};
+
+char *outline_vs_file_path[] = {"shaders/programs/outline.vs"};
+char *outline_fs_file_path[] = {"shaders/programs/outline.fs"};
+char *outline_gs_file_path[] = {"shaders/programs/outline.gs"};
 const char *outline_vs_source[] = {
 "#version 330 \n"
 "\n"
@@ -151,30 +156,28 @@ const char *outline_gs_source[] = {
 "	}\n"
 "}\n"
 };
-const GLchar *outline_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *outline_uniform_names[] = {"projection_view_matrix", "zpass", "model_matrix", "sun_color", "uLight_attr", "uLight_col", "uLight_pos", "model_view_projection_matrix", "sun_direction", "eye_pos", "gLightPos", "model_view_normal_matrix", "ambient_pass", "uOrigin", "camera_position"};
-static const int outline_attribute_count = sizeof(outline_attribute_names)/sizeof(outline_attribute_names[0]);
-static const int outline_uniform_count = sizeof(outline_uniform_names)/sizeof(outline_uniform_names[0]);
-GLint outline_attributes[outline_attribute_count];
-GLint outline_uniforms[outline_uniform_count];
+GLint outline_attributes[attribute_count];
+GLint outline_uniforms[uniform_count];
 struct shader_prog outline_program = {
 	.handle = 0,
 	.attr = {-1, -1, 0},
 	.unif = {-1, -1, 0, -1, -1, -1, -1, 0, -1, -1, -1, -1, -1, 0, -1}
 };
 struct shader_info outline_info = {
-	.vs_source = outline_vs_source,
-	.fs_source = outline_fs_source,
-	.gs_source = outline_gs_source,
-	.attr_names = outline_attribute_names,
-	.unif_names = outline_uniform_names,
-	.vs_file_path = outline_vs_file_path,
-	.fs_file_path = outline_fs_file_path,
-	.gs_file_path = outline_gs_file_path
+	.shader_texts = {
+		outline_vs_source,
+		outline_gs_source,
+		outline_fs_source
+	},
+	.file_paths = {
+		outline_vs_file_path,
+		outline_gs_file_path,
+		outline_fs_file_path
+	}
 };
-const char *forward_vs_file_path[] = {"shaders/programs/forward.vs"};
-const char *forward_fs_file_path[] = {"shaders/programs/forward.fs"};
 
+char *forward_vs_file_path[] = {"shaders/programs/forward.vs"};
+char *forward_fs_file_path[] = {"shaders/programs/forward.fs"};
 const char *forward_vs_source[] = {
 "#version 330 \n"
 "\n"
@@ -317,30 +320,29 @@ const char *forward_fs_source[] = {
 "	//LFragment = vec4(normal, 1.0);\n"
 "}\n"
 };
-const GLchar *forward_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *forward_uniform_names[] = {"projection_view_matrix", "zpass", "model_matrix", "sun_color", "uLight_attr", "uLight_col", "uLight_pos", "model_view_projection_matrix", "sun_direction", "eye_pos", "gLightPos", "model_view_normal_matrix", "ambient_pass", "uOrigin", "camera_position"};
-static const int forward_attribute_count = sizeof(forward_attribute_names)/sizeof(forward_attribute_names[0]);
-static const int forward_uniform_count = sizeof(forward_uniform_names)/sizeof(forward_uniform_names[0]);
-GLint forward_attributes[forward_attribute_count];
-GLint forward_uniforms[forward_uniform_count];
+GLint forward_attributes[attribute_count];
+GLint forward_uniforms[uniform_count];
 struct shader_prog forward_program = {
 	.handle = 0,
 	.attr = {0, 0, 0},
 	.unif = {-1, -1, 0, -1, 0, 0, 0, 0, -1, -1, -1, 0, 0, -1, 0}
 };
 struct shader_info forward_info = {
-	.vs_source = forward_vs_source,
-	.fs_source = forward_fs_source,
-	.gs_source = NULL,
-	.attr_names = forward_attribute_names,
-	.unif_names = forward_uniform_names,
-	.vs_file_path = forward_vs_file_path,
-	.fs_file_path = forward_fs_file_path,
-	.gs_file_path = NULL
+	.shader_texts = {
+		forward_vs_source,
+		NULL,
+		forward_fs_source
+	},
+	.file_paths = {
+		forward_vs_file_path,
+		NULL,
+		forward_fs_file_path
+	}
 };
-const char *shadow_vs_file_path[] = {"shaders/programs/shadow.vs"};
-const char *shadow_fs_file_path[] = {"shaders/programs/shadow.fs"};
-const char *shadow_gs_file_path[] = {"shaders/programs/shadow.gs"};
+
+char *shadow_vs_file_path[] = {"shaders/programs/shadow.vs"};
+char *shadow_fs_file_path[] = {"shaders/programs/shadow.fs"};
+char *shadow_gs_file_path[] = {"shaders/programs/shadow.gs"};
 const char *shadow_vs_source[] = {
 "#version 330 \n"
 "\n"
@@ -443,30 +445,28 @@ const char *shadow_gs_source[] = {
 "	}\n"
 "}\n"
 };
-const GLchar *shadow_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *shadow_uniform_names[] = {"projection_view_matrix", "zpass", "model_matrix", "sun_color", "uLight_attr", "uLight_col", "uLight_pos", "model_view_projection_matrix", "sun_direction", "eye_pos", "gLightPos", "model_view_normal_matrix", "ambient_pass", "uOrigin", "camera_position"};
-static const int shadow_attribute_count = sizeof(shadow_attribute_names)/sizeof(shadow_attribute_names[0]);
-static const int shadow_uniform_count = sizeof(shadow_uniform_names)/sizeof(shadow_uniform_names[0]);
-GLint shadow_attributes[shadow_attribute_count];
-GLint shadow_uniforms[shadow_uniform_count];
+GLint shadow_attributes[attribute_count];
+GLint shadow_uniforms[uniform_count];
 struct shader_prog shadow_program = {
 	.handle = 0,
 	.attr = {0, -1, 0},
 	.unif = {0, 0, 0, -1, -1, -1, -1, -1, -1, -1, 0, -1, -1, -1, -1}
 };
 struct shader_info shadow_info = {
-	.vs_source = shadow_vs_source,
-	.fs_source = shadow_fs_source,
-	.gs_source = shadow_gs_source,
-	.attr_names = shadow_attribute_names,
-	.unif_names = shadow_uniform_names,
-	.vs_file_path = shadow_vs_file_path,
-	.fs_file_path = shadow_fs_file_path,
-	.gs_file_path = shadow_gs_file_path
+	.shader_texts = {
+		shadow_vs_source,
+		shadow_gs_source,
+		shadow_fs_source
+	},
+	.file_paths = {
+		shadow_vs_file_path,
+		shadow_gs_file_path,
+		shadow_fs_file_path
+	}
 };
-const char *stars_vs_file_path[] = {"shaders/programs/stars.vs"};
-const char *stars_fs_file_path[] = {"shaders/programs/stars.fs"};
 
+char *stars_vs_file_path[] = {"shaders/programs/stars.vs"};
+char *stars_fs_file_path[] = {"shaders/programs/stars.fs"};
 const char *stars_vs_source[] = {
 "#version 330 \n"
 "\n"
@@ -515,30 +515,28 @@ const char *stars_fs_source[] = {
 "	//LFragment = vec4(vec3(attenuation), 1.0);\n"
 "}\n"
 };
-const GLchar *stars_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *stars_uniform_names[] = {"projection_view_matrix", "zpass", "model_matrix", "sun_color", "uLight_attr", "uLight_col", "uLight_pos", "model_view_projection_matrix", "sun_direction", "eye_pos", "gLightPos", "model_view_normal_matrix", "ambient_pass", "uOrigin", "camera_position"};
-static const int stars_attribute_count = sizeof(stars_attribute_names)/sizeof(stars_attribute_names[0]);
-static const int stars_uniform_count = sizeof(stars_uniform_names)/sizeof(stars_uniform_names[0]);
-GLint stars_attributes[stars_attribute_count];
-GLint stars_uniforms[stars_uniform_count];
+GLint stars_attributes[attribute_count];
+GLint stars_uniforms[uniform_count];
 struct shader_prog stars_program = {
 	.handle = 0,
 	.attr = {-1, -1, 0},
 	.unif = {-1, -1, -1, -1, -1, -1, -1, 0, -1, 0, -1, -1, -1, -1, -1}
 };
 struct shader_info stars_info = {
-	.vs_source = stars_vs_source,
-	.fs_source = stars_fs_source,
-	.gs_source = NULL,
-	.attr_names = stars_attribute_names,
-	.unif_names = stars_uniform_names,
-	.vs_file_path = stars_vs_file_path,
-	.fs_file_path = stars_fs_file_path,
-	.gs_file_path = NULL
+	.shader_texts = {
+		stars_vs_source,
+		NULL,
+		stars_fs_source
+	},
+	.file_paths = {
+		stars_vs_file_path,
+		NULL,
+		stars_fs_file_path
+	}
 };
-const char *wireframe_vs_file_path[] = {"shaders/programs/wireframe.vs"};
-const char *wireframe_fs_file_path[] = {"shaders/programs/wireframe.fs"};
 
+char *wireframe_vs_file_path[] = {"shaders/programs/wireframe.vs"};
+char *wireframe_fs_file_path[] = {"shaders/programs/wireframe.fs"};
 const char *wireframe_vs_source[] = {
 "#version 330 \n"
 "\n"
@@ -561,26 +559,25 @@ const char *wireframe_fs_source[] = {
 "	LFragment = vec4(1.0); //White\n"
 "}\n"
 };
-const GLchar *wireframe_attribute_names[] = {"vNormal", "vColor", "vPos"};
-const GLchar *wireframe_uniform_names[] = {"projection_view_matrix", "zpass", "model_matrix", "sun_color", "uLight_attr", "uLight_col", "uLight_pos", "model_view_projection_matrix", "sun_direction", "eye_pos", "gLightPos", "model_view_normal_matrix", "ambient_pass", "uOrigin", "camera_position"};
-static const int wireframe_attribute_count = sizeof(wireframe_attribute_names)/sizeof(wireframe_attribute_names[0]);
-static const int wireframe_uniform_count = sizeof(wireframe_uniform_names)/sizeof(wireframe_uniform_names[0]);
-GLint wireframe_attributes[wireframe_attribute_count];
-GLint wireframe_uniforms[wireframe_uniform_count];
+GLint wireframe_attributes[attribute_count];
+GLint wireframe_uniforms[uniform_count];
 struct shader_prog wireframe_program = {
 	.handle = 0,
 	.attr = {-1, -1, 0},
 	.unif = {-1, -1, -1, -1, -1, -1, -1, 0, -1, -1, -1, -1, -1, -1, -1}
 };
 struct shader_info wireframe_info = {
-	.vs_source = wireframe_vs_source,
-	.fs_source = wireframe_fs_source,
-	.gs_source = NULL,
-	.attr_names = wireframe_attribute_names,
-	.unif_names = wireframe_uniform_names,
-	.vs_file_path = wireframe_vs_file_path,
-	.fs_file_path = wireframe_fs_file_path,
-	.gs_file_path = NULL
+	.shader_texts = {
+		wireframe_vs_source,
+		NULL,
+		wireframe_fs_source
+	},
+	.file_paths = {
+		wireframe_vs_file_path,
+		NULL,
+		wireframe_fs_file_path
+	}
 };
+
 struct shader_prog *shader_programs[] = {&skybox_program, &outline_program, &forward_program, &shadow_program, &stars_program, &wireframe_program};
 struct shader_info *shader_infos[] = {&skybox_info, &outline_info, &forward_info, &shadow_info, &stars_info, &wireframe_info};

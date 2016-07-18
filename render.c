@@ -97,8 +97,8 @@ static void init_models()
 	//big_asteroid_buffers = new_buffer_group(buffer_big_asteroid, &forward_program);
 	cube_buffers = new_buffer_group(buffer_cube, &skybox_program);
 	//grid_buffers = buffer_grid(128, 128);
-	float terrain_x = 300;
-	float terrain_y = 300;
+	float terrain_x = 1000;
+	float terrain_y = 1000;
 	for (int i = 0; i < num_x_tiles; i++) {
 		for (int j = 0; j < num_z_tiles; j++) {
 			struct terrain *tmp = &ground[j + i * 5];
@@ -304,82 +304,6 @@ void render_depth(struct shader_prog *program, struct buffer_group *bgs[], amat4
 	}
 	checkErrors("After drawing into depth");
 }
-
-/*
-START LOD PLANET STUFF
-*/
-#define VEC3_3AVERAGE(v1, v2, v3) vec3_scale(vec3_add(vec3_add(v1,v2), v3), 1.0/3.0)
-#define VEC3_2AVERAGE(v1, v2) vec3_scale(vec3_add(v1,v2),0.5)
-#define CLAMP(val, low, high) val<low?low:(val>high?high:val)
-
-static void draw_triangle(vec3 center, vec3 p1, vec3 p2, vec3 p3)
-{
-	float s = vec3_mag(vec3_sub(p1, p2));
-	vec3 triangle_center = VEC3_3AVERAGE(p1, p2, p3);
-	draw_wireframe(&wireframe_program, triangle_buffers, (amat4){.a = mat3_scale(mat3_lookat(triangle_center, center, (vec3){{1.0, 0.0, 0.0}}), s, s, s), .t = triangle_center});
-}
-
-static void draw_recursive(vec3 p1, vec3 p2, vec3 p3, vec3 center, float size);
-static void draw_recursive(vec3 p1, vec3 p2, vec3 p3, vec3 center, float size)
-{
-	float ratio = 1;//gui.screen[0].slider["lod.ratio"].val; // default : 1
-	float minsize = 0.01; //gui.screen[0].slider["detail"].val;  // default : 0.01
-
-	double dot = vec3_dot(VEC3_3AVERAGE(p1, p2, p3), center);
-	double dist = acos(CLAMP(dot, -1, 1)) / M_PI;
-
-	if (dist > 0.5) return;//culling
-
-	if (dist > ratio * size || size < minsize) 
-	{ 
-		draw_triangle(center, p1, p2, p3); 
-		return; 
-	}
-
-	// Recurse
-	vec3 p[6] = { p1, p2, p3, VEC3_2AVERAGE(p1, p2), VEC3_2AVERAGE(p2, p3), VEC3_2AVERAGE(p3, p1)};
-	int idx[12] = { 0, 3, 5, 5, 3, 4, 3, 1, 4, 5, 4, 2 };
-
-	for (int i = 0; i < 4; i++) {
-		draw_recursive(
-			vec3_normalize(p[idx[3 * i + 0]]), 
-			vec3_normalize(p[idx[3 * i + 1]]),
-			vec3_normalize(p[idx[3 * i + 2]]),
-			center, size/2);
-	}
-}
-
-static void draw(vec3 center)
-{
-	glDisable(GL_CULL_FACE);
-	// create icosahedron
-	float t = (1.0 + sqrt(5.0)) / 2.0;
-
-	vec3 p[] = { 
-		{{ -1, t, 0 }}, {{ 1, t, 0 }}, {{ -1, -t, 0 }}, {{ 1, -t, 0 }},
-		{{ 0, -1, t }}, {{ 0, 1, t }}, {{ 0, -1, -t }}, {{ 0, 1, -t }},
-		{{ t, 0, -1 }}, {{ t, 0, 1 }}, {{ -t, 0, -1 }}, {{ -t, 0, 1 }},
-	};
-	GLuint idx[] = { 
-		0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11,
-		1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 10, 7, 6, 7, 1, 8,
-		3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9,
-		4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1
-	};
-
-	for (int i = 0; i < LENGTH(idx)/3; i++) {
-		draw_recursive(
-			vec3_normalize(p[idx[i * 3 + 0]]), // triangle point 1
-			vec3_normalize(p[idx[i * 3 + 1]]), // triangle point 2
-			vec3_normalize(p[idx[i * 3 + 2]]), // triangle point 3
-			center, 1);
-	}
-	glEnable(GL_CULL_FACE);
-}
-
-/*
-END LOD PLANET STUFF
-*/
 
 void render()
 {

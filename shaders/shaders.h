@@ -3,15 +3,14 @@
 #define SHADERS_H
 #include <GL/glew.h>
 
+enum {MAX_SHADERS_PER_EFFECT = 3};
+const GLchar **effect_attribute_names;
+const GLchar **effect_uniform_names;
+
 struct shader_info {
-	const GLchar **vs_source;
-	const GLchar **fs_source;
-	const GLchar **gs_source;
-	const GLchar **attr_names;
-	const GLchar **unif_names;
-	const char **vs_file_path;
-	const char **fs_file_path;
-	const char **gs_file_path;
+	const GLchar **shader_texts[MAX_SHADERS_PER_EFFECT];
+	GLenum shader_types[MAX_SHADERS_PER_EFFECT];
+	char **file_paths[MAX_SHADERS_PER_EFFECT];
 };
 struct shader_prog {
 	GLuint handle;

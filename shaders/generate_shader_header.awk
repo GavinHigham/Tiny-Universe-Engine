@@ -4,15 +4,13 @@ BEGIN {
 	print "#define SHADERS_H"
 	print "#include <GL/glew.h>\n"
 
+	print "enum {MAX_SHADERS_PER_EFFECT = 3};"
+	print "const GLchar **effect_attribute_names;"
+	print "const GLchar **effect_uniform_names;\n"
 	print "struct shader_info {"
-	print "	const GLchar **vs_source;"
-	print "	const GLchar **fs_source;"
-	print "	const GLchar **gs_source;"
-	print "	const GLchar **attr_names;"
-	print "	const GLchar **unif_names;"
-	print "	const char **vs_file_path;"
-	print "	const char **fs_file_path;"
-	print "	const char **gs_file_path;"
+	print "	const GLchar **shader_texts[MAX_SHADERS_PER_EFFECT];"
+	print "	GLenum shader_types[MAX_SHADERS_PER_EFFECT];"
+	print "	char **file_paths[MAX_SHADERS_PER_EFFECT];"
 	print "};"
 }
 FNR == 1 {

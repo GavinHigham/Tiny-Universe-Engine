@@ -46,7 +46,7 @@ vec3 height_map2(float x, float z)
 //Cheap trick to get normals, should replace with something faster eventually.
 vec3 height_map_normal(vec3 (*height_map)(float, float), float x, float z)
 {
-	float epsilon = 0.0001;
+	float epsilon = 0.001;
 	vec3 v0 = height_map(x, z);
 	vec3 v1 = height_map(x+epsilon, z);
 	vec3 v2 = height_map(x, z+epsilon);
