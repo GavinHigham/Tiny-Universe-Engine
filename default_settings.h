@@ -4,6 +4,9 @@
 
 //Default settings for the program should be specified here.
 //In the future, I may wish to make defaults be set from some configuration file.
+
+//WINDOW_FLAGS is a define to ensure it is appropriately typed as a Uint32
+#define WINDOW_FLAGS (SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE)
 enum default_settings {
 	SCREEN_WIDTH  = 800,
 	SCREEN_HEIGHT = 600,

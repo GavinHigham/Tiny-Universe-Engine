@@ -7,30 +7,8 @@
 #include <GL/glew.h>
 #include <assert.h>
 #include "macros.h"
-#include "shaders/shaders.h"
+#include "effects.h"
 #include "gl_utils.h"
-
-static int init_effect_attributes(GLuint program_handle, struct shader_prog *program, struct shader_info info)
-{
-	for (int i = 0; i < LENGTH(program->attr); i++) {
-		if (program->attr[i] != -1) {
-			glBindAttribLocation(program_handle, i, effect_attribute_names[i]);
-			program->attr[i] = i;
-			if (program->attr[i] == -1) {
-				printf("%s is not a valid glsl program variable! It may have been optimized out.\n", effect_attribute_names[i]);
-				return -1;
-			}
-		}
-	}
-	return 0;
-}
-
-//static void init_effect_uniforms(GLuint program_handle, struct shader_prog *program, struct shader_info info)
-static void init_effect_uniforms(GLuint program_handle, GLint unif_names[], const GLchar *unif_strnames[], int numunifs)
-{
-	for (int i = 0; i < numunifs; i++)
-		unif_names[i] = glGetUniformLocation(program_handle, unif_strnames[i]);
-}
 
 void printLog(GLuint handle, bool is_program)
 {
@@ -64,11 +42,11 @@ char *shader_enum_to_string(GLenum shader_type)
 	}
 }
 
-static GLuint compile_shader(GLenum type, const GLchar **source, char *path, GLuint program_handle)
+static GLuint compile_shader(GLenum type, const GLchar *source, const char *path, GLuint program_handle)
 {
 	if (source && path) {
 		const GLuint shader = glCreateShader(type);
-		glShaderSource(shader, 1, source, NULL);
+		glShaderSource(shader, 1, &source, NULL);
 		glCompileShader(shader);
 		GLint success = false;
 		glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
@@ -84,42 +62,43 @@ static GLuint compile_shader(GLenum type, const GLchar **source, char *path, GLu
 }
 
 //Each array member of shader_texts should be free()'d if this function returns 0.
-static int read_in_shaders(char *file_paths[], GLchar **shader_texts[], int num)
+static void read_in_shaders(const char *paths[], GLchar *shader_texts[], int num)
 {
 	int fd, i;
 	struct stat buf;
 	for (i = 0; i < num; i++) {
-		fd = open(file_paths[i], O_RDONLY);
-		if (fd < 0) {
-			printf("Could not open file: %s\n", file_paths[i]);
-			goto fail;
+		if (paths[i] == NULL) {
+			shader_texts[i] = NULL;
+			continue;
 		}
+
+		fd = open(paths[i], O_RDONLY);
+		if (fd < 0) {
+			printf("Could not open file: %s\n", paths[i]);
+			shader_texts[i] = NULL;
+			continue;
+		}
+
 		fstat(fd, &buf);
-		*shader_texts[i] = (GLchar *) malloc(buf.st_size+1);
-		if (*shader_texts[i] == NULL)
-			goto fail;
+		shader_texts[i] = (GLchar *) malloc(buf.st_size+1);
+		if (shader_texts[i] == NULL) {//This almost never happens.
+			close(fd);
+			continue;
+		}
+
 		read(fd, shader_texts[i], buf.st_size);
 		close(fd);
-		(*shader_texts[i])[buf.st_size] = '\0';
+		shader_texts[i][buf.st_size] = '\0';
 	}
-	return 0;
-
-fail:
-	for (int j = 0; j < i; j++)
-		if (*shader_texts[j] != NULL)
-			free(*shader_texts[j]);
-	if (fd >= 0)
-		close(fd);
-	return -1;
 }
 
-static int compile_effect(char *file_paths[], GLchar **shader_texts[], GLenum shader_types[], int num, GLuint program_handle)
+static int compile_effect(const char *file_paths[], GLchar *shader_texts[], GLenum shader_types[], int num, GLuint program_handle)
 {
 	GLuint shader_handles[num];
 	GLint success = true;
 	int i;
 	for (i = 0; i < num; i++) {
-		shader_handles[i] = compile_shader(shader_types[i], (const GLchar **)shader_texts[i], file_paths[i], program_handle);
+		shader_handles[i] = compile_shader(shader_types[i], (const GLchar *)shader_texts[i], file_paths[i], program_handle);
 		glAttachShader(program_handle, shader_handles[i]);
 	}
 	glLinkProgram(program_handle);
@@ -134,57 +113,64 @@ static int compile_effect(char *file_paths[], GLchar **shader_texts[], GLenum sh
 	return !success;
 }
 
-static int init_or_reload_effects(struct shader_prog **programs, struct shader_info **infos, int numprogs, bool reload)
+static void init_attrs(GLuint program_handle, const char **astrs, GLint *attrs, int num)
 {
-	for (int i = 0; i < numprogs; i++) {
-		bool success = true;
-		GLuint program_handle = glCreateProgram();
-		if (init_effect_attributes(program_handle, programs[i], *infos[i])) {
-			printf("Could not bind shader attributes for program.\n");
-			success = false;
-		}
-		//int result = init_effect(program_handle, *infos[i], reload);
-		int result;
-		GLenum shader_types[] = {GL_VERTEX_SHADER, GL_GEOMETRY_SHADER, GL_FRAGMENT_SHADER};
-		int num = LENGTH(shader_types);
-		char **shader_texts[MAX_SHADERS_PER_EFFECT];
-		if (reload) {
-			read_in_shaders((char **)infos[i]->file_paths, shader_texts, num);
-			result = compile_effect((char **)*infos[i]->file_paths, shader_texts, shader_types, num, program_handle);
-		} else {
-			result = compile_effect((char **)*infos[i]->file_paths, (GLchar ***)infos[i]->shader_texts, shader_types, num, program_handle);
-		}
-		if (reload)
-			for (int j = 0; j < num; j++)
-				if (*shader_texts[j] != NULL)
-					free(*shader_texts[j]);
-		if (result) {
-			char *errstr = reload?"reload":"init";
-			printf("Error: could not %s shader %i, aborting %s.\n", errstr, i, errstr);
-			success = false;
-		}
-		//To do: Use a different variable to get the number of uniforms for the last argument here.
-		init_effect_uniforms(program_handle, programs[i]->unif, effect_uniform_names, LENGTH(programs[i]->unif));
-
-		if (success) {
-			if (reload)
-				glDeleteProgram(programs[i]->handle);
-			programs[i]->handle = program_handle;
-		} else {
-			glDeleteProgram(program_handle);
-			printf("Stopped at program [%s, %s]\n", *infos[i]->file_paths[0], *infos[i]->file_paths[2]);
-			return -1;
+	for (int i = 0; i < num; i++) {
+		attrs[i] = glGetAttribLocation(program_handle, (const GLchar *)astrs[i]);
+		if (attrs[i] == -1) {
+			//printf("%s is not a valid vertex attribute! It may have been optimized out.\n", astrs[i]);
 		}
 	}
-	return 0;
 }
 
-int init_effects(struct shader_prog **programs, struct shader_info **infos, int numprogs)
+static void init_unifs(GLuint program_handle, const char **ustrs, GLint *unifs, int num)
 {
-	return init_or_reload_effects(programs, infos, numprogs, false);
+	for (int i = 0; i < num; i++) {
+		unifs[i] = glGetUniformLocation(program_handle, (const GLchar *)ustrs[i]);
+		if (unifs[i] == -1) {
+			//printf("%s is not a valid uniform variable! It may have been optimized out.\n", ustrs[i]);
+		}
+	}
 }
 
-int reload_effects(struct shader_prog **programs, struct shader_info **infos, int numprogs)
+void load_effects(
+	EFFECT effects[],       int neffects,
+	const char *paths[],    int npaths,
+	const char *astrs[],    int nastrs,
+	const char *ustrs[],    int nustrs)
 {
-	return init_or_reload_effects(programs, infos, numprogs, true);
+	GLenum shader_types[] = {GL_VERTEX_SHADER, GL_GEOMETRY_SHADER, GL_FRAGMENT_SHADER};
+	int nsh = LENGTH(shader_types);
+	char *shader_texts[npaths];
+	read_in_shaders(paths, shader_texts, npaths);
+
+	for (int i = 0; i < neffects; i++) {
+		bool success = true;
+		int result;
+		
+		GLuint program_handle = glCreateProgram();
+
+		int offset = i*nsh;
+		result = compile_effect(paths+offset, shader_texts+offset, shader_types, nsh, program_handle);
+
+		if (result) {
+			printf("Error: could not load shader %i, aborting.\n", i);
+			success = false;
+		}
+
+		init_attrs(program_handle, astrs, effects[i].attr, nastrs);
+		init_unifs(program_handle, ustrs, effects[i].unif, nustrs);
+
+		if (success) {
+			glDeleteProgram(effects[i].handle); //Delete old program
+			effects[i].handle = program_handle; //Store handle to new program
+		} else {
+			glDeleteProgram(program_handle);
+			printf("Program [%s, %s] failed.\n", paths[i*nsh], paths[i*nsh + 2]);
+		}
+	}
+
+	for (int i = 0; i < LENGTH(shader_texts); i++)
+		if (shader_texts[i] != NULL)
+			free(shader_texts[i]);
 }

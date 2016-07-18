@@ -77,9 +77,9 @@ struct terrain new_terrain(int numrows, int numcols)
 	glGenBuffers(LENGTH(tmp.bg.buffer_handles), tmp.bg.buffer_handles);
 	glGenBuffers(1, &tmp.bg.ibo);
 	glBindVertexArray(tmp.bg.vao);
-	setup_attrib_for_draw(forward_program.vPos,    tmp.bg.vbo, GL_FLOAT, 3);
-	setup_attrib_for_draw(forward_program.vNormal, tmp.bg.nbo, GL_FLOAT, 3);
-	setup_attrib_for_draw(forward_program.vColor,  tmp.bg.cbo, GL_FLOAT, 3);
+	setup_attrib_for_draw(effects.forward.vPos,    tmp.bg.vbo, GL_FLOAT, 3);
+	setup_attrib_for_draw(effects.forward.vNormal, tmp.bg.nbo, GL_FLOAT, 3);
+	setup_attrib_for_draw(effects.forward.vColor,  tmp.bg.cbo, GL_FLOAT, 3);
 	//Generate indices
 	for (int i = 0; i < (numrows - 1); i++) {
 		int j = 0;

@@ -12,17 +12,17 @@ void setup_attrib_for_draw(GLuint attr_handle, GLuint buffer, GLenum attr_type, 
 	glVertexAttribPointer(attr_handle, attr_size, attr_type, GL_FALSE, 0, NULL);
 }
 
-struct buffer_group new_buffer_group(int (*buffering_function)(struct buffer_group), struct shader_prog *program)
+struct buffer_group new_buffer_group(int (*buffering_function)(struct buffer_group), EFFECT *effect)
 {
 	struct buffer_group tmp;
 	glGenVertexArrays(1, &tmp.vao);
-	glGenBuffers(LENGTH(program->attr), tmp.buffer_handles);
+	glGenBuffers(LENGTH(effect->attr), tmp.buffer_handles);
 	glGenBuffers(1, &tmp.ibo);
 	glGenBuffers(1, &tmp.aibo);
 	glBindVertexArray(tmp.vao);
-	for (int i = 0; i < LENGTH(program->attr); i++) {
-		if (program->attr[i] != -1)
-			setup_attrib_for_draw(program->attr[i], tmp.buffer_handles[i], GL_FLOAT, 3);
+	for (int i = 0; i < LENGTH(effect->attr); i++) {
+		if (effect->attr[i] != -1)
+			setup_attrib_for_draw(effect->attr[i], tmp.buffer_handles[i], GL_FLOAT, 3);
 	}
 	tmp.primitive_type = GL_TRIANGLES;
 	tmp.index_count = buffering_function(tmp);

@@ -11,6 +11,7 @@
 #include "keyboard.h"
 #include "render.h"
 #include "controller.h"
+#include "default_settings.h"
 
 enum {
 	MS_PER_SECOND = 1000
@@ -32,7 +33,17 @@ int main()
 	SDL_Event e;
 	SDL_GLContext context;
 
-	if (init(&context, &window) < 0) {
+	int result = init(
+		&context,
+		&window,
+		"Creative Title",
+		WINDOW_OFFSET_X,
+		WINDOW_OFFSET_Y,
+		SCREEN_WIDTH,
+		SCREEN_HEIGHT,
+		WINDOW_FLAGS);
+
+	if (result < 0) {
 		printf("Something went wrong in init! Aborting.\n");
 		return -1;
 	}
@@ -41,6 +52,7 @@ int main()
 	Uint32 windowID = SDL_GetWindowID(window);
 	Uint32 last_swap_timestamp = SDL_GetTicks();
 	int loop_iter = 0;
+	printf("Starting main game loop.\n");
 	while (!quit) { //Loop until quit
 		loop_iter++; //Count how many times we loop per frame.
 		while (SDL_PollEvent(&e)) { //Exhaust our event queue before updating and rendering

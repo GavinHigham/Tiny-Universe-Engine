@@ -7,7 +7,7 @@
 #include <SDL2_image/SDL_image.h>
 #include "init.h"
 #include "default_settings.h"
-#include "shaders/shaders.h"
+#include "effects.h"
 #include "shader_utils.h"
 #include "gl_utils.h"
 #include "render.h"
@@ -24,10 +24,17 @@ int init_glew();
 
 void reload_effects_void_wrapper()
 {
-	if (!reload_effects(shader_programs, shader_infos, LENGTH(shader_programs))) {
-		deinit_render();
-		init_render();
-	}
+	// if (!reload_effects(shader_programs, shader_infos, LENGTH(shader_programs))) {
+	// 	deinit_render();
+	// 	init_render();
+	// }
+	load_effects(
+		effects.all,       LENGTH(effects.all),
+		shader_file_paths, LENGTH(shader_file_paths),
+		attribute_strings, LENGTH(attribute_strings),
+		uniform_strings,   LENGTH(uniform_strings));
+	deinit_render();
+	init_render();
 }
 
 static void reload_signal_handler(int signo) {
@@ -35,14 +42,14 @@ static void reload_signal_handler(int signo) {
 	func_list_add(&update_func_list, 1, reload_effects_void_wrapper);
 }
 
-int init(SDL_GLContext *context, SDL_Window **window)
+int init(SDL_GLContext *context, SDL_Window **window, char *title, int x, int y, int w, int h, Uint32 wflags)
 {
 	int error = 0;
 	if ((error = SDL_Init(SDL_INIT_EVERYTHING)) != 0) {
 		printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
 		return error;
 	}
-	*window = SDL_CreateWindow("Sock Engine", WINDOW_OFFSET_X, WINDOW_OFFSET_Y, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+	*window = SDL_CreateWindow(title, x, y, w, h, wflags);
 	if (window == NULL) {
 		printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
 		return -1;
@@ -53,18 +60,22 @@ int init(SDL_GLContext *context, SDL_Window **window)
 		return -1;
 	}
 
-	if (init_gl(context, *window)) {
+	if (init_gl(context, *window))
 		return -1;
-	}
 
-	if (init_glew()) {
+	if (init_glew())
 		return -1;
-	}
 
-	if (init_effects(shader_programs, shader_infos, LENGTH(shader_programs))) {
-		printf("Something went wrong with shader program initialization!\n");
-		return -1;
-	}
+	// if (init_effects(shader_programs, shader_infos, LENGTH(shader_programs))) {
+	// 	printf("Something went wrong with shader program initialization!\n");
+	// 	return -1;
+	// }
+
+	load_effects(
+		effects.all,       LENGTH(effects.all),
+		shader_file_paths, LENGTH(shader_file_paths),
+		attribute_strings, LENGTH(attribute_strings),
+		uniform_strings,   LENGTH(uniform_strings));
 
 	open_simplex_noise(open_simplex_noise_seed, &osnctx);
 

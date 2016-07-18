@@ -6,7 +6,6 @@
 #include <GL/glew.h>
 #include "render.h"
 #include "models/models.h"
-#include "shaders/shaders.h"
 #include "keyboard.h"
 #include "default_settings.h"
 #include "buffer_group.h"
@@ -86,19 +85,19 @@ int buffer_triangle(struct buffer_group bg)
 
 static void init_models()
 {
-	ship_buffers = new_buffer_group(buffer_ship, &forward_program);
-	newship_buffers = new_buffer_group(buffer_newship, &forward_program);
-	teardropship_buffers = new_buffer_group(buffer_teardropship, &forward_program);
-	ball_buffers = new_buffer_group(buffer_ball, &forward_program);
-	thrust_flare_buffers = new_buffer_group(buffer_thrust_flare, &forward_program);
+	ship_buffers = new_buffer_group(buffer_ship, &effects.forward);
+	newship_buffers = new_buffer_group(buffer_newship, &effects.forward);
+	teardropship_buffers = new_buffer_group(buffer_teardropship, &effects.forward);
+	ball_buffers = new_buffer_group(buffer_ball, &effects.forward);
+	thrust_flare_buffers = new_buffer_group(buffer_thrust_flare, &effects.forward);
 	icosphere_buffers = new_custom_buffer_group(buffer_icosphere, 0, GL_TRIANGLES);
 	triangle_buffers = new_custom_buffer_group(buffer_triangle, 0, GL_TRIANGLES);
-	room_buffers = new_buffer_group(buffer_newroom, &forward_program);
-	//big_asteroid_buffers = new_buffer_group(buffer_big_asteroid, &forward_program);
-	cube_buffers = new_buffer_group(buffer_cube, &skybox_program);
+	room_buffers = new_buffer_group(buffer_newroom, &effects.forward);
+	//big_asteroid_buffers = new_buffer_group(buffer_big_asteroid, &effects.forward);
+	cube_buffers = new_buffer_group(buffer_cube, &effects.skybox);
 	//grid_buffers = buffer_grid(128, 128);
-	float terrain_x = 1000;
-	float terrain_y = 1000;
+	float terrain_x = 100;
+	float terrain_y = 100;
 	for (int i = 0; i < num_x_tiles; i++) {
 		for (int j = 0; j < num_z_tiles; j++) {
 			struct terrain *tmp = &ground[j + i * 5];
@@ -147,14 +146,14 @@ static void init_lights()
 // //Later I should put the projection matrix in a uniform block
 // static void send_projection_matrix()
 // {
-// 	glUseProgram(skybox_program.handle);
-// 	glUniformMatrix4fv(skybox_program.projection_matrix, 1, GL_TRUE, proj_mat);
-// 	glUseProgram(forward_program.handle);
-// 	glUniformMatrix4fv(forward_program.projection_matrix, 1, GL_TRUE, proj_mat);
-// 	glUseProgram(outline_program.handle);
-// 	glUniformMatrix4fv(outline_program.projection_matrix, 1, GL_TRUE, proj_mat);
-// 	glUseProgram(shadow_program.handle);
-// 	glUniformMatrix4fv(outline_program.projection_matrix, 1, GL_TRUE, proj_mat);
+// 	glUseProgram(effects.skybox.handle);
+// 	glUniformMatrix4fv(effects.skybox.projection_matrix, 1, GL_TRUE, proj_mat);
+// 	glUseProgram(effects.forward.handle);
+// 	glUniformMatrix4fv(effects.forward.projection_matrix, 1, GL_TRUE, proj_mat);
+// 	glUseProgram(effects.outline.handle);
+// 	glUniformMatrix4fv(effects.outline.projection_matrix, 1, GL_TRUE, proj_mat);
+// 	glUseProgram(effects.shadow.handle);
+// 	glUniformMatrix4fv(effects.outline.projection_matrix, 1, GL_TRUE, proj_mat);
 // }
 
 void handle_resize(int width, int height)
@@ -218,7 +217,7 @@ void make_projection_matrix(GLfloat fov, GLfloat a, GLfloat n, GLfloat f, GLfloa
 	memcpy(buf, tmp, sizeof(tmp));
 }
 
-static void draw_skybox_forward(struct shader_prog *program, struct buffer_group bg, amat4 model_matrix)
+static void draw_skybox_forward(EFFECT *effect, struct buffer_group bg, amat4 model_matrix)
 {
 	glBindVertexArray(bg.vao);
 	GLfloat tmp[16];
@@ -226,16 +225,16 @@ static void draw_skybox_forward(struct shader_prog *program, struct buffer_group
 	amat4_to_array(model_matrix, model_matrix_buf);
 	amat4_buf_mult(proj_view_mat, model_matrix_buf, tmp);
 	//Send model_view_projection_matrix.
-	glUniformMatrix4fv(program->model_view_projection_matrix, 1, GL_TRUE, tmp);
+	glUniformMatrix4fv(effect->model_view_projection_matrix, 1, GL_TRUE, tmp);
 	//Send model_matrix
-	glUniformMatrix4fv(program->model_matrix, 1, GL_TRUE, model_matrix_buf);
-	glUniform3fv(program->camera_position, 1, eye_frame.T);
-	glUniform3fv(program->sun_direction, 1, sun_direction.A);
+	glUniformMatrix4fv(effect->model_matrix, 1, GL_TRUE, model_matrix_buf);
+	glUniform3fv(effect->camera_position, 1, eye_frame.T);
+	glUniform3fv(effect->sun_direction, 1, sun_direction.A);
 	//Draw!
 	glDrawElements(GL_TRIANGLES, bg.index_count, GL_UNSIGNED_INT, NULL);
 }
 
-static void draw_forward(struct shader_prog *program, struct buffer_group bg, amat4 model_matrix)
+static void draw_forward(EFFECT *effect, struct buffer_group bg, amat4 model_matrix)
 {
 	glBindVertexArray(bg.vao);
 	GLfloat tmp[16];
@@ -243,16 +242,16 @@ static void draw_forward(struct shader_prog *program, struct buffer_group bg, am
 	amat4_to_array(model_matrix, model_matrix_buf);
 	amat4_buf_mult(proj_view_mat, model_matrix_buf, tmp);
 	//Send model_view_projection_matrix.
-	glUniformMatrix4fv(program->model_view_projection_matrix, 1, GL_TRUE, tmp);
+	glUniformMatrix4fv(effect->model_view_projection_matrix, 1, GL_TRUE, tmp);
 	//Send model_matrix
-	glUniformMatrix4fv(program->model_matrix, 1, GL_TRUE, model_matrix_buf);
+	glUniformMatrix4fv(effect->model_matrix, 1, GL_TRUE, model_matrix_buf);
 	//Send normal_model_view_matrix
 	mat3_vec3_to_array(mat3_transp(model_matrix.a), (vec3){{0, 0, 0}}, tmp);
-	glUniformMatrix4fv(program->model_view_normal_matrix, 1, GL_TRUE, tmp);
+	glUniformMatrix4fv(effect->model_view_normal_matrix, 1, GL_TRUE, tmp);
 	glDrawElements(bg.primitive_type, bg.index_count, GL_UNSIGNED_INT, NULL);
 }
 
-static void draw_wireframe(struct shader_prog *program, struct buffer_group bg, amat4 model_matrix)
+static void draw_wireframe(EFFECT *effect, struct buffer_group bg, amat4 model_matrix)
 {
 	glBindVertexArray(bg.vao);
 	GLfloat tmp[16];
@@ -260,11 +259,11 @@ static void draw_wireframe(struct shader_prog *program, struct buffer_group bg, 
 	amat4_to_array(model_matrix, model_matrix_buf);
 	amat4_buf_mult(proj_view_mat, model_matrix_buf, tmp);
 	//Send model_view_projection_matrix.
-	glUniformMatrix4fv(program->model_view_projection_matrix, 1, GL_TRUE, tmp);
+	glUniformMatrix4fv(effect->model_view_projection_matrix, 1, GL_TRUE, tmp);
 	glDrawElements(bg.primitive_type, bg.index_count, GL_UNSIGNED_INT, NULL);
 }
 
-static void draw_forward_adjacent(struct shader_prog *program, struct buffer_group bg, amat4 model_matrix)
+static void draw_forward_adjacent(EFFECT *effect, struct buffer_group bg, amat4 model_matrix)
 {
 	glBindVertexArray(bg.vao);
 	GLfloat tmp[16];
@@ -272,35 +271,35 @@ static void draw_forward_adjacent(struct shader_prog *program, struct buffer_gro
 	amat4_to_array(model_matrix, model_matrix_buf);
 	amat4_buf_mult(proj_view_mat, model_matrix_buf, tmp);
 	//Send model_view_projection_matrix.
-	glUniformMatrix4fv(program->model_view_projection_matrix, 1, GL_TRUE, tmp);
+	glUniformMatrix4fv(effect->model_view_projection_matrix, 1, GL_TRUE, tmp);
 	//Send model_matrixh
-	glUniformMatrix4fv(program->model_matrix, 1, GL_TRUE, model_matrix_buf);
+	glUniformMatrix4fv(effect->model_matrix, 1, GL_TRUE, model_matrix_buf);
 	//Send normal_model_view_matrix
 	mat3_vec3_to_array(mat3_transp(model_matrix.a), (vec3){{0, 0, 0}}, tmp);
-	glUniformMatrix4fv(program->model_view_normal_matrix, 1, GL_TRUE, tmp);
+	glUniformMatrix4fv(effect->model_view_normal_matrix, 1, GL_TRUE, tmp);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
 	glDrawElements(GL_TRIANGLES_ADJACENCY, bg.index_count*2, GL_UNSIGNED_INT, NULL);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
 	checkErrors("After drawing with aibo");
 }
 
-static void forward_update_point_light(struct shader_prog *program, struct point_light_attributes *lights, int i)
+static void forward_update_point_light(EFFECT *effect, struct point_light_attributes *lights, int i)
 {
 	vec3 position = lights->position[i];
-	glUniform3fv(program->uLight_pos, 1, position.A);
-	glUniform3fv(program->uLight_col, 1, lights->color[i].A);
-	glUniform4f(program->uLight_attr, lights->atten_c[i], lights->atten_l[i], lights->atten_e[i], lights->enabled_for_draw[i]?lights->intensity[i]:0.0);
+	glUniform3fv(effect->uLight_pos, 1, position.A);
+	glUniform3fv(effect->uLight_col, 1, lights->color[i].A);
+	glUniform4f(effect->uLight_attr, lights->atten_c[i], lights->atten_l[i], lights->atten_e[i], lights->enabled_for_draw[i]?lights->intensity[i]:0.0);
 }
 
 
-void render_depth(struct shader_prog *program, struct buffer_group *bgs[], amat4 *frames[], int len)
+void render_depth(EFFECT *effect, struct buffer_group *bgs[], amat4 *frames[], int len)
 {
 	glDepthMask(GL_TRUE);
 	glDisable(GL_BLEND);
 	glDrawBuffer(GL_NONE);
-	glUseProgram(program->handle);
+	glUseProgram(effect->handle);
 	for (int i = 0; i < len; i++) {
-		draw_forward(program, *bgs[i], *frames[i]);
+		draw_forward(effect, *bgs[i], *frames[i]);
 	}
 	checkErrors("After drawing into depth");
 }
@@ -345,25 +344,25 @@ void render()
 	//Render into the depth buffer.
 	{
 		//glDrawBuffer(GL_NONE);
-		glUseProgram(forward_program.handle);
+		glUseProgram(effects.forward.handle);
 		if (apass) {
-			glUniform1i(forward_program.ambient_pass, 1);
-			glUniform3fv(forward_program.uLight_col, 1, sun_color.A);
-			glUniform3fv(forward_program.uLight_pos, 1, sun_direction.A);
+			glUniform1i(effects.forward.ambient_pass, 1);
+			glUniform3fv(effects.forward.uLight_col, 1, sun_color.A);
+			glUniform3fv(effects.forward.uLight_pos, 1, sun_direction.A);
 		}
-		glUniform3fv(forward_program.camera_position, 1, eye_frame.T);
+		glUniform3fv(effects.forward.camera_position, 1, eye_frame.T);
 		//Draw entities
 		for (int i = 0; i < LENGTH(pvs); i++)
-			draw_forward(&forward_program, *pvs[i], *pvs_frames[i]);
+			draw_forward(&effects.forward, *pvs[i], *pvs_frames[i]);
 		//Draw terrain
 		for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
-			draw_forward(&forward_program, ground[i].bg, grid_frame);
-			//draw_forward(&forward_program, ground[i].bg, (amat4){.a = grid_frame.a, .t = ground[i].pos});
-		glUseProgram(wireframe_program.handle);
+			draw_forward(&effects.forward, ground[i].bg, grid_frame);
+			//draw_forward(&effects.forward, ground[i].bg, (amat4){.a = grid_frame.a, .t = ground[i].pos});
+		glUseProgram(effects.wireframe.handle);
 		//draw(vec3_sub((vec3){{0, 0, 0}}, eye_frame.t));
-		glUseProgram(forward_program.handle);
+		glUseProgram(effects.forward.handle);
 		checkErrors("After drawing into depth");
-		glUniform1i(forward_program.ambient_pass, 0);
+		glUniform1i(effects.forward.ambient_pass, 0);
 	}
 	for (int i = 0; i < point_lights.num_lights; i++) {
 		//Render shadow volumes into the stencil buffer.
@@ -382,14 +381,14 @@ void render()
 				glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
 				glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
 			}
-			glUseProgram(shadow_program.handle);
-			glUniform3fv(shadow_program.gLightPos, 1, point_lights.position[i].A);
-			//glUniform3fv(shadow_program.light_color, 1, point_lights.color[i].A);
-			glUniform1i(shadow_program.zpass, zpass);
+			glUseProgram(effects.shadow.handle);
+			glUniform3fv(effects.shadow.gLightPos, 1, point_lights.position[i].A);
+			//glUniform3fv(effects.shadow.light_color, 1, point_lights.color[i].A);
+			glUniform1i(effects.shadow.zpass, zpass);
 			checkErrors("After updating zpass uniform");
 			//glDrawBuffer(GL_BACK);
 			for (int i = 0; i < LENGTH(pvs_shadowers); i++)
-				draw_forward_adjacent(&shadow_program, *pvs_shadowers[i], *pvs_frames[i]);
+				draw_forward_adjacent(&effects.shadow, *pvs_shadowers[i], *pvs_frames[i]);
 			glDisable(GL_DEPTH_CLAMP);
 			glEnable(GL_CULL_FACE);
 			checkErrors("After rendering shadow volumes");
@@ -400,15 +399,15 @@ void render()
 			glStencilFunc(GL_EQUAL, 0x0, 0xFF);
 			glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_KEEP);
 			glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_KEEP);
-			glUseProgram(forward_program.handle);
-			forward_update_point_light(&forward_program, &point_lights, i);
+			glUseProgram(effects.forward.handle);
+			forward_update_point_light(&effects.forward, &point_lights, i);
 			glEnable(GL_BLEND);
 			glBlendEquation(GL_FUNC_ADD);
 			glBlendFunc(GL_ONE, GL_ONE);
 			glDepthFunc(GL_EQUAL);
 			checkErrors("Before forward draw shadowed");
 			for (int i = 0; i < LENGTH(pvs); i++) {
-				draw_forward(&forward_program, *pvs[i], *pvs_frames[i]);
+				draw_forward(&effects.forward, *pvs[i], *pvs_frames[i]);
 				checkErrors("After forward draw shadowed");
 			}
 			glDisable(GL_BLEND);
@@ -418,13 +417,13 @@ void render()
 	}
 	glDisable(GL_BLEND);
 	glDepthFunc(GL_GREATER);
-	glUseProgram(skybox_program.handle);
-	glUniform3fv(skybox_program.sun_direction, 1, sun_direction.A);
-	glUniform3fv(skybox_program.sun_color, 1, sun_color.A);
+	glUseProgram(effects.skybox.handle);
+	glUniform3fv(effects.skybox.sun_direction, 1, sun_direction.A);
+	glUniform3fv(effects.skybox.sun_color, 1, sun_color.A);
 	amat4 skybox_frame = {
 	.a = mat3_scalemat(skybox_scale.x, skybox_scale.y, skybox_scale.z),
 	.t = eye_frame.t};
-	draw_skybox_forward(&skybox_program, cube_buffers, skybox_frame);
+	draw_skybox_forward(&effects.skybox, cube_buffers, skybox_frame);
 	checkErrors("After forward junk");
 }
 

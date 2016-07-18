@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <glalgebra.h>
 #include "math/utility.h"
-#include "shaders/shaders.h"
+#include "effects.h"
 #include "macros.h"
 
 #define NUM_STARS 1000000
@@ -21,8 +21,8 @@ vec3 star_buffer[NUM_STARS];
 void init_stars()
 {
 	srand(101);
-	glUseProgram(stars_program.handle);
-	//glUniformMatrix4fv(stars_program.projection_matrix, 1, GL_TRUE, proj_mat);
+	glUseProgram(effects.stars.handle);
+	//glUniformMatrix4fv(effects.stars.projection_matrix, 1, GL_TRUE, proj_mat);
 
 	//vec3 c1 = {{-STAR_RADIUS, -STAR_RADIUS, -STAR_RADIUS}};
 	//vec3 c2 = {{STAR_RADIUS, STAR_RADIUS, STAR_RADIUS}};
@@ -43,8 +43,8 @@ void init_stars()
 	glGenBuffers(1, &stars_vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, stars_vbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(star_buffer), star_buffer, GL_STATIC_DRAW);
-	glEnableVertexAttribArray(stars_program.vPos);
-	glVertexAttribPointer(stars_program.vPos, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+	glEnableVertexAttribArray(effects.stars.vPos);
+	glVertexAttribPointer(effects.stars.vPos, 3, GL_FLOAT, GL_FALSE, 0, NULL);
 }
 
 void deinit_stars()
@@ -58,13 +58,13 @@ void draw_stars()
 	glBlendEquation(GL_FUNC_ADD); //The light contributions get blended additively.
 	glBlendFunc(GL_ONE, GL_ONE); //Just straight addition.
 	glBindVertexArray(stars_vao);
-	glUseProgram(stars_program.handle);
-	//glUniform3fv(stars_program.ship_position, 1, eye_frame.T);
-	glUniform3fv(stars_program.eye_pos, 1, eye_frame.T);
+	glUseProgram(effects.stars.handle);
+	//glUniform3fv(effects.stars.ship_position, 1, eye_frame.T);
+	glUniform3fv(effects.stars.eye_pos, 1, eye_frame.T);
 	GLfloat mvm_buf[16];
 	//Send model_view_matrix.
 	amat4_to_array(inv_eye_frame, mvm_buf);
-	glUniformMatrix4fv(stars_program.model_view_projection_matrix, 1, GL_TRUE, mvm_buf);
+	glUniformMatrix4fv(effects.stars.model_view_projection_matrix, 1, GL_TRUE, mvm_buf);
 	glDrawArrays(GL_POINTS, 0, NUM_STARS);
 	glDisable(GL_BLEND);
 }
