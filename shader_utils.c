@@ -5,10 +5,12 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <GL/glew.h>
-#include <assert.h>
-#include "macros.h"
 #include "effects.h"
 #include "gl_utils.h"
+
+#ifndef LENGTH
+	#define LENGTH(array) (sizeof(array)/sizeof(array[0]))
+#endif
 
 void printLog(GLuint handle, bool is_program)
 {
@@ -42,25 +44,6 @@ char *shader_enum_to_string(GLenum shader_type)
 	}
 }
 
-static GLuint compile_shader(GLenum type, const GLchar *source, const char *path, GLuint program_handle)
-{
-	if (source && path) {
-		const GLuint shader = glCreateShader(type);
-		glShaderSource(shader, 1, &source, NULL);
-		glCompileShader(shader);
-		GLint success = false;
-		glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-		if (success != true) {
-			printf("Unable to compile %s %d! (Path: %s)\n", shader_enum_to_string(type), shader, path);
-			printLog(shader, false);
-			glDeleteShader(shader);
-			return 0;
-		}
-		return shader;
-	}
-	return 0;
-}
-
 //Each array member of shader_texts should be free()'d if this function returns 0.
 static void read_in_shaders(const char *paths[], GLchar *shader_texts[], int num)
 {
@@ -92,25 +75,47 @@ static void read_in_shaders(const char *paths[], GLchar *shader_texts[], int num
 	}
 }
 
+static GLuint compile_shader(GLenum type, const GLchar *source, const char *path, GLuint program_handle)
+{
+	if (source && path) {
+		GLint success = false;
+		const GLuint shader = glCreateShader(type);
+
+		glShaderSource(shader, 1, &source, NULL);
+		glCompileShader(shader);
+		glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+		if (success != true) {
+			printf("Unable to compile %s %d! (Path: %s)\n", shader_enum_to_string(type), shader, path);
+			printLog(shader, false);
+			glDeleteShader(shader);
+			return 0;
+		}
+		return shader;
+	}
+	return 0;
+}
+
 static int compile_effect(const char *file_paths[], GLchar *shader_texts[], GLenum shader_types[], int num, GLuint program_handle)
 {
-	GLuint shader_handles[num];
 	GLint success = true;
-	int i;
-	for (i = 0; i < num; i++) {
+	GLuint shader_handles[num];
+
+	for (int i = 0; i < num; i++) {
 		shader_handles[i] = compile_shader(shader_types[i], (const GLchar *)shader_texts[i], file_paths[i], program_handle);
 		glAttachShader(program_handle, shader_handles[i]);
 	}
+
 	glLinkProgram(program_handle);
 	glGetProgramiv(program_handle, GL_LINK_STATUS, &success);
 	if (success != true) {
 		printf("Unable to link program %d!\n", program_handle);
 		printLog(program_handle, true);
 	}
-	for (int j = 0; j < i; j++)
-		if (shader_handles[j] != 0)
-			glDeleteShader(shader_handles[j]);
-	return !success;
+
+	for (int i = 0; i < num; i++)
+		glDeleteShader(shader_handles[i]);
+
+	return !success; //Success is 0.
 }
 
 static void init_attrs(GLuint program_handle, const char **astrs, GLint *attrs, int num)
@@ -140,28 +145,17 @@ void load_effects(
 	const char *ustrs[],    int nustrs)
 {
 	GLenum shader_types[] = {GL_VERTEX_SHADER, GL_GEOMETRY_SHADER, GL_FRAGMENT_SHADER};
-	int nsh = LENGTH(shader_types);
+	int nsh = LENGTH(shader_types); //Number of shader types.
 	char *shader_texts[npaths];
 	read_in_shaders(paths, shader_texts, npaths);
 
 	for (int i = 0; i < neffects; i++) {
-		bool success = true;
-		int result;
-		
 		GLuint program_handle = glCreateProgram();
-
 		int offset = i*nsh;
-		result = compile_effect(paths+offset, shader_texts+offset, shader_types, nsh, program_handle);
 
-		if (result) {
-			printf("Error: could not load shader %i, aborting.\n", i);
-			success = false;
-		}
-
-		init_attrs(program_handle, astrs, effects[i].attr, nastrs);
-		init_unifs(program_handle, ustrs, effects[i].unif, nustrs);
-
-		if (success) {
+		if (compile_effect(paths+offset, shader_texts+offset, shader_types, nsh, program_handle) == 0) {
+			init_attrs(program_handle, astrs, effects[i].attr, nastrs);
+			init_unifs(program_handle, ustrs, effects[i].unif, nustrs);
 			glDeleteProgram(effects[i].handle); //Delete old program
 			effects[i].handle = program_handle; //Store handle to new program
 		} else {

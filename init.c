@@ -42,25 +42,15 @@ static void reload_signal_handler(int signo) {
 	func_list_add(&update_func_list, 1, reload_effects_void_wrapper);
 }
 
-int init(SDL_GLContext *context, SDL_Window **window, char *title, int x, int y, int w, int h, Uint32 wflags)
+int init_engine(SDL_GLContext *context, SDL_Window *window)
 {
-	int error = 0;
-	if ((error = SDL_Init(SDL_INIT_EVERYTHING)) != 0) {
-		printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
-		return error;
-	}
-	*window = SDL_CreateWindow(title, x, y, w, h, wflags);
-	if (window == NULL) {
-		printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
-		return -1;
-	}
 	int img_flags = IMG_INIT_PNG;
 	if (!(IMG_Init(img_flags) & img_flags)) {
 		printf("SD_image could not initialize! SDL_image Error: %s\n", IMG_GetError());
 		return -1;
 	}
 
-	if (init_gl(context, *window))
+	if (init_gl(context, window))
 		return -1;
 
 	if (init_glew())
@@ -104,7 +94,7 @@ int init(SDL_GLContext *context, SDL_Window **window, char *title, int x, int y,
 		printf("An error occurred while setting a signal handler.\n");
 	}
 
-	return error;
+	return 0;
 }
 
 int init_gl(SDL_GLContext *context, SDL_Window *window)
@@ -124,6 +114,7 @@ int init_gl(SDL_GLContext *context, SDL_Window *window)
 		printf("Warning: Unable to set VSync! SDL Error: %s\n", SDL_GetError());
 	}
 
+	checkErrors("After init_gl");
 	return 0;
 }
 
@@ -139,10 +130,8 @@ int init_glew()
 	return 0;
 }
 
-void deinit(SDL_GLContext context, SDL_Window *window)
+void deinit_engine()
 {
-	SDL_DestroyWindow(window);
-	SDL_GL_DeleteContext(context);
 	open_simplex_noise_free(osnctx);
 	IMG_Quit();
 	SDL_Quit();

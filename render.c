@@ -22,8 +22,8 @@
 float FOV = M_PI/2.5;
 float far_distance = 2000;
 int PRIMITIVE_RESTART_INDEX = 0xFFFFFFFF;
-int num_x_tiles = 1;
-int num_z_tiles = 1;
+const int num_x_tiles = 1;
+const int num_z_tiles = 1;
 bool DEFERRED_MODE = false;
 extern bool draw_light_bounds;
 
@@ -46,16 +46,18 @@ struct buffer_group big_asteroid_buffers;
 struct buffer_group grid_buffers;
 struct buffer_group cube_buffers;
 struct buffer_group triangle_buffers;
-struct terrain ground[5*5];
+struct terrain ground[num_x_tiles*num_z_tiles];
+struct terrain triangle_ground;
 GLuint gVAO = 0;
 amat4 inv_eye_frame;
-amat4 eye_frame = {.a = MAT3_IDENT, .T = {6, 0, 0}};
+amat4 eye_frame = {.a = MAT3_IDENT,          .T = {6, 0, 0}};
 //Object frames. Need a better system for this.
-amat4 ship_frame = {.a = MAT3_IDENT, .T = {-2.5, 0, -8}};
-amat4 newship_frame = {.a = MAT3_IDENT, .T = {3, 0, -8}};
+amat4 ship_frame = {.a = MAT3_IDENT,         .T = {-2.5, 0, -8}};
+amat4 newship_frame = {.a = MAT3_IDENT,      .T = {3, 0, -8}};
 amat4 teardropship_frame = {.a = MAT3_IDENT, .T = {6, 0, -8}};
-amat4 room_frame = {.a = MAT3_IDENT, .T = {0, -4, -8}};
-amat4 grid_frame = {.a = MAT3_IDENT, .T = {-50, -50, -50}};
+amat4 room_frame = {.a = MAT3_IDENT,         .T = {0, -4, -8}};
+amat4 grid_frame = {.a = MAT3_IDENT,         .T = {-50, -90, -550}};
+amat4 tri_frame  = {.a = MAT3_IDENT,         .T = {-50, -90, -550}};
 amat4 big_asteroid_frame = {.a = MAT3_IDENT, .T = {0, -4, -20}};
 static vec3 skybox_scale;
 static vec3 ambient_color = {{0.01, 0.01, 0.01}};
@@ -96,16 +98,23 @@ static void init_models()
 	//big_asteroid_buffers = new_buffer_group(buffer_big_asteroid, &effects.forward);
 	cube_buffers = new_buffer_group(buffer_cube, &effects.skybox);
 	//grid_buffers = buffer_grid(128, 128);
-	float terrain_x = 100;
-	float terrain_y = 100;
+	float terrain_x = 500;
+	float terrain_z = 500;
 	for (int i = 0; i < num_x_tiles; i++) {
 		for (int j = 0; j < num_z_tiles; j++) {
-			struct terrain *tmp = &ground[j + i * 5];
-			*tmp = new_terrain(terrain_x+1, terrain_y+1);
-			populate_terrain(tmp, (vec3){{(i-num_x_tiles/2)*terrain_x, 0, (j-num_z_tiles/2)*terrain_y}}, height_map2);
+			struct terrain *tmp = &ground[j + i * num_z_tiles];
+			*tmp = new_terrain(terrain_x, terrain_z);
+			populate_terrain(
+				tmp,
+				vec3_add(grid_frame.t, (vec3){{(i-(num_x_tiles-1)/2)*terrain_x, 0, (j-(num_z_tiles-1)/2)*terrain_z}}),
+				height_map2);
 			buffer_terrain(tmp);
 		}
 	}
+
+	triangle_ground = new_triangular_terrain(500);
+	populate_triangular_terrain(&triangle_ground, tri_frame.t, 500, height_map2);
+	buffer_terrain(&triangle_ground);
 	// height_map_test = new_terrain(100, 100);
 	// populate_terrain(&height_map_test, (vec3){{0,0,0}}, height_map1, height_map_normal1);
 	// buffer_terrain(&height_map_test);
@@ -122,8 +131,9 @@ static void deinit_models()
 	delete_buffer_group(triangle_buffers);
 	//delete_buffer_group(grid_buffers);
 	//free_terrain(&height_map_test);
-	for (int i = 0; i < 5 * 5; i++)
+	for (int i = 0; i < num_x_tiles * num_z_tiles; i++)
 		free_terrain(&ground[i]);
+	free_terrain(&triangle_ground);
 }
 
 static void init_lights()
@@ -133,13 +143,13 @@ static void init_lights()
 	new_point_light(&point_lights, (vec3){{0, 2, 0}},   (vec3){{1.0, 1.0, 1.0}}, 0.0,     0.0,    1,    5);
 	new_point_light(&point_lights, (vec3){{0, 2, 0}},   (vec3){{0.8, 0.8, 1.0}}, 0.0,     0.3,    0.04, 0.4);
 	new_point_light(&point_lights, (vec3){{10, 4, -7}}, (vec3){{0.4, 1.0, 0.4}}, 0.1,     0.14,   0.07, 0.75);
-	point_lights.shadowing[0] = true;
-	point_lights.shadowing[1] = true;
-	point_lights.shadowing[2] = true;
-	point_lights.shadowing[3] = true;
+	// point_lights.shadowing[0] = true;
+	// point_lights.shadowing[1] = true;
+	// point_lights.shadowing[2] = true;
+	// point_lights.shadowing[3] = true;
 
 	for (int i = 0; i < point_lights.num_lights; i++) {
-		printf("Light %i radius is %f\n", i, point_lights.radius[i]);
+		//printf("Light %i radius is %f\n", i, point_lights.radius[i]);
 	}
 }
 
@@ -187,7 +197,7 @@ void init_render()
 	glEnable(GL_PROGRAM_POINT_SIZE);
 
 	glUseProgram(0);
-	checkErrors("After init");
+	checkErrors("After init_render");
 }
 
 void deinit_render()
@@ -330,7 +340,7 @@ void render()
 		//&room_frame,
 		//&newship_frame,
 		//&teardropship_frame,
-		//&ship_frame,
+		&ship_frame,
 		//&grid_frame
 	};
 	glDepthMask(GL_TRUE);
@@ -355,8 +365,13 @@ void render()
 		for (int i = 0; i < LENGTH(pvs); i++)
 			draw_forward(&effects.forward, *pvs[i], *pvs_frames[i]);
 		//Draw terrain
+		if (key_state[SDL_SCANCODE_Z])
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
 			draw_forward(&effects.forward, ground[i].bg, grid_frame);
+		draw_forward(&effects.forward, triangle_ground.bg, tri_frame);
+		if (key_state[SDL_SCANCODE_Z])
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 			//draw_forward(&effects.forward, ground[i].bg, (amat4){.a = grid_frame.a, .t = ground[i].pos});
 		glUseProgram(effects.wireframe.handle);
 		//draw(vec3_sub((vec3){{0, 0, 0}}, eye_frame.t));
@@ -440,7 +455,7 @@ void update(float dt)
 	float rs = 1/600000.0;
 	if (key_state[SDL_SCANCODE_9])
 		for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
-			recalculate_terrain_normals(&ground[i]);
+			recalculate_terrain_normals_cheap(&ground[i]);
 	if (key_state[SDL_SCANCODE_8])
 		for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
 			erode_terrain(&ground[i], 100);
@@ -451,8 +466,8 @@ void update(float dt)
 	//If you're moving forward, turn the light on to show it.
 	//point_lights.enabled_for_draw[2] = (axes[LEFTY] < 0)?true:false;
 	point_lights.enabled_for_draw[2] = key_state[SDL_SCANCODE_6];
-	float camera_speed = 20;
-	float ship_speed = 20;
+	float camera_speed = 20.0;
+	float ship_speed = 80.0;
 	// if (key_state[SDL_SCANCODE_2])
 	// 	draw_light_bounds = true;
 	// else
@@ -477,7 +492,7 @@ void update(float dt)
 	//Set the ship's acceleration using the arrow keys.
 	acceleration = mat3_multvec(ship_frame.a, (vec3){{
 		(key_state[SDL_SCANCODE_RIGHT] - key_state[SDL_SCANCODE_LEFT]) * dt * ship_speed,
-		0,
+		(key_state[SDL_SCANCODE_PERIOD] - key_state[SDL_SCANCODE_SLASH]) * dt * ship_speed,
 		(key_state[SDL_SCANCODE_DOWN] - key_state[SDL_SCANCODE_UP]) * dt * ship_speed}});
 	//Angular velocity is currently determined by how much each axis is deflected.
 	float angle = -axes[RIGHTX]*rs;
@@ -492,12 +507,12 @@ void update(float dt)
 	//Move the ship by applying the velocity to the position.
 	ship_frame.t = vec3_add(ship_frame.t, velocity.t);
 	//The eye should be positioned 2 up and 8 back relative to the ship's frame.
-	float alpha = 0.8;
+	float alpha = 0.1;
 	//eye_frame.t = amat4_multpoint(ship_frame, ship_cam.t);
 	eye_frame.t = vec3_lerp(eye_frame.t, amat4_multpoint(ship_frame, ship_cam.t), alpha);
 	static vec3 eye_target = {{0.0, 0.0, 0.0}};
-	//eye_target = vec3_lerp(eye_target, amat4_multpoint(ship_frame, (vec3){{0, 0, -4}}), alpha);
-	eye_target = amat4_multpoint(ship_frame, (vec3){{0, 0, -4}}); //The camera points a little bit ahead of the ship.
+	eye_target = vec3_lerp(eye_target, amat4_multpoint(ship_frame, (vec3){{0, 0, -4}}), alpha);
+	//eye_target = amat4_multpoint(ship_frame, (vec3){{0, 0, -4}}); //The camera points a little bit ahead of the ship.
 	//The eye should look from itself to a point in front of the ship, and its "up" should be "up" from the ship's orientation.
 	eye_frame.a = mat3_lookat(
 		eye_frame.t,

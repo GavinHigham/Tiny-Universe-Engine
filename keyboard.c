@@ -3,7 +3,6 @@
 #include "keyboard.h"
 #include "init.h"
 #include "shader_utils.h"
-#include "main.h"
 #include "render.h"
 #include "func_list.h"
 
@@ -11,6 +10,15 @@ extern SDL_Window *window;
 const Uint8 *key_state = NULL;
 extern int loop_iter_ave;
 extern void reload_effects_void_wrapper();
+
+//I may want to move this somewhere more accessible later, for quitting from a menu and such.
+void push_quit()
+{
+	SDL_Event event;
+    event.type = SDL_QUIT;
+
+    SDL_PushEvent(&event); //If it fails, the quit keypress was just eaten ¯\_(ツ)_/¯
+}
 
 void init_keyboard()
 {
@@ -28,7 +36,7 @@ void keyevent(SDL_Keysym keysym, SDL_EventType type)
 	}
 	switch (keysym.scancode) {
 	case SDL_SCANCODE_ESCAPE:
-		quit_application();
+		push_quit();
 		break;
 	case SDL_SCANCODE_F:
 		if (!keydown) {

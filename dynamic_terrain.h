@@ -11,10 +11,10 @@ enum {
 
 typedef struct dynamic_terrain_node *PDTNODE;
 typedef struct dynamic_terrain_node {
-	amat4 frame;
 	float dist; //Distance to camera
 	PDTNODE children[NUM_CHILDREN];
 	vec3 verts[3];
+	vec3 midpoint;
 } *PDTNODE;
 
 // struct dynamic_terrain_parameters {

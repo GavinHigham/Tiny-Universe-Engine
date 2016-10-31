@@ -13,86 +13,66 @@
 #include "macros.h"
 #include "render.h"
 
-#define ACCELERATION_DUE_TO_GRAVITY 9.81
+//If I add margins to all my heightmaps later then I can avoid A LOT of work.
 
+const float ACCELERATION_DUE_TO_GRAVITY = 9.81;
 extern int PRIMITIVE_RESTART_INDEX;
 extern struct osn_context *osnctx;
 
 //Defines a height map.
 //Given an x and z coordinate, returns a vector including a new y coordinate.
 //Possibly returns changed x and z as well.
-vec3 height_map1(float x, float z)
+float height_map1(vec3 pos)
 {
 	float height = 0;
 	int octaves = 8;
 	for (int i = 1; i <= octaves; i++)
-	 	height += i*sin(z/i) + i*sin(x/i);
-	return (vec3){{x, height, z}};
+	 	height += i*sin(pos.z/i) + i*sin(pos.x/i);
+	return height;
 }
 
-vec3 height_map2(float x, float z)
+float height_map2(vec3 pos)
 {
-	float height = 20;
-	int octaves = 6;
-	float amplitude = height * pow(2, octaves);
-	float sharpness = 4;
+	float height = 0;
+	int octaves = 3;
+	float amplitude = 50 * pow(2, octaves);
+	float sharpness = 2;
 	for (int i = 0; i < octaves; i++) {
 		amplitude /= 2;
-		height += amplitude * pow(open_simplex_noise2(osnctx, x/amplitude, z/amplitude), sharpness);
+		height += amplitude * pow(open_simplex_noise2(osnctx, pos.x/amplitude, pos.z/amplitude), sharpness);
 	}
-	return (vec3){{x, height, z}};
+	return height;
+}
+
+float height_map3(vec3 pos)
+{
+	float height = 0;
+	int octaves = 3;
+	float amplitude = 50 * pow(2, octaves);
+	float sharpness = 2;
+	for (int i = 0; i < octaves; i++) {
+		amplitude /= 2;
+		height += amplitude * pow(open_simplex_noise3(osnctx, pos.x/amplitude, pos.y/amplitude, pos.y/amplitude), sharpness);
+	}
+	return height;
+}
+
+float height_map_flat(vec3 pos)
+{
+	return 1;
 }
 
 //Cheap trick to get normals, should replace with something faster eventually.
-vec3 height_map_normal(vec3 (*height_map)(float, float), float x, float z)
+vec3 height_map_normal(height_map_func height, vec3 pos)
 {
 	float epsilon = 0.001;
-	vec3 v0 = height_map(x, z);
-	vec3 v1 = height_map(x+epsilon, z);
-	vec3 v2 = height_map(x, z+epsilon);
+	vec3 pos1 = {{pos.x + epsilon, pos.y, pos.z}};
+	vec3 pos2 = {{pos.x, pos.y, pos.z + epsilon}};
+	pos.y  = height(pos);
+	pos1.y = height(pos1);
+	pos2.y = height(pos2);
 
-	return vec3_normalize(vec3_cross(vec3_sub(v2, v0), vec3_sub(v1, v0)));
-}
-
-//Creates a terrain struct, including handles for various OpenGL objects
-//and storage for the positions, normals, colors, and indices.
-//Should be freed by the caller, using free_terrain.
-struct terrain new_terrain(int numrows, int numcols)
-{
-	struct terrain tmp;
-	tmp.in_frustrum = true;
-	tmp.bg.index_count = (2 * numcols + 1) * (numrows - 1);
-	tmp.atrlen = sizeof(vec3) * numrows * numcols;
-	tmp.indlen = sizeof(GLuint) * tmp.bg.index_count;
-	tmp.positions = (vec3 *)malloc(tmp.atrlen);
-	tmp.normals   = (vec3 *)malloc(tmp.atrlen);
-	tmp.colors    = (vec3 *)malloc(tmp.atrlen);
-	tmp.indices = (GLuint *)malloc(tmp.indlen);
-	tmp.numrows = numrows;
-	tmp.numcols = numcols;
-	if (!tmp.positions || !tmp.normals || !tmp.colors || !tmp.indices)
-		printf("Malloc didn't work lol\n");
-	tmp.bg.primitive_type = GL_TRIANGLE_STRIP;
-	glGenVertexArrays(1, &tmp.bg.vao);
-	glGenBuffers(LENGTH(tmp.bg.buffer_handles), tmp.bg.buffer_handles);
-	glGenBuffers(1, &tmp.bg.ibo);
-	glBindVertexArray(tmp.bg.vao);
-	setup_attrib_for_draw(effects.forward.vPos,    tmp.bg.vbo, GL_FLOAT, 3);
-	setup_attrib_for_draw(effects.forward.vNormal, tmp.bg.nbo, GL_FLOAT, 3);
-	setup_attrib_for_draw(effects.forward.vColor,  tmp.bg.cbo, GL_FLOAT, 3);
-	//Generate indices
-	for (int i = 0; i < (numrows - 1); i++) {
-		int j = 0;
-		int col_offset = i*(numcols*2+1);
-		for (j = 0; j < numcols; j++) {
-			tmp.indices[col_offset + j*2]     = i*numcols + j + numcols;
-			tmp.indices[col_offset + j*2 + 1] = i*numcols + j;
-		}
-		tmp.indices[col_offset + j*2] = PRIMITIVE_RESTART_INDEX;
-	}
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tmp.bg.ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, tmp.indlen, tmp.indices, GL_STATIC_DRAW);
-	return tmp;
+	return vec3_normalize(vec3_cross(vec3_sub(pos2, pos), vec3_sub(pos1, pos)));
 }
 
 //Frees the dynamic storage and OpenGL objects held by a terrain struct.
@@ -114,17 +94,10 @@ void free_terrain(struct terrain *t)
 //On subsequent calls, leave t as NULL and pass actual fx and fz coordinates.
 vec3 * tpos(struct terrain *t, float fx, float fz)
 {
-	static struct terrain *tref = NULL;
-	if (t == NULL) {
-		unsigned int x = fmod(fmod(fx, tref->numcols) + tref->numcols, tref->numcols);
-		unsigned int z = fmod(fmod(fz, tref->numrows) + tref->numrows, tref->numrows);
-		unsigned int coord = x + z*tref->numcols;
-		return &(tref->positions[coord]);
-	}
-	else {
-		tref = t;
-		return NULL;
-	}
+	unsigned int x = fmod(fmod(fx, t->numcols) + t->numcols, t->numcols);
+	unsigned int z = fmod(fmod(fz, t->numrows) + t->numrows, t->numrows);
+	unsigned int coord = x + z*t->numcols;
+	return &(t->positions[coord]);
 }
 
 //Calculates an array index for t->normals.
@@ -133,17 +106,10 @@ vec3 * tpos(struct terrain *t, float fx, float fz)
 //On subsequent calls, leave t as NULL and pass actual fx and fz coordinates.
 vec3 * tnorm(struct terrain *t, float fx, float fz)
 {
-	static struct terrain *tref = NULL;
-	if (t == NULL) {
-		unsigned int x = fmod(fmod(fx, tref->numcols) + tref->numcols, tref->numcols);
-		unsigned int z = fmod(fmod(fz, tref->numrows) + tref->numrows, tref->numrows);
-		unsigned int coord = x + z*tref->numcols;
-		return &(tref->normals[coord]);
-	}
-	else {
-		tref = t;
-		return t->normals;
-	}
+	unsigned int x = fmod(fmod(fx, t->numcols) + t->numcols, t->numcols);
+	unsigned int z = fmod(fmod(fz, t->numrows) + t->numrows, t->numrows);
+	unsigned int coord = x + z*t->numcols;
+	return &(t->normals[coord]);
 }
 
 //State needed for a raindrop to be simulated on some heightmap terrain.
@@ -171,10 +137,10 @@ int simulate_raindrop(struct terrain *t, struct raindrop_config rc, float x, flo
 	float timescale = 1;
 	int hit_steplimit = 0;
 	do {
-		vec3 *p  = tpos(NULL, r.pos.x,   r.pos.z);
-		vec3 *c1 = tpos(NULL, r.pos.x+1, r.pos.z);
-		vec3 *c2 = tpos(NULL, r.pos.x+1, r.pos.z+1);
-		vec3 *c3 = tpos(NULL, r.pos.x,   r.pos.z+1);
+		vec3 *p  = tpos(t, r.pos.x,   r.pos.z);
+		vec3 *c1 = tpos(t, r.pos.x+1, r.pos.z);
+		vec3 *c2 = tpos(t, r.pos.x+1, r.pos.z+1);
+		vec3 *c3 = tpos(t, r.pos.x,   r.pos.z+1);
 		vec3 grad = (vec3){{
 			p->y + c3->y - c1->y - c2->y,
 			0,
@@ -208,7 +174,7 @@ int simulate_raindrop(struct terrain *t, struct raindrop_config rc, float x, flo
 		assert(timescale != NAN);
 		r.pos = vec3_add(r.pos, vec3_scale(r.vel, timescale)); //Move the raindrop by one unit in its velocity direction.
 		// r.pos  = vec3_add(r.pos, grad); //Move the raindrop along the gradient.
-		vec3 *newp = tpos(NULL, r.pos.x, r.pos.z);
+		vec3 *newp = tpos(t, r.pos.x, r.pos.z);
 		deltah = newp->y - p->y;
 		if (deltah < 0) { //The drop moves downhill
 			float sediment = fmin(rc.capacity - r.load, -deltah);
@@ -225,7 +191,7 @@ int simulate_raindrop(struct terrain *t, struct raindrop_config rc, float x, flo
 			break;
 		}
 	} while (vec3_mag(r.vel) > rc.speedfloor);
-	vec3 *finalp = tpos(NULL, r.pos.x, r.pos.y);
+	vec3 *finalp = tpos(t, r.pos.x, r.pos.y);
 	finalp->y += r.load; //Simulate evaporation.
 	// if (finalp == t->positions)
 	// 	printf("Finished at [0, 0] :/\n");
@@ -240,22 +206,21 @@ int simulate_raindrop(struct terrain *t, struct raindrop_config rc, float x, flo
 }
 
 //Updates the t->normals
-void recalculate_terrain_normals(struct terrain *t)
+void recalculate_terrain_normals_expensive(struct terrain *t)
 {
-	tpos(t, 0, 0);
-	tnorm(t, 0, 0);
 	for (int x = 0; x < t->numcols; x++) {
 		for (int z = 0; z < t->numrows; z++) {
-			vec3 p0 = *tpos(NULL, x,   z);
-			vec3 *p1 = tpos(NULL, x+1, z);
-			vec3 *p2 = tpos(NULL, x+1, z+1);
-			vec3 *p3 = tpos(NULL, x,   z+1);
-			vec3 *p4 = tpos(NULL, x-1, z+1);
-			vec3 *p5 = tpos(NULL, x-1, z);
-			vec3 *p6 = tpos(NULL, x-1, z-1);
-			vec3 *p7 = tpos(NULL, x, z-1);
-			vec3 *p8 = tpos(NULL, x+1, z-1);
-			*tnorm(NULL, x, z) = vec3_normalize(
+			vec3 p0 = *tpos(t, x,   z);
+			vec3 *p1 = tpos(t, x+1, z);
+			vec3 *p5 = tpos(t, x-1, z);
+			vec3 *p3 = tpos(t, x,   z+1);
+			vec3 *p7 = tpos(t, x,   z-1);
+			vec3 *p2 = tpos(t, x+1, z+1);
+			vec3 *p4 = tpos(t, x-1, z+1);
+			vec3 *p6 = tpos(t, x-1, z-1);
+			vec3 *p8 = tpos(t, x+1, z-1);
+
+			*tnorm(t, x, z) = vec3_normalize(
 				vec3_add(
 					vec3_add(
 						vec3_cross(vec3_sub(*p1, p0), vec3_sub(*p3, p0)),
@@ -267,6 +232,21 @@ void recalculate_terrain_normals(struct terrain *t)
 					)
 				)
 			);
+		}
+	}
+}
+
+//Updates the t->normals
+void recalculate_terrain_normals_cheap(struct terrain *t)
+{
+	for (int x = 0; x < t->numcols; x++) {
+		for (int z = 0; z < t->numrows; z++) {
+			vec3 *p1 = tpos(t, x+1, z);
+			vec3 *p5 = tpos(t, x-1, z);
+			vec3 *p3 = tpos(t, x, z+1);
+			vec3 *p7 = tpos(t, x, z-1);
+
+			*tnorm(t, x, z) = vec3_normalize(vec3_cross(vec3_sub(*p1, *p5), vec3_sub(*p3, *p7)));
 		}
 	}
 }
@@ -286,34 +266,6 @@ void erode_terrain(struct terrain *t, int iterations)
 		steplimit_drops += simulate_raindrop(t, rc, rand_float()*(t->numcols-1), rand_float()*(t->numrows-1));
 	printf("%i drops hit the steplimit this iteration.\n", steplimit_drops);
 }
-
-//Generates an initial heightmap terrain and associated normals.
-void populate_terrain(struct terrain *t, vec3 world_pos, vec3 (*height_map)(float x, float y))
-{
-	t->pos = world_pos;
-	//Generate vertices.
-	vec3 color = {{0.85, 0.35, 0.35}};
-	for (int i = 0; i < t->numrows; i++) {
-		for (int j = 0; j < t->numcols; j++) {
-			int offset = (t->numcols * i) + j;
-			float x = (i + world_pos.x) - (t->numcols/2.0);
-			float y = (j + world_pos.z) - (t->numrows/2.0);
-			vec3 pos = height_map(x, y);
-			vec3 norm = height_map_normal(height_map, x, y);
-			t->positions[offset] = pos;
-			t->normals[offset] = norm;
-			t->colors[offset] = color;
-		}
-	}
-}
-
-/*
-bool terrain_in_frustrum(struct terrain *t, amat4 camera, float projection_matrix[16])
-{
-	//TODO
-	return true;
-}
-*/
 
 struct terrain_grid {
 	struct terrain *ts;
@@ -346,9 +298,196 @@ struct terrain * tgpos(struct terrain_grid *tg, float fx, float fy)
 
 vec3 nearest_terrain_origin(vec3 pos, float terrain_width, float terrain_depth)
 {
-		unsigned int x = fmod(fmod(pos.x, terrain_width) + terrain_width, terrain_width);
-		unsigned int z = fmod(fmod(pos.z, terrain_depth) + terrain_depth, terrain_depth);
-		return (vec3){{pos.x - x, 0, pos.z - z}};
+	unsigned int x = fmod(fmod(pos.x, terrain_width) + terrain_width, terrain_width);
+	unsigned int z = fmod(fmod(pos.z, terrain_depth) + terrain_depth, terrain_depth);
+	return (vec3){{pos.x - x, 0, pos.z - z}};
+}
+
+
+/*
+bool terrain_in_frustrum(struct terrain *t, amat4 camera, float projection_matrix[16])
+{
+	//TODO
+	return true;
+}
+*/
+
+//Generates an initial heightmap terrain and associated normals.
+void populate_terrain(struct terrain *t, vec3 world_pos, height_map_func height)
+{
+	t->pos = world_pos;
+	//Generate vertices.
+	for (int i = 0; i < t->numrows; i++) {
+		for (int j = 0; j < t->numcols; j++) {
+			int offset = (t->numcols * i) + j;
+			vec3 pos = world_pos;
+			pos.y = height(world_pos);
+			float intensity = pow(pos.y/100.0, 2);
+			vec3 color = {{intensity, intensity, intensity}};
+			vec3 norm = height_map_normal(height, pos);
+			t->positions[offset] = pos;
+			t->normals[offset] = norm;
+			t->colors[offset] = color;
+		}
+	}
+}
+
+//For n rows of triangle strips, the array of indices must be of length n^2 + 3n.
+int triangle_tile_indices(GLuint indices[], int numrows)
+{
+	int written = 0;
+	for (int i = 0; i < numrows; i++) {
+		int start_index = ((i+2)*(i+1))/2;
+		for (int j = start_index; j < start_index + i + 1; j++) {
+			indices[written++] = j;
+			indices[written++] = j - i - 1;
+		}
+		indices[written++] = start_index + i + 1;
+		indices[written++] = PRIMITIVE_RESTART_INDEX;
+	}
+	return written;
+}
+
+//For n rows of triangle strips, the array of vertices must be of length (n+2)(n+1)/2
+int triangle_tile_vertices(vec3 vertices[], int numrows, vec3 a, vec3 b, vec3 c)
+{
+	int written = 0;
+	vertices[written++] = a;
+	for (int i = 1; i <= numrows; i++) {
+		float f1 = (float)i/(numrows);
+		vec3 left = vec3_lerp(a, b, f1);
+		vec3 right = vec3_lerp(a, c, f1);
+		for (int j = 0; j <= i; j++) {
+			float f2 = (float)j/(i);
+			vertices[written++] = vec3_lerp(left, right, f2); 
+		}
+	}
+	return written;
+}
+
+int square_tile_indices(GLuint indices[], int numrows, int numcols)
+{
+	int written = 0;
+	for (int i = 0; i < (numrows - 1); i++) {
+		int j = 0;
+		int col_offset = i*(numcols*2+1);
+		for (j = 0; j < numcols; j++) {
+			indices[col_offset + j*2]     = i*numcols + j + numcols;
+			indices[col_offset + j*2 + 1] = i*numcols + j;
+		}
+		indices[col_offset + j*2] = PRIMITIVE_RESTART_INDEX;
+	}
+	return written; //TODO, make this return the actual number written.
+}
+
+//Creates a terrain struct, including handles for various OpenGL objects
+//and storage for the positions, normals, colors, and indices.
+//Should be freed by the caller, using free_terrain.
+//Later note: Why is the number of rows and columns referring to the number of vertices?
+struct terrain new_terrain(int numrows, int numcols)
+{
+	numrows++;
+	numcols++;
+	struct terrain tmp;
+	tmp.in_frustrum = true;
+	tmp.bg.index_count = (2 * numcols + 1) * (numrows - 1);
+	tmp.atrlen = sizeof(vec3) * numrows * numcols;
+	tmp.indlen = sizeof(GLuint) * tmp.bg.index_count;
+	tmp.positions = (vec3 *)malloc(tmp.atrlen);
+	tmp.normals   = (vec3 *)malloc(tmp.atrlen);
+	tmp.colors    = (vec3 *)malloc(tmp.atrlen);
+	tmp.indices = (GLuint *)malloc(tmp.indlen);
+	tmp.numrows = numrows;
+	tmp.numcols = numcols;
+	if (!tmp.positions || !tmp.normals || !tmp.colors || !tmp.indices)
+		printf("Malloc didn't work lol\n");
+	tmp.bg.primitive_type = GL_TRIANGLE_STRIP;
+	glGenVertexArrays(1, &tmp.bg.vao);
+	glGenBuffers(LENGTH(tmp.bg.buffer_handles), tmp.bg.buffer_handles);
+	glGenBuffers(1, &tmp.bg.ibo);
+	glBindVertexArray(tmp.bg.vao);
+	setup_attrib_for_draw(effects.forward.vPos,    tmp.bg.vbo, GL_FLOAT, 3);
+	setup_attrib_for_draw(effects.forward.vNormal, tmp.bg.nbo, GL_FLOAT, 3);
+	setup_attrib_for_draw(effects.forward.vColor,  tmp.bg.cbo, GL_FLOAT, 3);
+	//Generate indices
+	square_tile_indices(tmp.indices, numrows, numcols);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tmp.bg.ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, tmp.indlen, tmp.indices, GL_STATIC_DRAW);
+	return tmp;
+}
+
+//Creates a terrain struct, including handles for various OpenGL objects
+//and storage for the positions, normals, colors, and indices.
+//Should be freed by the caller, using free_terrain.
+struct terrain new_triangular_terrain(int numrows)
+{
+	struct terrain tmp;
+	tmp.in_frustrum = true;
+	tmp.bg.index_count = numrows*numrows + 3*numrows;
+	tmp.atrlen = sizeof(vec3) * ((numrows + 2) * (numrows + 1)) / 2;
+	tmp.indlen = sizeof(GLuint) * tmp.bg.index_count;
+	tmp.positions = (vec3 *)malloc(tmp.atrlen);
+	tmp.normals   = (vec3 *)malloc(tmp.atrlen);
+	tmp.colors    = (vec3 *)malloc(tmp.atrlen);
+	tmp.indices = (GLuint *)malloc(tmp.indlen);
+	tmp.numrows = numrows;
+	tmp.numcols = numrows;
+	if (!tmp.positions || !tmp.normals || !tmp.colors || !tmp.indices)
+		printf("Malloc didn't work lol\n");
+	tmp.bg.primitive_type = GL_TRIANGLE_STRIP;
+	glGenVertexArrays(1, &tmp.bg.vao);
+	glGenBuffers(LENGTH(tmp.bg.buffer_handles), tmp.bg.buffer_handles);
+	glGenBuffers(1, &tmp.bg.ibo);
+	glBindVertexArray(tmp.bg.vao);
+	setup_attrib_for_draw(effects.forward.vPos,    tmp.bg.vbo, GL_FLOAT, 3);
+	setup_attrib_for_draw(effects.forward.vNormal, tmp.bg.nbo, GL_FLOAT, 3);
+	setup_attrib_for_draw(effects.forward.vColor,  tmp.bg.cbo, GL_FLOAT, 3);
+	//Generate indices
+
+	int numindices = triangle_tile_indices(tmp.indices, numrows);
+	assert(tmp.bg.index_count == numindices);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tmp.bg.ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, tmp.indlen, tmp.indices, GL_STATIC_DRAW);
+	return tmp;
+}
+
+//Generates an initial heightmap terrain and associated normals.
+void populate_triangular_terrain(struct terrain *t, vec3 world_pos, float base, height_map_func height)
+{
+	t->pos = world_pos;
+	vec3 a = vec3_add(world_pos, (vec3){{0.0,       0.0,  base*(sqrt(3.0)/4.0)}});
+	vec3 b = vec3_add(world_pos, (vec3){{-base/2.0, 0.0, -base*(sqrt(3.0)/4.0)}});
+	vec3 c = vec3_add(world_pos, (vec3){{ base/2.0, 0.0, -base*(sqrt(3.0)/4.0)}});
+	int numverts = triangle_tile_vertices(t->positions, t->numrows, a, b, c);
+	assert(t->atrlen/sizeof(vec3) == numverts);
+	//Generate vertices.
+	for (int i = 0; i < numverts; i++) {
+		vec3 *ppos = &t->positions[i];
+		ppos->y = height(*ppos);
+		float intensity = pow(ppos->y/100.0, 2);
+		t->normals[i] = height_map_normal(height, *ppos);
+		t->colors[i] = (vec3){{intensity, intensity, intensity}};
+	}
+}
+
+//Generates an initial heightmap terrain and associated normals.
+void populate_triangular_terrain2(struct terrain *t, vec3 world_pos, float base, height_map_func height)
+{
+	t->pos = world_pos;
+	vec3 a = vec3_add(world_pos, (vec3){{0.0,       0.0,  base*(sqrt(3.0)/4.0)}});
+	vec3 b = vec3_add(world_pos, (vec3){{-base/2.0, 0.0, -base*(sqrt(3.0)/4.0)}});
+	vec3 c = vec3_add(world_pos, (vec3){{ base/2.0, 0.0, -base*(sqrt(3.0)/4.0)}});
+	int numverts = triangle_tile_vertices(t->positions, t->numrows, a, b, c);
+	assert(t->atrlen/sizeof(vec3) == numverts);
+	//Generate vertices.
+	for (int i = 0; i < numverts; i++) {
+		vec3 *ppos = &t->positions[i];
+		ppos->y = height(*ppos);
+		t->normals[i] = height_map_normal(height, *ppos);
+		float intensity = pow(ppos->y/100.0, 2);
+		t->colors[i] = (vec3){{intensity, intensity, intensity}};
+	}
 }
 
 // //Use only terrain grids with odd numbers of tiles!

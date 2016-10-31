@@ -1,6 +1,7 @@
 #ifndef PROCEDURAL_TERRAIN_H
 #define PROCEDURAL_TERRAIN_H
 #include <glalgebra.h>
+#include <stdbool.h>
 #include "buffer_group.h"
 
 struct terrain {
@@ -16,14 +17,19 @@ struct terrain {
 	vec3 pos;
 	bool in_frustrum;
 };
+typedef float (*height_map_func)(vec3);
 //struct buffer_group buffer_grid(int numrows, int numcols);
-vec3 height_map1(float x, float z);
-vec3 height_map2(float x, float z);
+float height_map1(vec3 pos);
+float height_map2(vec3 pos);
+float height_map_flat(vec3 pos);
 struct terrain new_terrain(int numrows, int numcols);
+struct terrain new_triangular_terrain(int numrows);
 void free_terrain(struct terrain *t);
 void buffer_terrain(struct terrain *t);
-void populate_terrain(struct terrain *t, vec3 world_pos, vec3 (*height_map)(float x, float y));
+void populate_terrain(struct terrain *t, vec3 world_pos, height_map_func);
+void populate_triangular_terrain(struct terrain *t, vec3 world_pos, float base, height_map_func);
 void erode_terrain(struct terrain *t, int iterations);
-void recalculate_terrain_normals(struct terrain *t);
+void recalculate_terrain_normals_cheap(struct terrain *t);
+void recalculate_terrain_normals_expensive(struct terrain *t);
 
 #endif
