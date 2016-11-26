@@ -43,15 +43,14 @@ union effect_list {
 		EFFECT shadow;
 		EFFECT skybox;
 		EFFECT stars;
-		EFFECT wireframe;
 	};
-	EFFECT all[6];
+	EFFECT all[5];
 };
 
 union effect_list effects;
 
 const char *uniform_strings[15];
 const char *attribute_strings[3];
-const char *shader_file_paths[18];
+const char *shader_file_paths[15];
 
 #endif

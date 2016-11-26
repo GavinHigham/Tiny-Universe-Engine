@@ -12,10 +12,10 @@ enum {
 //Add more vertex attribute buffer flags as powers-of-two
 
 struct buffer_group {
-	GLuint vao, ibo, aibo;
+	GLuint vao, aibo, ibo;
 	union {
 		struct {
-			GLuint nbo, cbo, vbo;
+			GLuint cbo, nbo, vbo; //Must be in the same order as the attributes in effects.h (until I fix that).
 		};
 		GLuint buffer_handles[sizeof(attribute_strings)/sizeof(attribute_strings[0])];
 	};

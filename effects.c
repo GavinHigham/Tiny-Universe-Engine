@@ -18,10 +18,7 @@ const char *shader_file_paths[] = {
 	"shaders/skybox.fs",
 	"shaders/stars.vs",
 	NULL,
-	"shaders/stars.fs",
-	"shaders/wireframe.vs",
-	NULL,
-	"shaders/wireframe.fs"
+	"shaders/stars.fs"
 };
 
 const char *uniform_strings[] = {"ambient_pass", "camera_position", "eye_pos", "gLightPos", "model_matrix", "model_view_normal_matrix", "model_view_projection_matrix", "projection_view_matrix", "sun_color", "sun_direction", "uLight_attr", "uLight_col", "uLight_pos", "uOrigin", "zpass"};

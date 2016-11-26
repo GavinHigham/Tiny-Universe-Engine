@@ -57,7 +57,7 @@ void drawf(char *format, ...)
 {
 	char *str = format;
 	char *end = NULL;
-	char *sep = " %";
+	char *sep = " -%";
 	char *valid = "^*1234fiumx."; //Valid format specifier chars.
 	GLenum transp = GL_TRUE;
 	va_list args;
@@ -84,11 +84,9 @@ void drawf(char *format, ...)
 				transp = GL_FALSE;
 				str++;
 			}
-			if (*str == 'm') { //"%m" means an amat4 is being passed.
-				amat4 val = va_arg(args, amat4);
-				GLfloat buf[16];
-				amat4_to_array(val, buf);
-				glUniformMatrix4fv(name, 1, transp, buf);
+			if (*str == 'm') {
+				GLfloat *val = va_arg(args, GLfloat *);
+				glUniformMatrix4fv(name, 1, transp, val);
 			} else {
 				GLfloat *val = va_arg(args, GLfloat *);
 				drawf_mat(name, transp, val, *str - '0', *(end-1) - '0');

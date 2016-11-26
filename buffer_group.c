@@ -16,16 +16,20 @@ struct buffer_group new_buffer_group(int (*buffering_function)(struct buffer_gro
 {
 	struct buffer_group tmp;
 	glGenVertexArrays(1, &tmp.vao);
-	glGenBuffers(LENGTH(effect->attr), tmp.buffer_handles);
-	glGenBuffers(1, &tmp.ibo);
-	glGenBuffers(1, &tmp.aibo);
 	glBindVertexArray(tmp.vao);
+	glGenBuffers(LENGTH(effect->attr), tmp.buffer_handles);
+	glGenBuffers(1, &tmp.aibo);
+	glGenBuffers(1, &tmp.ibo);
+
 	for (int i = 0; i < LENGTH(effect->attr); i++) {
-		if (effect->attr[i] != -1)
+		if (effect->attr[i] != -1) {
 			setup_attrib_for_draw(effect->attr[i], tmp.buffer_handles[i], GL_FLOAT, 3);
+		}
 	}
+
 	tmp.primitive_type = GL_TRIANGLES;
 	tmp.index_count = buffering_function(tmp);
+	tmp.flags = BG_USING_ADJACENCIES | BG_BUFFER_NORMALS | BG_BUFFER_COLORS;
 	return tmp;
 }
 
@@ -34,12 +38,14 @@ struct buffer_group new_custom_buffer_group(int (*buffering_function)(struct buf
 	struct buffer_group tmp;
 	glGenBuffers(1, &tmp.vbo);
 	glGenBuffers(1, &tmp.ibo);
+
 	if (buffer_flags & BG_USING_ADJACENCIES)
 		glGenBuffers(1, &tmp.aibo);
 	if (buffer_flags & BG_BUFFER_NORMALS)
 		glGenBuffers(1, &tmp.nbo);
 	if (buffer_flags & BG_BUFFER_COLORS)
 		glGenBuffers(1, &tmp.cbo);
+
 	tmp.flags = buffer_flags;
 	tmp.primitive_type = primitive_type;
 	tmp.index_count = buffering_function(tmp);
@@ -50,11 +56,13 @@ void delete_buffer_group(struct buffer_group tmp)
 {
 	glDeleteBuffers(1, &tmp.vbo);
 	glDeleteBuffers(1, &tmp.ibo);
+
 	if (tmp.flags & BG_USING_ADJACENCIES)
 		glDeleteBuffers(1, &tmp.aibo);
 	if (tmp.flags & BG_BUFFER_NORMALS)
 		glDeleteBuffers(1, &tmp.nbo);
 	if (tmp.flags & BG_BUFFER_COLORS)
 		glDeleteBuffers(1, &tmp.cbo);
+
 	glDeleteVertexArrays(1, &tmp.vao);
 }

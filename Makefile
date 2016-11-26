@@ -9,7 +9,7 @@ SHADER_GENERATOR = /usr/local/bin/ceffectpp
 CONFIGURATION_OBJECTS = configuration/configuration_file.o
 OBJECTS = main.o init.o image_load.o keyboard.o render.o buffer_group.o controller.o \
 deferred_framebuffer.o lights.o func_list.o shader_utils.o gl_utils.o stars.o procedural_terrain.o \
-effects.o drawf.o \
+effects.o drawf.o draw.o drawable.o terrain_erosion.o \
 open-simplex-noise-in-c/open-simplex-noise.o \
 $(MATH_OBJECTS) $(MODELS_OBJECTS) $(CONFIGURATION_OBJECTS)
 EXE = sock
