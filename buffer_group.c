@@ -36,6 +36,8 @@ struct buffer_group new_buffer_group(int (*buffering_function)(struct buffer_gro
 struct buffer_group new_custom_buffer_group(int (*buffering_function)(struct buffer_group), int buffer_flags, GLenum primitive_type)
 {
 	struct buffer_group tmp;
+	glGenVertexArrays(1, &tmp.vao);
+	glBindVertexArray(tmp.vao);
 	glGenBuffers(1, &tmp.vbo);
 	glGenBuffers(1, &tmp.ibo);
 

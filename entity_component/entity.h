@@ -15,6 +15,12 @@ we can easily handle interactions between vast numbers of possible entities, wit
 All components of a given type are stored in a single array together. This gives a high degree of memory locality
 to the update process for any given type of component.
 
+Components should be named as adjectives, referring to properties of the entity they are attached to. For example,
+an entity with a "Damagable" component is damagable. This makes code that checks for properties of an entity read
+nicely, for example:
+if (entity.damagable)
+	damage(entity);
+
 An entity instance can be used as the blueprint for other instances, as if instantiating from a class. The entity
 that other entities are copied from would be known as a "prefab", "prototype", or "blueprint" in this case.
 
@@ -29,6 +35,8 @@ typedef struct physical_component {
 typedef struct entity {
 	Drawable *drawable;
 	Physical *physical;
+	//Occludable
+	//Occludent
 } Entity;
 
 Entity global_entities[512]; //Later this can be an expandable arraylist.

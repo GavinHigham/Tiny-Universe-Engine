@@ -61,6 +61,5 @@ void draw_skybox_forward(EFFECT *e, struct buffer_group bg, amat4 model_matrix)
 	amat4_to_array(model_matrix, mm);
 	amat4_buf_mult(proj_view_mat, mm, mvpm);
 	drawf("-m-m-*3f-*3f", e->model_matrix, mm, e->model_view_projection_matrix, mvpm, e->camera_position, model_matrix.T, e->sun_direction, sun_direction.A);
-	//Draw!
 	glDrawElements(GL_TRIANGLES, bg.index_count, GL_UNSIGNED_INT, NULL);
 }

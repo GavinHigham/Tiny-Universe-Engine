@@ -25,6 +25,8 @@
 float FOV = M_PI/2.5;
 float far_distance = 2000;
 int PRIMITIVE_RESTART_INDEX = 0xFFFFFFFF;
+float screen_width = SCREEN_WIDTH;
+float screen_height = SCREEN_HEIGHT;
 const int num_x_tiles = 1;
 const int num_z_tiles = 1;
 bool DEFERRED_MODE = false;
@@ -73,7 +75,7 @@ static void init_models()
 	init_heap_drawable(&d_room,         draw_forward,        &effects.forward, &room_frame,         buffer_newroom);
 	init_heap_drawable(&d_skybox,       draw_skybox_forward, &effects.skybox,  &skybox_frame,       buffer_cube);
 
-	icosphere_buffers    = new_custom_buffer_group(buffer_icosphere, 0, GL_TRIANGLES);
+	//icosphere_buffers = new_custom_buffer_group(buffer_icosphere, 0, GL_TRIANGLES);
 
 	float terrain_x = 500;
 	float terrain_z = 500;
@@ -96,7 +98,7 @@ static void init_models()
 
 static void deinit_models()
 {
-	delete_buffer_group(icosphere_buffers);
+	//delete_buffer_group(icosphere_buffers);
 
 	deinit_drawable(&d_ship);
 	deinit_drawable(&d_newship);
@@ -125,7 +127,9 @@ static void init_lights()
 void handle_resize(int width, int height)
 {
 	glViewport(0, 0, width, height);
-	make_projection_matrix(FOV, (float)width/(float)height, -1, -far_distance, proj_mat, LENGTH(proj_mat));	
+	screen_width = width;
+	screen_height = height;
+	make_projection_matrix(FOV, screen_width/screen_height, -1, -far_distance, proj_mat, LENGTH(proj_mat));	
 }
 
 //Set up everything needed to start rendering frames.
@@ -138,7 +142,7 @@ void init_render()
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-	make_projection_matrix(FOV, (float)SCREEN_WIDTH/(float)SCREEN_HEIGHT, -1, -far_distance, proj_mat, LENGTH(proj_mat));
+	make_projection_matrix(FOV, screen_width/screen_height, -1, -far_distance, proj_mat, LENGTH(proj_mat));
 
 	init_models();
 	init_lights();
@@ -213,7 +217,7 @@ void render()
 	//If we're outside the shadow volume, we can use z-pass instead of z-fail.
 	//z-pass is faster, and not patent-encumbered.
 	int zpass = key_state[SDL_SCANCODE_7];
-	int apass = !key_state[SDL_SCANCODE_5]; //Ambient pass
+	int apass = key_state[SDL_SCANCODE_5]; //Ambient pass
 
 	//Draw in wireframe if 'z' is held down.
 	if (key_state[SDL_SCANCODE_Z])

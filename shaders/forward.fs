@@ -107,9 +107,9 @@ void main() {
 	final_color += (diffuse_frag + specular_frag);
 
 	//Tone mapping.
-	// float x = 0.0001;
-	// final_color = (final_color * (6.2 * x + 0.5))/(final_color * (6.2 * final_color + 1.7) + 0.06); 
-	// final_color = final_color / (final_color + vec3(1.0));
+	float x = 0.0001;
+	final_color = (final_color * (6.2 * x + 0.5))/(final_color * (6.2 * final_color + 1.7) + 0.06); 
+	final_color = final_color / (final_color + vec3(1.0));
 	//Gamma correction.
 	final_color = pow(final_color, vec3(1.0 / gamma));
 	LFragment = vec4(final_color, 1.0);
