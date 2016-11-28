@@ -88,11 +88,11 @@ static GLuint compile_shader(GLenum type, const GLchar *source, const char *path
 			printf("Unable to compile %s %d! (Path: %s)\n", shader_enum_to_string(type), shader, path);
 			printLog(shader, false);
 			glDeleteShader(shader);
-			return 0;
+			return -1; //Means compilation failure.
 		}
 		return shader;
 	}
-	return 0;
+	return 0; //Means that shader is nonexistant, silently ignore.
 }
 
 static int compile_effect(const char *file_paths[], GLchar *shader_texts[], GLenum shader_types[], int num, GLuint program_handle)
@@ -103,13 +103,16 @@ static int compile_effect(const char *file_paths[], GLchar *shader_texts[], GLen
 	for (int i = 0; i < num; i++) {
 		shader_handles[i] = compile_shader(shader_types[i], (const GLchar *)shader_texts[i], file_paths[i], program_handle);
 		glAttachShader(program_handle, shader_handles[i]);
+		success = success && (shader_handles[i] != -1);
 	}
 
-	glLinkProgram(program_handle);
-	glGetProgramiv(program_handle, GL_LINK_STATUS, &success);
-	if (success != true) {
-		printf("Unable to link program %d!\n", program_handle);
-		printLog(program_handle, true);
+	if (success) { //If we've successfully compiled all shaders (it's possible to fail compile but succeed linking, which is ugly.)
+		glLinkProgram(program_handle);
+		glGetProgramiv(program_handle, GL_LINK_STATUS, &success);
+		if (success != true) {
+			printf("Unable to link program %d!\n", program_handle);
+			printLog(program_handle, true);
+		}
 	}
 
 	for (int i = 0; i < num; i++)
@@ -153,7 +156,7 @@ void load_effects(
 		GLuint program_handle = glCreateProgram();
 		int offset = i*nsh;
 
-		if (compile_effect(paths+offset, shader_texts+offset, shader_types, nsh, program_handle) == 0) {
+		if (compile_effect(&paths[offset], &shader_texts[offset], shader_types, nsh, program_handle) == 0) {
 			init_attrs(program_handle, astrs, effects[i].attr, nastrs);
 			init_unifs(program_handle, ustrs, effects[i].unif, nustrs);
 			glDeleteProgram(effects[i].handle); //Delete old program
