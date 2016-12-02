@@ -15,6 +15,7 @@ struct terrain {
 	int numrows;
 	int numcols;
 	vec3 pos;
+	vec3 points[3]; //The three triangular points that make it up if it's a triangular tile.
 	bool in_frustrum;
 };
 typedef float (*height_map_func)(vec3);
@@ -27,7 +28,7 @@ struct terrain new_triangular_terrain(int numrows);
 void free_terrain(struct terrain *t);
 void buffer_terrain(struct terrain *t);
 void populate_terrain(struct terrain *t, vec3 world_pos, height_map_func);
-void populate_triangular_terrain(struct terrain *t, vec3 world_pos, float base, height_map_func);
+void populate_triangular_terrain(struct terrain *t, vec3 points[3], height_map_func);
 void erode_terrain(struct terrain *t, int iterations);
 void recalculate_terrain_normals_cheap(struct terrain *t);
 void recalculate_terrain_normals_expensive(struct terrain *t);

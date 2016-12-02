@@ -235,13 +235,12 @@ struct terrain new_triangular_terrain(int numrows)
 }
 
 //Generates an initial heightmap terrain and associated normals.
-void populate_triangular_terrain(struct terrain *t, vec3 world_pos, float base, height_map_func height)
+void populate_triangular_terrain(struct terrain *t, vec3 points[3], height_map_func height)
 {
-	t->pos = world_pos;
-	vec3 a = vec3_add(world_pos, (vec3){{0.0,       0.0,  base*(sqrt(3.0)/4.0)}});
-	vec3 b = vec3_add(world_pos, (vec3){{-base/2.0, 0.0, -base*(sqrt(3.0)/4.0)}});
-	vec3 c = vec3_add(world_pos, (vec3){{ base/2.0, 0.0, -base*(sqrt(3.0)/4.0)}});
-	int numverts = triangle_tile_vertices(t->positions, t->numrows, a, b, c);
+	t->pos = vec3_scale(vec3_add(vec3_add(points[0], points[1]), points[2]), 1.0/3.0);
+	for (int i = 0; i < 3; i++)
+		t->points[i] = points[i];
+	int numverts = triangle_tile_vertices(t->positions, t->numrows, points[0], points[1], points[2]);
 	assert(t->atrlen/sizeof(vec3) == numverts);
 	//Generate vertices.
 	for (int i = 0; i < numverts; i++) {
@@ -249,25 +248,6 @@ void populate_triangular_terrain(struct terrain *t, vec3 world_pos, float base, 
 		ppos->y = height(*ppos);
 		float intensity = pow(ppos->y/100.0, 2);
 		t->normals[i] = height_map_normal(height, *ppos);
-		t->colors[i] = (vec3){{intensity, intensity, intensity}};
-	}
-}
-
-//Generates an initial heightmap terrain and associated normals.
-void populate_triangular_terrain2(struct terrain *t, vec3 world_pos, float base, height_map_func height)
-{
-	t->pos = world_pos;
-	vec3 a = vec3_add(world_pos, (vec3){{0.0,       0.0,  base*(sqrt(3.0)/4.0)}});
-	vec3 b = vec3_add(world_pos, (vec3){{-base/2.0, 0.0, -base*(sqrt(3.0)/4.0)}});
-	vec3 c = vec3_add(world_pos, (vec3){{ base/2.0, 0.0, -base*(sqrt(3.0)/4.0)}});
-	int numverts = triangle_tile_vertices(t->positions, t->numrows, a, b, c);
-	assert(t->atrlen/sizeof(vec3) == numverts);
-	//Generate vertices.
-	for (int i = 0; i < numverts; i++) {
-		vec3 *ppos = &t->positions[i];
-		ppos->y = height(*ppos);
-		t->normals[i] = height_map_normal(height, *ppos);
-		float intensity = pow(ppos->y/100.0, 2);
 		t->colors[i] = (vec3){{intensity, intensity, intensity}};
 	}
 }

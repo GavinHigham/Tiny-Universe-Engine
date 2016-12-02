@@ -41,7 +41,6 @@ struct func_list update_func_list = {
 
 struct buffer_group icosphere_buffers;
 struct terrain ground[num_x_tiles*num_z_tiles];
-struct terrain triangle_ground;
 GLuint gVAO = 0;
 amat4 inv_eye_frame;
 amat4 eye_frame = {.a = MAT3_IDENT,          .T = {6, 0, 0}};
@@ -63,6 +62,58 @@ GLfloat proj_mat[16];
 GLfloat proj_view_mat[16];
 
 Drawable d_ship, d_newship, d_teardropship, d_room, d_skybox;
+
+#include "table.h"
+//Add this to makefile later.
+#include "table.c"
+
+enum {
+	NUM_TRI_ROWS = 1000,
+	NUM_TRI_DIVS = 4
+};
+
+LISTNODE *terrain_list = NULL;
+
+static void subdiv_triangle_terrain(struct terrain *in, struct terrain *out[NUM_TRI_DIVS])
+{
+	vec3 new_points[] = {
+		vec3_lerp(in->points[0], in->points[1], 0.5),
+		vec3_lerp(in->points[0], in->points[2], 0.5),
+		vec3_lerp(in->points[1], in->points[2], 0.5)
+	};
+
+	//populate_triangular_terrain(out[0], (vec3[3]){in->points[0], in->points[1], in->points[2]}, height_map2);
+	populate_triangular_terrain(out[0], (vec3[3]){in->points[0], new_points[0], new_points[1]}, height_map2);
+	populate_triangular_terrain(out[1], (vec3[3]){new_points[0], in->points[1], new_points[2]}, height_map2);
+	populate_triangular_terrain(out[2], (vec3[3]){new_points[0], new_points[2], new_points[1]}, height_map2);
+	populate_triangular_terrain(out[3], (vec3[3]){new_points[1], new_points[2], in->points[2]}, height_map2);
+
+	for (int i = 0; i < NUM_TRI_DIVS; i++)
+		buffer_terrain(out[i]);
+
+	printf("Created 4 new terrains from terrain %p\n", in);
+}
+
+void subdiv_triangle_terrain_list(LISTNODE **list)
+{
+	LISTNODE *new_list = NULL;
+	for (LISTNODE *n = *list; n; n = n->next) {
+		struct terrain *t = (struct terrain *)n->data;
+		struct terrain *new_t[NUM_TRI_DIVS];
+		for (int i = 0; i < NUM_TRI_DIVS; i++) {
+			new_t[i] = malloc(sizeof(struct terrain));
+			*new_t[i] = new_triangular_terrain(NUM_TRI_ROWS);
+			LISTNODE *new_n = listnode_new(NULL);
+			new_n->data = new_t[i];
+			new_list = list_prepend(new_list, new_n);
+		}
+		subdiv_triangle_terrain(t, new_t);
+		free_terrain(t);
+		free(t);
+	}
+	list_free(*list);
+	*list = new_list;
+}
 
 static void init_models()
 {
@@ -91,9 +142,17 @@ static void init_models()
 		}
 	}
 
-	triangle_ground = new_triangular_terrain(100);
-	populate_triangular_terrain(&triangle_ground, tri_frame.t, 500, height_map2);
-	buffer_terrain(&triangle_ground);
+	struct terrain *t = malloc(sizeof(struct terrain));
+	*t = new_triangular_terrain(NUM_TRI_ROWS);
+	float base = 500;
+	vec3 a = vec3_add(tri_frame.t, (vec3){{0.0,       0.0,  base*(sqrt(3.0)/4.0)}});
+	vec3 b = vec3_add(tri_frame.t, (vec3){{-base/2.0, 0.0, -base*(sqrt(3.0)/4.0)}});
+	vec3 c = vec3_add(tri_frame.t, (vec3){{ base/2.0, 0.0, -base*(sqrt(3.0)/4.0)}});
+	populate_triangular_terrain(t, (vec3[3]){a, b, c}, height_map2);
+	buffer_terrain(t);
+	LISTNODE *n = listnode_new(NULL);
+	n->data = t;
+	terrain_list = list_prepend(terrain_list, n);
 }
 
 static void deinit_models()
@@ -108,7 +167,13 @@ static void deinit_models()
 
 	for (int i = 0; i < num_x_tiles * num_z_tiles; i++)
 		free_terrain(&ground[i]);
-	free_terrain(&triangle_ground);
+
+	for (LISTNODE *n = terrain_list; n; n = n->next) {
+		free_terrain(n->data);
+		free(n->data);
+	}
+	list_free(terrain_list);
+	terrain_list = NULL;
 }
 
 static void init_lights()
@@ -118,10 +183,10 @@ static void init_lights()
 	new_point_light(&point_lights, (vec3){{0, 2, 0}},   (vec3){{1.0, 1.0, 1.0}}, 0.0,     0.0,    1,    5);
 	new_point_light(&point_lights, (vec3){{0, 2, 0}},   (vec3){{0.8, 0.8, 1.0}}, 0.0,     0.3,    0.04, 0.4);
 	new_point_light(&point_lights, (vec3){{10, 4, -7}}, (vec3){{0.4, 1.0, 0.4}}, 0.1,     0.14,   0.07, 0.75);
-	// point_lights.shadowing[0] = true;
-	// point_lights.shadowing[1] = true;
-	// point_lights.shadowing[2] = true;
-	// point_lights.shadowing[3] = true;
+	point_lights.shadowing[0] = true;
+	point_lights.shadowing[1] = true;
+	//point_lights.shadowing[2] = true;
+	//point_lights.shadowing[3] = true;
 }
 
 void handle_resize(int width, int height)
@@ -195,10 +260,12 @@ static void forward_update_point_light(EFFECT *effect, struct point_light_attrib
 }
 
 //Eventually I'll have an algorithm to calculate potential visible set, etc.
-static Drawable *pvs[] = {&d_newship, &d_room};
+//static Drawable *pvs[] = {&d_newship, &d_room};
+static Drawable *pvs[] = {};
 
 void render()
 {
+	bool wireframe = false;
 	//This is really the wrong place to put all this.
 	{
 		inv_eye_frame = amat4_inverse(eye_frame); //Only need to do this once per frame.
@@ -209,7 +276,7 @@ void render()
 
 	glDepthMask(GL_TRUE);
 	glClearStencil(0);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glDepthFunc(GL_GREATER);
@@ -217,20 +284,24 @@ void render()
 	//If we're outside the shadow volume, we can use z-pass instead of z-fail.
 	//z-pass is faster, and not patent-encumbered.
 	int zpass = key_state[SDL_SCANCODE_7];
-	int apass = key_state[SDL_SCANCODE_5]; //Ambient pass
+	int apass = !key_state[SDL_SCANCODE_5]; //Ambient pass
 
 	//Draw in wireframe if 'z' is held down.
-	if (key_state[SDL_SCANCODE_Z])
+	wireframe = key_state[SDL_SCANCODE_Z];
+	if (wireframe)
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	else
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	//Depth prepass, can also be used as an ambient pass.
-	{
-		//glDrawBuffer(GL_NONE);
+	{ 
 		glUseProgram(effects.forward.handle);
 		if (apass) {
 			glUniform1i(effects.forward.ambient_pass, 1);
 			glUniform3fv(effects.forward.uLight_col, 1, sun_color.A);
 			glUniform3fv(effects.forward.uLight_pos, 1, sun_direction.A);
+		} else {
+			glDrawBuffer(GL_NONE); //Disable drawing to the color buffer if no ambient pass, save on fillrate.
 		}
 		glUniform3fv(effects.forward.camera_position, 1, eye_frame.T);
 
@@ -238,10 +309,15 @@ void render()
 		for (int i = 0; i < LENGTH(pvs); i++)
 			draw_drawable(pvs[i]);
 
-		//Draw terrain
+
+
+
+		//Draw terrain, which receives, but does not cast, stencil buffer shadows.
 		for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
 			draw_forward(&effects.forward, ground[i].bg, grid_frame);
-		draw_forward(&effects.forward, triangle_ground.bg, tri_frame);
+
+		for (LISTNODE *n = terrain_list; n; n = n->next)
+			draw_forward(&effects.forward, ((struct terrain *)n->data)->bg, tri_frame);
 
 		glUseProgram(effects.forward.handle);
 		checkErrors("After drawing into depth");
@@ -272,7 +348,6 @@ void render()
 			glUseProgram(effects.shadow.handle);
 			glUniform3fv(effects.shadow.gLightPos, 1, point_lights.position[i].A);
 			glUniform1i(effects.shadow.zpass, zpass);
-			//glDrawBuffer(GL_BACK);
 
 			for (int i = 0; i < LENGTH(pvs); i++)
 				draw_forward_adjacent(&effects.shadow, *pvs[i]->bg, *pvs[i]->frame);
@@ -314,9 +389,6 @@ void render()
 	skybox_frame.t = eye_frame.t;
 	draw_drawable(&d_skybox);
 
-	if (key_state[SDL_SCANCODE_Z])
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
 	checkErrors("After forward junk");
 }
 
@@ -340,6 +412,16 @@ void update(float dt)
 	if (key_state[SDL_SCANCODE_8] || key_state[SDL_SCANCODE_9])
 		for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
 			buffer_terrain(&ground[i]);
+
+	static bool divide = false;
+	if (key_state[SDL_SCANCODE_4]) {
+		divide = true;
+	} else {
+		if (divide) {
+			subdiv_triangle_terrain_list(&terrain_list);
+			divide = false;
+		}
+	}
 
 	//If you're moving forward, turn the light on to show it.
 	//point_lights.enabled_for_draw[2] = (axes[LEFTY] < 0)?true:false;

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdbool.h>
+#include <signal.h>
 #include <GL/glew.h>
 #include <SDL2/SDL.h>
 //#include <SDL2/SDL_opengl.h>

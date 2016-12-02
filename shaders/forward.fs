@@ -110,6 +110,7 @@ void main() {
 	float x = 0.0001;
 	final_color = (final_color * (6.2 * x + 0.5))/(final_color * (6.2 * final_color + 1.7) + 0.06); 
 	final_color = final_color / (final_color + vec3(1.0));
+	//final_color = final_color / (max(max(final_color.x, final_color.y), final_color.z) + 1);
 	//Gamma correction.
 	final_color = pow(final_color, vec3(1.0 / gamma));
 	LFragment = vec4(final_color, 1.0);
