@@ -9,7 +9,7 @@ SHADER_GENERATOR = /usr/local/bin/ceffectpp
 CONFIGURATION_OBJECTS = configuration/configuration_file.o
 OBJECTS = main.o init.o image_load.o keyboard.o render.o buffer_group.o controller.o \
 deferred_framebuffer.o lights.o func_list.o shader_utils.o gl_utils.o stars.o procedural_terrain.o \
-effects.o drawf.o draw.o drawable.o terrain_erosion.o \
+effects.o drawf.o draw.o drawable.o terrain_erosion.o dynamic_terrain.o \
 open-simplex-noise-in-c/open-simplex-noise.o \
 $(MATH_OBJECTS) $(MODELS_OBJECTS) $(CONFIGURATION_OBJECTS)
 EXE = sock
@@ -40,7 +40,7 @@ configuration_module:
 open-simplex-noise:
 	cd open-simplex-noise-in-c; make
 
-render.o: effects.o models_module
+render.o: effects.o procedural_terrain.h models_module
 
 buffer_group.h: effects.o
 

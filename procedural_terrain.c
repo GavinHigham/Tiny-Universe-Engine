@@ -205,6 +205,7 @@ struct terrain new_triangular_terrain(int numrows)
 {
 	struct terrain tmp;
 	tmp.in_frustrum = true;
+	tmp.buffered = false;
 	tmp.bg.index_count = numrows*numrows + 3*numrows;
 	tmp.atrlen = sizeof(vec3) * ((numrows + 2) * (numrows + 1)) / 2;
 	tmp.indlen = sizeof(GLuint) * tmp.bg.index_count;
@@ -252,6 +253,23 @@ void populate_triangular_terrain(struct terrain *t, vec3 points[3], height_map_f
 	}
 }
 
+void subdiv_triangle_terrain(struct terrain *in, struct terrain *out[NUM_TRI_DIVS])
+{
+	vec3 new_points[] = {
+		vec3_lerp(in->points[0], in->points[1], 0.5),
+		vec3_lerp(in->points[0], in->points[2], 0.5),
+		vec3_lerp(in->points[1], in->points[2], 0.5)
+	};
+
+	//populate_triangular_terrain(out[0], (vec3[3]){in->points[0], in->points[1], in->points[2]}, height_map2);
+	populate_triangular_terrain(out[0], (vec3[3]){in->points[0], new_points[0], new_points[1]}, height_map2);
+	populate_triangular_terrain(out[1], (vec3[3]){new_points[0], in->points[1], new_points[2]}, height_map2);
+	populate_triangular_terrain(out[2], (vec3[3]){new_points[0], new_points[2], new_points[1]}, height_map2);
+	populate_triangular_terrain(out[3], (vec3[3]){new_points[1], new_points[2], in->points[2]}, height_map2);
+
+	printf("Created 4 new terrains from terrain %p\n", in);
+}
+
 // //Use only terrain grids with odd numbers of tiles!
 // void terrain_grid_make_current(struct terrain_grid *tg, int numx, int numz, vec3 pos)
 // {
@@ -269,6 +287,7 @@ void populate_triangular_terrain(struct terrain *t, vec3 points[3], height_map_f
 //Buffers the position, normal and color buffers of a terrain struct onto the GPU.
 void buffer_terrain(struct terrain *t)
 {
+	glBindVertexArray(t->bg.vao);
 	glEnable(GL_PRIMITIVE_RESTART);
 	glPrimitiveRestartIndex(PRIMITIVE_RESTART_INDEX);
 	glBindBuffer(GL_ARRAY_BUFFER, t->bg.vbo);
@@ -278,4 +297,5 @@ void buffer_terrain(struct terrain *t)
 	glBindBuffer(GL_ARRAY_BUFFER, t->bg.cbo);
 	glBufferData(GL_ARRAY_BUFFER, t->atrlen, t->colors, GL_DYNAMIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, t->bg.ibo);
+	t->buffered = true;
 }

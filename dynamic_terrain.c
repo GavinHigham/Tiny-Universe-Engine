@@ -1,93 +1,113 @@
 #include <glalgebra.h>
+#include <math.h>
+#include <assert.h>
+#include "procedural_terrain.h"
 #include "dynamic_terrain.h"
 #include "buflist.h"
+#include "render.h"
 
 //Might want to have values for "minimum pixels per triangle" and "maximum pixels per triangle"
 //For that I need an equation that relates the number of pixels a triangle occupies with its size and distance.
 //Diameter scales linearly with distance
 //Triangle size can just be size of a tile / #triangles per row of tile
 
-int dt_depth_per_distance(float distance)
+float pixels_per_tri(float screen_width, float triangle_base, float triangle_distance, int triangle_rows)
 {
-	if (distance > 1000)
-		return 0;
-	else if (distance > 700)
-		return 1;
-	else if (distance > 50)
-		return 2;
-	else
-		return 3;
-	//Test values.
+	return screen_width*triangle_base / (2*triangle_rows*triangle_distance);
 }
 
-//Comparison function to order tiles by precomputed distance.
-int dt_node_distance_compare(const void *n1, const void *n2)
+int subdivisions_per_distance(float distance)
 {
-	return ((PDTNODE)n1)->dist > ((PDTNODE)n2)->dist;
+	return (int)fmin(log2(pixels_per_tri(screen_width, TRI_BASE_LEN, distance, NUM_TRI_ROWS))/MIN_PIXELS_PER_TRI, MAX_SUBDIVISIONS);
 }
 
-// int dt_node_closeness_compare(const void *n1, const void *n2)
-// {
-// 	return ((PDTNODE)n1)->dist < ((PDTNODE)n2)->dist;
-// }
-
-//Create higher-detail tiles to replace a lower-detail one.
-static void dt_subdivide(PDTNODE root, STACK *pool)
+DRAWLIST drawlist_prepend(DRAWLIST list, struct terrain *t)
 {
-	for (int i = 0; i < NUM_CHILDREN; i++) {
-		root->children[i] = stack_pop(pool);
-		//children positioning happens here
+	struct drawlist_node *new = malloc(sizeof(struct drawlist_node));
+	new->t = t;
+	new->next = list;
+	return new;
+}
+
+void drawlist_free(DRAWLIST list)
+{
+	if (list) {
+		drawlist_free(list->next);
+		free(list);
 	}
 }
 
-//Traverses an entire subtree, recycling every node.
-static void dt_recycle_subtree_children(PDTNODE root, STACK *pool) {
-	if (root == NULL || root->children[0] == NULL)
-		return;
-	for (int i = 0; i < NUM_CHILDREN; i++) {
-		dt_recycle_subtree_children(root->children[i], pool);
-		stack_push(pool, root->children[i]);
-		root->children[i] = NULL;
-	}
+PDTNODE new_tree(struct terrain t)
+{
+	PDTNODE new = malloc(sizeof(struct dynamic_terrain_node));
+	new->t = t;
+	new->children[0] = NULL;
+	return new;
 }
 
-//Recycle at least num tile nodes, taken from the furthest tiles in drawlist, into the tile pool.
-static void dt_recycle_distant_tiles(STACK *pool, HEAP *drawlist, int num)
+void subdivide_tree(PDTNODE tree, vec3 cam_pos, int depth)
 {
-	PDTNODE n = heap_rem(drawlist, dt_node_distance_compare);
-	dt_recycle_subtree_children(n, pool); //Recycle the subchildren of the furthest tile.
-	int available = stack_available(pool);
-	if (num > available) //If we need more space,
-		dt_recycle_distant_tiles(pool, drawlist, num - available); //continue with the next furthest.
-	heap_add(drawlist, n, dt_node_distance_compare);
-}
+	assert(tree);
+	tree->dist = fmin(
+		fmin(vec3_dist(tree->t.pos, cam_pos), vec3_dist(tree->t.points[0], cam_pos)),
+		fmin(vec3_dist(tree->t.points[1], cam_pos), vec3_dist(tree->t.points[2], cam_pos)));
+	//tree->dist = fmax(1.0, vec3_dist(tree->t.pos, cam_pos) - (TRI_BASE_LEN/sqrt(3)));
+	if (depth > subdivisions_per_distance(tree->dist))
+		return; //Node is divided enough, done.
 
-//Subdivides a terrain tile based on distance to camera,
-//and puts any sufficiently-divided tile into the drawlist.
-//Recycles most distant tiles into the pool if needed.
-int dt_add_children(PDTNODE current, STACK *pool, HEAP *drawlist, vec3 cam_pos, int splits)
-{
-	bool success = true;
-	current->dist = vec3_dist(current->midpoint, cam_pos);
-	//Find out how many times a tile should be split. Closer means more splits.
-	int total_splits = dt_depth_per_distance(current->dist);
-	//If the node we're visiting has been split enough, we're done.
-	if (splits == total_splits) {
-		heap_add(drawlist, current, dt_node_distance_compare);
-		return success;
+	//Create children and subdivide if they don't yet exist.
+	if (tree->children[0] == NULL) {
+		struct terrain *new_t[NUM_TRI_DIVS];
+		for (int i = 0; i < NUM_CHILDREN; i++) {
+			tree->children[i] = new_tree(new_triangular_terrain(NUM_TRI_ROWS));
+			new_t[i] = &(tree->children[i]->t);
+		}
+
+		subdiv_triangle_terrain(&(tree->t), new_t);
 	}
 
-	//Check if there are enough free nodes in the pool for new children.
-	int available = stack_available(pool);
-	if (NUM_CHILDREN > available)
-		dt_recycle_distant_tiles(pool, drawlist, NUM_CHILDREN - available);
-
-	//Generate new child terrain tiles.
-	dt_subdivide(current, pool);
-		
-	//Visit the new children to see if they need to be subdivided further.
+	//Visit children
 	for (int i = 0; i < NUM_CHILDREN; i++)
-		dt_add_children(current->children[i], pool, drawlist, cam_pos, splits+1);
-
-	return success;
+		subdivide_tree(tree->children[i], cam_pos, depth + 1);
 }
+
+void create_drawlist(PDTNODE tree, DRAWLIST *drawlist, int depth)
+{
+	if (depth > subdivisions_per_distance(tree->dist)) {
+		if (!tree->t.buffered)
+			buffer_terrain(&tree->t);
+		*drawlist = drawlist_prepend(*drawlist, &tree->t);
+		return;
+	}
+
+	assert(tree->children[0]); //The tree should have children if subdivide was called earlier.
+	for (int i = 0; i < NUM_CHILDREN; i++)
+		create_drawlist(tree->children[i], drawlist, depth + 1);
+}
+
+void prune_tree(PDTNODE tree, int depth)
+{
+	if (tree && depth > subdivisions_per_distance(tree->dist) + 5) {
+		for (int i = 0; i < NUM_CHILDREN; i++) {
+			prune_tree(tree->children[i], depth + 1);
+			free_terrain(&tree->children[i]->t);
+			free(tree->children[i]);
+		}
+		tree->children[0] = NULL;
+	}
+}
+
+void free_tree(PDTNODE tree)
+{
+	if (tree) {
+		if (tree->children[0]) {
+			for (int i = 0; i < NUM_CHILDREN; i++) {
+				free_tree(tree->children[i]);
+			}
+			tree->children[0] = NULL;
+		}
+		free_terrain(&tree->t);
+		free(tree);
+	}
+}
+

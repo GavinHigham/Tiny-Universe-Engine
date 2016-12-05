@@ -35,6 +35,7 @@ typedef struct physical_component {
 typedef struct entity {
 	Drawable *drawable;
 	Physical *physical;
+	Controllable *controllable;
 	//Occludable
 	//Occludent
 } Entity;

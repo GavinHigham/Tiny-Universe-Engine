@@ -3,6 +3,8 @@
 #include <GL/glew.h>
 #include "func_list.h"
 
+extern float screen_width;
+extern float screen_height;
 void update(float dt); //should be moved to its own source file when things get big
 void render();
 void init_render();

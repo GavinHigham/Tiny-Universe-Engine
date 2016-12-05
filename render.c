@@ -17,20 +17,22 @@
 #include "shader_utils.h"
 #include "gl_utils.h"
 #include "procedural_terrain.h"
+#include "dynamic_terrain.h"
 #include "stars.h"
 #include "draw.h"
 #include "drawf.h"
 #include "drawable.h"
 
-float FOV = M_PI/2.5;
-float far_distance = 2000;
+float FOV = M_PI/2.0;
+float far_distance = 5000;
 int PRIMITIVE_RESTART_INDEX = 0xFFFFFFFF;
-float screen_width = SCREEN_WIDTH;
-float screen_height = SCREEN_HEIGHT;
 const int num_x_tiles = 1;
 const int num_z_tiles = 1;
 bool DEFERRED_MODE = false;
 extern bool draw_light_bounds;
+
+float screen_width = SCREEN_WIDTH;
+float screen_height = SCREEN_HEIGHT;
 
 static struct counted_func update_funcs_storage[10];
 struct func_list update_func_list = {
@@ -67,32 +69,8 @@ Drawable d_ship, d_newship, d_teardropship, d_room, d_skybox;
 //Add this to makefile later.
 #include "table.c"
 
-enum {
-	NUM_TRI_ROWS = 1000,
-	NUM_TRI_DIVS = 4
-};
-
 LISTNODE *terrain_list = NULL;
-
-static void subdiv_triangle_terrain(struct terrain *in, struct terrain *out[NUM_TRI_DIVS])
-{
-	vec3 new_points[] = {
-		vec3_lerp(in->points[0], in->points[1], 0.5),
-		vec3_lerp(in->points[0], in->points[2], 0.5),
-		vec3_lerp(in->points[1], in->points[2], 0.5)
-	};
-
-	//populate_triangular_terrain(out[0], (vec3[3]){in->points[0], in->points[1], in->points[2]}, height_map2);
-	populate_triangular_terrain(out[0], (vec3[3]){in->points[0], new_points[0], new_points[1]}, height_map2);
-	populate_triangular_terrain(out[1], (vec3[3]){new_points[0], in->points[1], new_points[2]}, height_map2);
-	populate_triangular_terrain(out[2], (vec3[3]){new_points[0], new_points[2], new_points[1]}, height_map2);
-	populate_triangular_terrain(out[3], (vec3[3]){new_points[1], new_points[2], in->points[2]}, height_map2);
-
-	for (int i = 0; i < NUM_TRI_DIVS; i++)
-		buffer_terrain(out[i]);
-
-	printf("Created 4 new terrains from terrain %p\n", in);
-}
+PDTNODE subdiv_tree = NULL;
 
 void subdiv_triangle_terrain_list(LISTNODE **list)
 {
@@ -108,6 +86,8 @@ void subdiv_triangle_terrain_list(LISTNODE **list)
 			new_list = list_prepend(new_list, new_n);
 		}
 		subdiv_triangle_terrain(t, new_t);
+		for (int i = 0; i < NUM_TRI_DIVS; i++)
+			buffer_terrain(new_t[i]);
 		free_terrain(t);
 		free(t);
 	}
@@ -144,15 +124,19 @@ static void init_models()
 
 	struct terrain *t = malloc(sizeof(struct terrain));
 	*t = new_triangular_terrain(NUM_TRI_ROWS);
-	float base = 500;
-	vec3 a = vec3_add(tri_frame.t, (vec3){{0.0,       0.0,  base*(sqrt(3.0)/4.0)}});
-	vec3 b = vec3_add(tri_frame.t, (vec3){{-base/2.0, 0.0, -base*(sqrt(3.0)/4.0)}});
-	vec3 c = vec3_add(tri_frame.t, (vec3){{ base/2.0, 0.0, -base*(sqrt(3.0)/4.0)}});
+	vec3 a = vec3_add(tri_frame.t, (vec3){{0.0,               0.0,  TRI_BASE_LEN*(sqrt(3.0)/4.0)}});
+	vec3 b = vec3_add(tri_frame.t, (vec3){{-TRI_BASE_LEN/2.0, 0.0, -TRI_BASE_LEN*(sqrt(3.0)/4.0)}});
+	vec3 c = vec3_add(tri_frame.t, (vec3){{ TRI_BASE_LEN/2.0, 0.0, -TRI_BASE_LEN*(sqrt(3.0)/4.0)}});
 	populate_triangular_terrain(t, (vec3[3]){a, b, c}, height_map2);
 	buffer_terrain(t);
 	LISTNODE *n = listnode_new(NULL);
 	n->data = t;
 	terrain_list = list_prepend(terrain_list, n);
+
+	struct terrain t2 = new_triangular_terrain(NUM_TRI_ROWS);
+	populate_triangular_terrain(&t2, (vec3[3]){a, b, c}, height_map2);
+	buffer_terrain(&t2);
+	subdiv_tree = new_tree(t2);
 }
 
 static void deinit_models()
@@ -174,6 +158,8 @@ static void deinit_models()
 	}
 	list_free(terrain_list);
 	terrain_list = NULL;
+
+	free_tree(subdiv_tree);
 }
 
 static void init_lights()
@@ -204,7 +190,7 @@ void init_render()
 	glClearDepth(0.0);
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_GREATER);
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 	make_projection_matrix(FOV, screen_width/screen_height, -1, -far_distance, proj_mat, LENGTH(proj_mat));
@@ -265,6 +251,11 @@ static Drawable *pvs[] = {};
 
 void render()
 {
+	DRAWLIST terrain_list = NULL;
+	subdivide_tree(subdiv_tree, eye_frame.t, 0);
+	create_drawlist(subdiv_tree, &terrain_list, 0);
+	prune_tree(subdiv_tree, 0);
+
 	bool wireframe = false;
 	//This is really the wrong place to put all this.
 	{
@@ -309,15 +300,14 @@ void render()
 		for (int i = 0; i < LENGTH(pvs); i++)
 			draw_drawable(pvs[i]);
 
-
-
-
 		//Draw terrain, which receives, but does not cast, stencil buffer shadows.
 		for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
 			draw_forward(&effects.forward, ground[i].bg, grid_frame);
 
-		for (LISTNODE *n = terrain_list; n; n = n->next)
-			draw_forward(&effects.forward, ((struct terrain *)n->data)->bg, tri_frame);
+		// for (LISTNODE *n = terrain_list; n; n = n->next)
+		// 	draw_forward(&effects.forward, ((struct terrain *)n->data)->bg, tri_frame);
+		for (DRAWLIST l = terrain_list; l; l = l->next)
+			draw_forward(&effects.forward, l->t->bg, tri_frame);
 
 		glUseProgram(effects.forward.handle);
 		checkErrors("After drawing into depth");
@@ -387,7 +377,9 @@ void render()
 	glUniform3fv(effects.skybox.sun_direction, 1, sun_direction.A);
 	glUniform3fv(effects.skybox.sun_color, 1, sun_color.A);
 	skybox_frame.t = eye_frame.t;
-	draw_drawable(&d_skybox);
+	//draw_drawable(&d_skybox);
+
+	drawlist_free(terrain_list);
 
 	checkErrors("After forward junk");
 }
