@@ -21,7 +21,9 @@ struct terrain {
 };
 
 enum {
-	NUM_TRI_ROWS = 100,
+	//The more rows, the fewer draw calls, and the fewer primitive restart indices hurting memory locality.
+	//The fewer rows, the fewer overall vertices, and the better overall culling efficiency.
+	NUM_TRI_ROWS = 70,
 	NUM_TRI_DIVS = 4
 };
 

@@ -6,19 +6,38 @@
 #include "buflist.h"
 #include "render.h"
 
-//Might want to have values for "minimum pixels per triangle" and "maximum pixels per triangle"
-//For that I need an equation that relates the number of pixels a triangle occupies with its size and distance.
-//Diameter scales linearly with distance
-//Triangle size can just be size of a tile / #triangles per row of tile
+/*
+A line segment of length l, perpendicular to the camera view vector at distance d, on a screen w pixels wide will be
+(w * l) / (d * 2) pixels across.
 
-float pixels_per_tri(float screen_width, float triangle_base, float triangle_distance, int triangle_rows)
-{
-	return screen_width*triangle_base / (2*triangle_rows*triangle_distance);
-}
+A triangular tile with n rows and base length L will have triangle primitives with base length L/n (unitless).
+
+The widest such a triangle primitive can appear on the screen if the nearest vertex of the triangular tile is distance d is
+(w * L/n) / (d * 2) pixels across. The narrowest is (w * L/n) / ((d+L) * 2).
+
+The widest such a triangle primitive can appear on the screen if the center point of the triangular tile is distance d is
+(w * L/n) / ((d - L/sqrt(3)) * 2) pixels across (not defined if (d - L/sqrt(3)) < 1). The narrowest is (w * L/n) / ((d + L/sqrt(3)) * 2).
+
+A triangular tile with s subdivisions has effectively 2^s * n rows.
+Thus, to keep the pixel width p of any primitive within a certain ranges:
+
+Using n = nearest tile vertex
+	No wider than p
+		s = log2(((w * L/n) / (d * 2 * p))
+	No narrower than p
+		s = log2((w * L/n) / ((d+L) * 2 * p))
+
+Using n = center point of tile
+	No wider than p
+		s = log2((w * L/n) / ((d - L/sqrt(3)) * 2 * p))
+	No narrower than p
+		s = log2((w * L/n) / ((d + L/sqrt(3)) * 2 * p))
+*/
 
 int subdivisions_per_distance(float distance)
 {
-	return (int)fmin(log2(pixels_per_tri(screen_width, TRI_BASE_LEN, distance, NUM_TRI_ROWS))/MIN_PIXELS_PER_TRI, MAX_SUBDIVISIONS);
+	float biased_d = distance + TRI_BASE_LEN;
+	return log2((screen_width * TRI_BASE_LEN/NUM_TRI_ROWS) / ((biased_d * 2 * PIXELS_PER_TRI)));
 }
 
 DRAWLIST drawlist_prepend(DRAWLIST list, struct terrain *t)
@@ -51,7 +70,7 @@ void subdivide_tree(PDTNODE tree, vec3 cam_pos, int depth)
 	tree->dist = fmin(
 		fmin(vec3_dist(tree->t.pos, cam_pos), vec3_dist(tree->t.points[0], cam_pos)),
 		fmin(vec3_dist(tree->t.points[1], cam_pos), vec3_dist(tree->t.points[2], cam_pos)));
-	//tree->dist = fmax(1.0, vec3_dist(tree->t.pos, cam_pos) - (TRI_BASE_LEN/sqrt(3)));
+	tree->dist = vec3_dist(tree->t.pos, cam_pos);
 	if (depth > subdivisions_per_distance(tree->dist))
 		return; //Node is divided enough, done.
 
