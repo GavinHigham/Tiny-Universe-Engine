@@ -70,6 +70,8 @@ Drawable d_ship, d_newship, d_teardropship, d_room, d_skybox;
 
 //LISTNODE *terrain_list = NULL;
 PDTNODE subdiv_tree = NULL;
+float planet_radius;
+vec3 planet_center;
 
 // void subdiv_triangle_terrain_list(LISTNODE **list)
 // {
@@ -132,8 +134,11 @@ static void init_models()
 	//n->data = t;
 	// terrain_list = list_prepend(terrain_list, n);
 
+	planet_radius = TRI_BASE_LEN * cos(M_PI/5.0);
+	planet_center = (vec3){{0, -planet_radius, 0}};
+
 	tri_tile t2 = {.is_init = false};
-	init_tri_tile(&t2, (vec3[3]){a, b, c}, DEFAULT_NUM_TRI_TILE_ROWS);
+	init_tri_tile(&t2, (vec3[3]){a, b, c}, DEFAULT_NUM_TRI_TILE_ROWS, planet_center, planet_radius);
 	gen_tri_tile_vertices_and_normals(&t2, tri_height_map);
 	buffer_tri_tile(&t2); //Maybe I don't need to buffer this if my logic in create_drawlist is right.
 	subdiv_tree = new_tree(t2, 0);
@@ -255,10 +260,6 @@ void render()
 	subdivide_tree(subdiv_tree, eye_frame.t);
 	create_drawlist(subdiv_tree, &terrain_list);
 	prune_tree(subdiv_tree);
-	int dlistlen = 0;
-	for (DRAWLIST l = terrain_list; l; l = l->next)
-			dlistlen++;
-	printf("Drawlist length is %i\n", dlistlen);
 
 	bool wireframe = false;
 	//This is really the wrong place to put all this.
@@ -310,8 +311,10 @@ void render()
 
 		// for (LISTNODE *n = terrain_list; n; n = n->next)
 		// 	draw_forward(&effects.forward, ((struct terrain *)n->data)->bg, tri_frame);
-		for (DRAWLIST l = terrain_list; l; l = l->next)
+		for (DRAWLIST l = terrain_list; l; l = l->next) {
 			draw_forward(&effects.forward, l->t->bg, tri_frame);
+			checkErrors("After drawing a tri_tile");
+		}
 
 		glUseProgram(effects.forward.handle);
 		checkErrors("After drawing into depth");

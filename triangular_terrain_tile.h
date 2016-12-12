@@ -33,14 +33,15 @@ typedef struct {
 enum {
 	//The more rows, the fewer draw calls, and the fewer primitive restart indices hurting memory locality.
 	//The fewer rows, the fewer overall vertices, and the better overall culling efficiency.
-	DEFAULT_NUM_TRI_TILE_ROWS = 100,
+	//If I keep it as a power-of-two, I can avoid using spherical linear interpolation, and it will be faster.
+	DEFAULT_NUM_TRI_TILE_ROWS = 64,
 	//A triangular tile is divided in "triforce" fashion, that is,
 	//by dividing along the edges of a triangle whose vertices are the bisection of each original tile edge.
 	DEFAULT_NUM_TRI_TILE_DIVS = 4
 };
 
 tri_tile * new_tri_tile();
-tri_tile * init_tri_tile(tri_tile *t, vec3 points[3], int num_rows);
+tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], int num_rows, vec3 spos, float srad);
 void deinit_tri_tile(tri_tile *t);
 void free_tri_tile(tri_tile *t);
 typedef float (*height_map_func)(vec3);
@@ -63,6 +64,8 @@ int tri_tile_indices(GLuint indices[], int num_rows, int start_row);
 
 //For n rows of triangle strips, the array of vertices must be of length (n+2)(n+1)/2
 int tri_tile_vertices(vec3 vertices[], int num_rows, vec3 a, vec3 b, vec3 c);
+
+void reproject_vertices_to_spherical(vec3 vertices[], int num_vertices, vec3 spos, float srad);
 
 void subdiv_tri_tile(tri_tile *in, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS]);
 //Buffers the position, normal and color buffers of a terrain struct onto the GPU.

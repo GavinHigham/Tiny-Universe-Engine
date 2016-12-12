@@ -35,7 +35,6 @@ Using n = center point of tile
 		s = log2((w * L/n) / ((d + L/sqrt(3)) * 2 * p))
 */
 
-
 int subdivisions_per_distance(float distance, float tri_pixel_width)
 {
 	return fmin(log2((screen_width * TRI_BASE_LEN/DEFAULT_NUM_TRI_TILE_ROWS) / ((distance * 2 * tri_pixel_width))), MAX_SUBDIVISIONS);

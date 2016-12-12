@@ -98,7 +98,7 @@ int main()
 		if (since_update_ms >= frame_time_ms - 1) {
 				//Since user input is handled above, game state is "locked" when we enter this block.
 				last_swap_timestamp = SDL_GetTicks();
-				SDL_GL_SwapWindow(window); //Display a new screen to the user every 16 ms, on the dot.
+		 		SDL_GL_SwapWindow(window); //Display a new screen to the user every 16 ms, on the dot.
 				update((float)since_update_ms/MS_PER_SECOND); //At 16 ms intervals, begin an update. HOPEFULLY DOESN'T TAKE MORE THAN 16 MS.
 				render(); //This will be a picture of the state as of (hopefully exactly) 16 ms ago.
 				//Get a rolling average of the number of tight loop iterations per frame.

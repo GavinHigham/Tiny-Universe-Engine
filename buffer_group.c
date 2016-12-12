@@ -30,7 +30,7 @@ struct buffer_group new_buffer_group(int (*buffering_function)(struct buffer_gro
 	tmp.primitive_type = GL_TRIANGLES;
 	tmp.index_count = buffering_function(tmp);
 	tmp.flags = BG_USING_ADJACENCIES | BG_BUFFER_NORMALS | BG_BUFFER_COLORS;
-	glBindVertexArray(0);
+	//glBindVertexArray(0);
 	return tmp;
 }
 
@@ -52,7 +52,7 @@ struct buffer_group new_custom_buffer_group(int (*buffering_function)(struct buf
 	tmp.flags = buffer_flags;
 	tmp.primitive_type = primitive_type;
 	tmp.index_count = buffering_function(tmp);
-	glBindVertexArray(0);
+	//glBindVertexArray(0);
 	return tmp;
 }
 

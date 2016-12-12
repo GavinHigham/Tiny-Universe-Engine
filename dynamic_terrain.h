@@ -10,7 +10,7 @@ enum {
 	NUM_CHILDREN = DEFAULT_NUM_TRI_TILE_DIVS,
 	TRI_BASE_LEN = 10000,
 	PIXELS_PER_TRI = 2,
-	MAX_SUBDIVISIONS = 10
+	MAX_SUBDIVISIONS = 20
 };
 
 typedef struct dynamic_terrain_node *PDTNODE;
