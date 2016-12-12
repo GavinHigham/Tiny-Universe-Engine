@@ -40,6 +40,10 @@ float height_map2(vec3 pos)
 		height += amplitude * pow(open_simplex_noise2(osnctx, pos.x/amplitude, pos.z/amplitude), sharpness);
 	}
 	return height;
+	// float scale = 0.001;
+	// float amplitude = 800;
+	// float height = (open_simplex_noise3(osnctx, pos.x*scale, pos.y*scale, pos.z*scale) + 1)/2;
+	// return amplitude * pow(height, 4);
 }
 
 float height_map3(vec3 pos)
@@ -243,12 +247,21 @@ void populate_triangular_terrain(struct terrain *t, vec3 points[3], height_map_f
 		t->points[i] = points[i];
 	int numverts = triangle_tile_vertices(t->positions, t->numrows, points[0], points[1], points[2]);
 	assert(t->atrlen/sizeof(vec3) == numverts);
+	vec3 basis_x = vec3_normalize(vec3_sub(points[2], points[1]));
+	vec3 basis_z = vec3_normalize(vec3_sub(t->pos, points[0]));
+	vec3 basis_y = vec3_normalize(vec3_cross(basis_x, basis_z));
+	float epsilon = 0.001;
+
 	//Generate vertices.
 	for (int i = 0; i < numverts; i++) {
 		vec3 *ppos = &t->positions[i];
-		ppos->y = height(*ppos);
+		vec3 pos1 = vec3_add(vec3_scale(basis_x, epsilon), *ppos);
+		vec3 pos2 = vec3_add(vec3_scale(basis_z, epsilon), *ppos);
+		pos1 = vec3_add(vec3_scale(basis_y, height(pos1)), pos1);
+		pos2 = vec3_add(vec3_scale(basis_y, height(pos2)), pos2);
+		*ppos = vec3_add(vec3_scale(basis_y, height(*ppos)), *ppos);
+		t->normals[i] = vec3_normalize(vec3_cross(vec3_sub(pos1, *ppos), vec3_sub(pos2, *ppos)));
 		float intensity = pow(ppos->y/100.0, 2);
-		t->normals[i] = height_map_normal(height, *ppos);
 		t->colors[i] = (vec3){{intensity, intensity, intensity}};
 	}
 }

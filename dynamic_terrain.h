@@ -4,29 +4,30 @@
 #include <stdbool.h>
 #include <glalgebra.h>
 #include "buflist.h"
-#include "procedural_terrain.h"
+#include "triangular_terrain_tile.h"
 
 enum {
-	NUM_CHILDREN = NUM_TRI_DIVS,
+	NUM_CHILDREN = DEFAULT_NUM_TRI_TILE_DIVS,
 	TRI_BASE_LEN = 10000,
-	PIXELS_PER_TRI = 1,
+	PIXELS_PER_TRI = 2,
 	MAX_SUBDIVISIONS = 10
 };
 
 typedef struct dynamic_terrain_node *PDTNODE;
 struct dynamic_terrain_node {
 	float dist; //Distance to camera
+	int depth;
 	PDTNODE children[NUM_CHILDREN];
-	struct terrain t;
+	tri_tile t;
 };
 
 typedef struct drawlist_node *DRAWLIST;
 struct drawlist_node {
 	struct drawlist_node *next;
-	struct terrain *t;
+	tri_tile *t;
 };
 
-DRAWLIST drawlist_prepend(DRAWLIST list, struct terrain *t);
+DRAWLIST drawlist_prepend(DRAWLIST list, tri_tile *t);
 void drawlist_free(DRAWLIST list);
 
 int dt_depth_per_distance(float distance);
@@ -34,10 +35,10 @@ int dt_node_distance_compare(const void *n1, const void *n2);
 int dt_node_closeness_compare(const void *n1, const void *n2);
 // int dt_add_children(PDTNODE root, STACK *pool, HEAP *drawlist, vec3 cam_pos, int depth);
 
-PDTNODE new_tree(struct terrain t);
-void subdivide_tree(PDTNODE tree, vec3 cam_pos, int depth);
-void create_drawlist(PDTNODE tree, DRAWLIST *drawlist, int depth);
-void prune_tree(PDTNODE tree, int depth);
+PDTNODE new_tree(tri_tile t, int depth);
+void subdivide_tree(PDTNODE tree, vec3 cam_pos);
+void create_drawlist(PDTNODE tree, DRAWLIST *drawlist);
+void prune_tree(PDTNODE tree);
 void free_tree(PDTNODE tree);
 
 #endif

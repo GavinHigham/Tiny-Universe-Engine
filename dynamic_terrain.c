@@ -1,8 +1,9 @@
 #include <glalgebra.h>
 #include <math.h>
 #include <assert.h>
-#include "procedural_terrain.h"
+#include <stdio.h>
 #include "dynamic_terrain.h"
+#include "triangular_terrain_tile.h"
 #include "buflist.h"
 #include "render.h"
 
@@ -34,13 +35,22 @@ Using n = center point of tile
 		s = log2((w * L/n) / ((d + L/sqrt(3)) * 2 * p))
 */
 
-int subdivisions_per_distance(float distance)
+
+int subdivisions_per_distance(float distance, float tri_pixel_width)
 {
-	float biased_d = distance + TRI_BASE_LEN;
-	return log2((screen_width * TRI_BASE_LEN/NUM_TRI_ROWS) / ((biased_d * 2 * PIXELS_PER_TRI)));
+	return fmin(log2((screen_width * TRI_BASE_LEN/DEFAULT_NUM_TRI_TILE_ROWS) / ((distance * 2 * tri_pixel_width))), MAX_SUBDIVISIONS);
 }
 
-DRAWLIST drawlist_prepend(DRAWLIST list, struct terrain *t)
+int subdivision_depth(PDTNODE tree)
+{
+	float radius = (TRI_BASE_LEN/sqrt(3))/pow(2, tree->depth);
+	int consubs = subdivisions_per_distance(tree->dist + radius, 4); //Conservative subdivisions
+	int aggrsubs = subdivisions_per_distance(fmax(tree->dist - radius, 1), 100); //Aggressive subdivisions
+	return aggrsubs > consubs ? aggrsubs : consubs;
+	// return subdivisions_per_distance(tree->dist, 4); //Aggressive subdivisions
+}
+
+DRAWLIST drawlist_prepend(DRAWLIST list, tri_tile *t)
 {
 	struct drawlist_node *new = malloc(sizeof(struct drawlist_node));
 	new->t = t;
@@ -56,63 +66,89 @@ void drawlist_free(DRAWLIST list)
 	}
 }
 
-PDTNODE new_tree(struct terrain t)
+bool tree_has_children(PDTNODE tree)
+{
+	return tree->children[0] != NULL;
+}
+
+void tree_set_childless(PDTNODE tree)
+{
+	tree->children[0] = NULL;
+}
+
+PDTNODE new_tree(tri_tile t, int depth)
 {
 	PDTNODE new = malloc(sizeof(struct dynamic_terrain_node));
 	new->t = t;
-	new->children[0] = NULL;
+	new->depth = depth;
+	tree_set_childless(new);
 	return new;
 }
 
-void subdivide_tree(PDTNODE tree, vec3 cam_pos, int depth)
+void subdivide_tree(PDTNODE tree, vec3 cam_pos)
 {
 	assert(tree);
-	tree->dist = fmin(
-		fmin(vec3_dist(tree->t.pos, cam_pos), vec3_dist(tree->t.points[0], cam_pos)),
-		fmin(vec3_dist(tree->t.points[1], cam_pos), vec3_dist(tree->t.points[2], cam_pos)));
+	
+	// tree->dist = fmin(
+	// 	vec3_dist(tree->t.points[0], cam_pos),
+	// 	fmin(
+	// 		vec3_dist(tree->t.points[1], cam_pos),
+	// 		vec3_dist(tree->t.points[2], cam_pos)));
 	tree->dist = vec3_dist(tree->t.pos, cam_pos);
-	if (depth > subdivisions_per_distance(tree->dist))
+
+	if (tree->depth > subdivision_depth(tree))
 		return; //Node is divided enough, done.
 
+	//Cap the number of subdivisions per whole-tree traversal (per frame essentially)
+	static int remaining_subdivisions = 0;
+	if (tree->depth == 0)
+		remaining_subdivisions = 3;
+	if (remaining_subdivisions <= 0)
+	 	return;
+
 	//Create children and subdivide if they don't yet exist.
-	if (tree->children[0] == NULL) {
-		struct terrain *new_t[NUM_TRI_DIVS];
+	if (!tree_has_children(tree)) {
+		printf("Subdiving node at <%f, %f, %f>, depth %i\n", tree->t.pos.x, tree->t.pos.y, tree->t.pos.z, tree->depth);
+		tri_tile *new_t[DEFAULT_NUM_TRI_TILE_DIVS];
 		for (int i = 0; i < NUM_CHILDREN; i++) {
-			tree->children[i] = new_tree(new_triangular_terrain(NUM_TRI_ROWS));
+			tree->children[i] = new_tree((tri_tile){.is_init = false}, tree->depth + 1);
 			new_t[i] = &(tree->children[i]->t);
 		}
 
-		subdiv_triangle_terrain(&(tree->t), new_t);
+		remaining_subdivisions--;
+		subdiv_tri_tile(&(tree->t), new_t);
 	}
 
 	//Visit children
 	for (int i = 0; i < NUM_CHILDREN; i++)
-		subdivide_tree(tree->children[i], cam_pos, depth + 1);
+		subdivide_tree(tree->children[i], cam_pos);
 }
 
-void create_drawlist(PDTNODE tree, DRAWLIST *drawlist, int depth)
+void create_drawlist(PDTNODE tree, DRAWLIST *drawlist)
 {
-	if (depth > subdivisions_per_distance(tree->dist)) {
+	if (tree->depth > subdivision_depth(tree) || !tree_has_children(tree)) {
 		if (!tree->t.buffered)
-			buffer_terrain(&tree->t);
+			buffer_tri_tile(&tree->t);
 		*drawlist = drawlist_prepend(*drawlist, &tree->t);
 		return;
 	}
 
-	assert(tree->children[0]); //The tree should have children if subdivide was called earlier.
+	//assert(tree->children[0]); //The tree should have children if subdivide was called earlier.
 	for (int i = 0; i < NUM_CHILDREN; i++)
-		create_drawlist(tree->children[i], drawlist, depth + 1);
+		create_drawlist(tree->children[i], drawlist);
 }
 
-void prune_tree(PDTNODE tree, int depth)
+void prune_tree(PDTNODE tree)
 {
-	if (tree && depth > subdivisions_per_distance(tree->dist) + 5) {
-		for (int i = 0; i < NUM_CHILDREN; i++) {
-			prune_tree(tree->children[i], depth + 1);
-			free_terrain(&tree->children[i]->t);
-			free(tree->children[i]);
+	if (tree && tree->depth > subdivision_depth(tree) + 5) {
+		if (tree_has_children(tree)) {
+			for (int i = 0; i < NUM_CHILDREN; i++) {
+				prune_tree(tree->children[i]);
+				deinit_tri_tile(&tree->children[i]->t);
+				free(tree->children[i]);
+			}
+			tree_set_childless(tree);
 		}
-		tree->children[0] = NULL;
 	}
 }
 
@@ -123,9 +159,9 @@ void free_tree(PDTNODE tree)
 			for (int i = 0; i < NUM_CHILDREN; i++) {
 				free_tree(tree->children[i]);
 			}
-			tree->children[0] = NULL;
+			tree_set_childless(tree);
 		}
-		free_terrain(&tree->t);
+		deinit_tri_tile(&tree->t);
 		free(tree);
 	}
 }

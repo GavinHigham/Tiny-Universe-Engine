@@ -30,12 +30,13 @@ struct buffer_group new_buffer_group(int (*buffering_function)(struct buffer_gro
 	tmp.primitive_type = GL_TRIANGLES;
 	tmp.index_count = buffering_function(tmp);
 	tmp.flags = BG_USING_ADJACENCIES | BG_BUFFER_NORMALS | BG_BUFFER_COLORS;
+	glBindVertexArray(0);
 	return tmp;
 }
 
 struct buffer_group new_custom_buffer_group(int (*buffering_function)(struct buffer_group), int buffer_flags, GLenum primitive_type)
 {
-	struct buffer_group tmp;
+	struct buffer_group tmp = {0};
 	glGenVertexArrays(1, &tmp.vao);
 	glBindVertexArray(tmp.vao);
 	glGenBuffers(1, &tmp.vbo);
@@ -51,6 +52,7 @@ struct buffer_group new_custom_buffer_group(int (*buffering_function)(struct buf
 	tmp.flags = buffer_flags;
 	tmp.primitive_type = primitive_type;
 	tmp.index_count = buffering_function(tmp);
+	glBindVertexArray(0);
 	return tmp;
 }
 
@@ -58,13 +60,10 @@ void delete_buffer_group(struct buffer_group tmp)
 {
 	glDeleteBuffers(1, &tmp.vbo);
 	glDeleteBuffers(1, &tmp.ibo);
-
-	if (tmp.flags & BG_USING_ADJACENCIES)
-		glDeleteBuffers(1, &tmp.aibo);
-	if (tmp.flags & BG_BUFFER_NORMALS)
-		glDeleteBuffers(1, &tmp.nbo);
-	if (tmp.flags & BG_BUFFER_COLORS)
-		glDeleteBuffers(1, &tmp.cbo);
+	//These buffers are optional, but OpenGL ignores the calls if the handles are 0 or invalid.
+	glDeleteBuffers(1, &tmp.aibo);
+	glDeleteBuffers(1, &tmp.nbo);
+	glDeleteBuffers(1, &tmp.cbo);
 
 	glDeleteVertexArrays(1, &tmp.vao);
 }

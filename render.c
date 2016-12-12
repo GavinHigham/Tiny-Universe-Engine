@@ -16,7 +16,6 @@
 #include "func_list.h"
 #include "shader_utils.h"
 #include "gl_utils.h"
-#include "procedural_terrain.h"
 #include "dynamic_terrain.h"
 #include "stars.h"
 #include "draw.h"
@@ -42,7 +41,7 @@ struct func_list update_func_list = {
 };
 
 struct buffer_group icosphere_buffers;
-struct terrain ground[num_x_tiles*num_z_tiles];
+//struct terrain ground[num_x_tiles*num_z_tiles];
 GLuint gVAO = 0;
 amat4 inv_eye_frame;
 amat4 eye_frame = {.a = MAT3_IDENT,          .T = {6, 0, 0}};
@@ -69,31 +68,31 @@ Drawable d_ship, d_newship, d_teardropship, d_room, d_skybox;
 //Add this to makefile later.
 #include "table.c"
 
-LISTNODE *terrain_list = NULL;
+//LISTNODE *terrain_list = NULL;
 PDTNODE subdiv_tree = NULL;
 
-void subdiv_triangle_terrain_list(LISTNODE **list)
-{
-	LISTNODE *new_list = NULL;
-	for (LISTNODE *n = *list; n; n = n->next) {
-		struct terrain *t = (struct terrain *)n->data;
-		struct terrain *new_t[NUM_TRI_DIVS];
-		for (int i = 0; i < NUM_TRI_DIVS; i++) {
-			new_t[i] = malloc(sizeof(struct terrain));
-			*new_t[i] = new_triangular_terrain(NUM_TRI_ROWS);
-			LISTNODE *new_n = listnode_new(NULL);
-			new_n->data = new_t[i];
-			new_list = list_prepend(new_list, new_n);
-		}
-		subdiv_triangle_terrain(t, new_t);
-		for (int i = 0; i < NUM_TRI_DIVS; i++)
-			buffer_terrain(new_t[i]);
-		free_terrain(t);
-		free(t);
-	}
-	list_free(*list);
-	*list = new_list;
-}
+// void subdiv_triangle_terrain_list(LISTNODE **list)
+// {
+// 	LISTNODE *new_list = NULL;
+// 	for (LISTNODE *n = *list; n; n = n->next) {
+// 		struct terrain *t = (struct terrain *)n->data;
+// 		struct terrain *new_t[NUM_TRI_DIVS];
+// 		for (int i = 0; i < NUM_TRI_DIVS; i++) {
+// 			new_t[i] = malloc(sizeof(struct terrain));
+// 			*new_t[i] = new_triangular_terrain(NUM_TRI_ROWS);
+// 			LISTNODE *new_n = listnode_new(NULL);
+// 			new_n->data = new_t[i];
+// 			new_list = list_prepend(new_list, new_n);
+// 		}
+// 		subdiv_triangle_terrain(t, new_t);
+// 		for (int i = 0; i < NUM_TRI_DIVS; i++)
+// 			buffer_terrain(new_t[i]);
+// 		free_terrain(t);
+// 		free(t);
+// 	}
+// 	list_free(*list);
+// 	*list = new_list;
+// }
 
 static void init_models()
 {
@@ -108,35 +107,36 @@ static void init_models()
 
 	//icosphere_buffers = new_custom_buffer_group(buffer_icosphere, 0, GL_TRIANGLES);
 
-	float terrain_x = 500;
-	float terrain_z = 500;
-	for (int i = 0; i < num_x_tiles; i++) {
-		for (int j = 0; j < num_z_tiles; j++) {
-			struct terrain *tmp = &ground[j + i * num_z_tiles];
-			*tmp = new_terrain(terrain_x, terrain_z);
-			populate_terrain(
-				tmp,
-				vec3_add(grid_frame.t, (vec3){{(i-(num_x_tiles-1)/2)*terrain_x, 0, (j-(num_z_tiles-1)/2)*terrain_z}}),
-				height_map2);
-			buffer_terrain(tmp);
-		}
-	}
+	// float terrain_x = 500;
+	// float terrain_z = 500;
+	// for (int i = 0; i < num_x_tiles; i++) {
+	// 	for (int j = 0; j < num_z_tiles; j++) {
+	// 		struct terrain *tmp = &ground[j + i * num_z_tiles];
+	// 		*tmp = new_terrain(terrain_x, terrain_z);
+	// 		populate_terrain(
+	// 			tmp,
+	// 			vec3_add(grid_frame.t, (vec3){{(i-(num_x_tiles-1)/2)*terrain_x, 0, (j-(num_z_tiles-1)/2)*terrain_z}}),
+	// 			height_map2);
+	// 		buffer_terrain(tmp);
+	// 	}
+	// }
 
-	struct terrain *t = malloc(sizeof(struct terrain));
-	*t = new_triangular_terrain(NUM_TRI_ROWS);
+	// struct terrain *t = malloc(sizeof(struct terrain));
+	// *t = new_triangular_terrain(NUM_TRI_ROWS);
 	vec3 a = vec3_add(tri_frame.t, (vec3){{0.0,               0.0,  TRI_BASE_LEN*(sqrt(3.0)/4.0)}});
 	vec3 b = vec3_add(tri_frame.t, (vec3){{-TRI_BASE_LEN/2.0, 0.0, -TRI_BASE_LEN*(sqrt(3.0)/4.0)}});
 	vec3 c = vec3_add(tri_frame.t, (vec3){{ TRI_BASE_LEN/2.0, 0.0, -TRI_BASE_LEN*(sqrt(3.0)/4.0)}});
-	populate_triangular_terrain(t, (vec3[3]){a, b, c}, height_map2);
-	buffer_terrain(t);
-	LISTNODE *n = listnode_new(NULL);
-	n->data = t;
-	terrain_list = list_prepend(terrain_list, n);
+	// populate_triangular_terrain(t, (vec3[3]){a, b, c}, height_map2);
+	// buffer_terrain(t);
+	// LISTNODE *n = listnode_new(NULL);
+	//n->data = t;
+	// terrain_list = list_prepend(terrain_list, n);
 
-	struct terrain t2 = new_triangular_terrain(NUM_TRI_ROWS);
-	populate_triangular_terrain(&t2, (vec3[3]){a, b, c}, height_map2);
-	buffer_terrain(&t2);
-	subdiv_tree = new_tree(t2);
+	tri_tile t2 = {.is_init = false};
+	init_tri_tile(&t2, (vec3[3]){a, b, c}, DEFAULT_NUM_TRI_TILE_ROWS);
+	gen_tri_tile_vertices_and_normals(&t2, tri_height_map);
+	buffer_tri_tile(&t2); //Maybe I don't need to buffer this if my logic in create_drawlist is right.
+	subdiv_tree = new_tree(t2, 0);
 }
 
 static void deinit_models()
@@ -149,15 +149,15 @@ static void deinit_models()
 	deinit_drawable(&d_room);
 	deinit_drawable(&d_skybox);
 
-	for (int i = 0; i < num_x_tiles * num_z_tiles; i++)
-		free_terrain(&ground[i]);
+	// for (int i = 0; i < num_x_tiles * num_z_tiles; i++)
+	// 	free_terrain(&ground[i]);
 
-	for (LISTNODE *n = terrain_list; n; n = n->next) {
-		free_terrain(n->data);
-		free(n->data);
-	}
-	list_free(terrain_list);
-	terrain_list = NULL;
+	// for (LISTNODE *n = terrain_list; n; n = n->next) {
+	// 	free_terrain(n->data);
+	// 	free(n->data);
+	// }
+	// list_free(terrain_list);
+	// terrain_list = NULL;
 
 	free_tree(subdiv_tree);
 }
@@ -252,9 +252,13 @@ static Drawable *pvs[] = {};
 void render()
 {
 	DRAWLIST terrain_list = NULL;
-	subdivide_tree(subdiv_tree, eye_frame.t, 0);
-	create_drawlist(subdiv_tree, &terrain_list, 0);
-	prune_tree(subdiv_tree, 0);
+	subdivide_tree(subdiv_tree, eye_frame.t);
+	create_drawlist(subdiv_tree, &terrain_list);
+	prune_tree(subdiv_tree);
+	int dlistlen = 0;
+	for (DRAWLIST l = terrain_list; l; l = l->next)
+			dlistlen++;
+	printf("Drawlist length is %i\n", dlistlen);
 
 	bool wireframe = false;
 	//This is really the wrong place to put all this.
@@ -301,8 +305,8 @@ void render()
 			draw_drawable(pvs[i]);
 
 		//Draw terrain, which receives, but does not cast, stencil buffer shadows.
-		for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
-			draw_forward(&effects.forward, ground[i].bg, grid_frame);
+		// for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
+		// 	draw_forward(&effects.forward, ground[i].bg, grid_frame);
 
 		// for (LISTNODE *n = terrain_list; n; n = n->next)
 		// 	draw_forward(&effects.forward, ((struct terrain *)n->data)->bg, tri_frame);
@@ -395,25 +399,25 @@ void update(float dt)
 
 	float ts = 1/300000.0;
 	float rs = 1/600000.0;
-	if (key_state[SDL_SCANCODE_9])
-		for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
-			recalculate_terrain_normals_cheap(&ground[i]);
-	if (key_state[SDL_SCANCODE_8])
-		for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
-			erode_terrain(&ground[i], 100);
-	if (key_state[SDL_SCANCODE_8] || key_state[SDL_SCANCODE_9])
-		for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
-			buffer_terrain(&ground[i]);
+	// if (key_state[SDL_SCANCODE_9])
+	// 	for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
+	// 		recalculate_terrain_normals_cheap(&ground[i]);
+	// if (key_state[SDL_SCANCODE_8])
+	// 	for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
+	// 		erode_terrain(&ground[i], 100);
+	// if (key_state[SDL_SCANCODE_8] || key_state[SDL_SCANCODE_9])
+	// 	for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
+	// 		buffer_terrain(&ground[i]);
 
-	static bool divide = false;
-	if (key_state[SDL_SCANCODE_4]) {
-		divide = true;
-	} else {
-		if (divide) {
-			subdiv_triangle_terrain_list(&terrain_list);
-			divide = false;
-		}
-	}
+	// static bool divide = false;
+	// if (key_state[SDL_SCANCODE_4]) {
+	// 	divide = true;
+	// } else {
+	// 	if (divide) {
+	// 		subdiv_triangle_terrain_list(&terrain_list);
+	// 		divide = false;
+	// 	}
+	// }
 
 	//If you're moving forward, turn the light on to show it.
 	//point_lights.enabled_for_draw[2] = (axes[LEFTY] < 0)?true:false;
