@@ -16,15 +16,17 @@
 #include "func_list.h"
 #include "shader_utils.h"
 #include "gl_utils.h"
-#include "procedural_terrain.h"
 #include "dynamic_terrain.h"
 #include "stars.h"
 #include "draw.h"
 #include "drawf.h"
 #include "drawable.h"
+#include "procedural_planet.h"
+#include "triangular_terrain_tile.h"
+#include "terrain_types.h"
 
 float FOV = M_PI/2.0;
-float far_distance = 5000;
+float far_distance = 10000;
 int PRIMITIVE_RESTART_INDEX = 0xFFFFFFFF;
 const int num_x_tiles = 1;
 const int num_z_tiles = 1;
@@ -41,8 +43,6 @@ struct func_list update_func_list = {
 	LENGTH(update_funcs_storage)
 };
 
-struct buffer_group icosphere_buffers;
-struct terrain ground[num_x_tiles*num_z_tiles];
 GLuint gVAO = 0;
 amat4 inv_eye_frame;
 amat4 eye_frame = {.a = MAT3_IDENT,          .T = {6, 0, 0}};
@@ -69,31 +69,12 @@ Drawable d_ship, d_newship, d_teardropship, d_room, d_skybox;
 //Add this to makefile later.
 #include "table.c"
 
-LISTNODE *terrain_list = NULL;
-PDTNODE subdiv_tree = NULL;
+//LISTNODE *terrain_list = NULL;
 
-void subdiv_triangle_terrain_list(LISTNODE **list)
-{
-	LISTNODE *new_list = NULL;
-	for (LISTNODE *n = *list; n; n = n->next) {
-		struct terrain *t = (struct terrain *)n->data;
-		struct terrain *new_t[NUM_TRI_DIVS];
-		for (int i = 0; i < NUM_TRI_DIVS; i++) {
-			new_t[i] = malloc(sizeof(struct terrain));
-			*new_t[i] = new_triangular_terrain(NUM_TRI_ROWS);
-			LISTNODE *new_n = listnode_new(NULL);
-			new_n->data = new_t[i];
-			new_list = list_prepend(new_list, new_n);
-		}
-		subdiv_triangle_terrain(t, new_t);
-		for (int i = 0; i < NUM_TRI_DIVS; i++)
-			buffer_terrain(new_t[i]);
-		free_terrain(t);
-		free(t);
-	}
-	list_free(*list);
-	*list = new_list;
-}
+proc_planet *test_planet = NULL;
+// PDTNODE subdiv_tree = NULL;
+float planet_radius;
+vec3 planet_center;
 
 static void init_models()
 {
@@ -106,60 +87,20 @@ static void init_models()
 	init_heap_drawable(&d_room,         draw_forward,        &effects.forward, &room_frame,         buffer_newroom);
 	init_heap_drawable(&d_skybox,       draw_skybox_forward, &effects.skybox,  &skybox_frame,       buffer_cube);
 
-	//icosphere_buffers = new_custom_buffer_group(buffer_icosphere, 0, GL_TRIANGLES);
-
-	float terrain_x = 500;
-	float terrain_z = 500;
-	for (int i = 0; i < num_x_tiles; i++) {
-		for (int j = 0; j < num_z_tiles; j++) {
-			struct terrain *tmp = &ground[j + i * num_z_tiles];
-			*tmp = new_terrain(terrain_x, terrain_z);
-			populate_terrain(
-				tmp,
-				vec3_add(grid_frame.t, (vec3){{(i-(num_x_tiles-1)/2)*terrain_x, 0, (j-(num_z_tiles-1)/2)*terrain_z}}),
-				height_map2);
-			buffer_terrain(tmp);
-		}
-	}
-
-	struct terrain *t = malloc(sizeof(struct terrain));
-	*t = new_triangular_terrain(NUM_TRI_ROWS);
-	vec3 a = vec3_add(tri_frame.t, (vec3){{0.0,               0.0,  TRI_BASE_LEN*(sqrt(3.0)/4.0)}});
-	vec3 b = vec3_add(tri_frame.t, (vec3){{-TRI_BASE_LEN/2.0, 0.0, -TRI_BASE_LEN*(sqrt(3.0)/4.0)}});
-	vec3 c = vec3_add(tri_frame.t, (vec3){{ TRI_BASE_LEN/2.0, 0.0, -TRI_BASE_LEN*(sqrt(3.0)/4.0)}});
-	populate_triangular_terrain(t, (vec3[3]){a, b, c}, height_map2);
-	buffer_terrain(t);
-	LISTNODE *n = listnode_new(NULL);
-	n->data = t;
-	terrain_list = list_prepend(terrain_list, n);
-
-	struct terrain t2 = new_triangular_terrain(NUM_TRI_ROWS);
-	populate_triangular_terrain(&t2, (vec3[3]){a, b, c}, height_map2);
-	buffer_terrain(&t2);
-	subdiv_tree = new_tree(t2);
+	planet_radius = 3000;//TRI_BASE_LEN * cos(M_PI/5.0);
+	planet_center = (vec3){{0, -planet_radius, 0}};
+	test_planet = new_proc_planet(planet_center, planet_radius, tri_height_map);
 }
 
 static void deinit_models()
 {
-	//delete_buffer_group(icosphere_buffers);
-
 	deinit_drawable(&d_ship);
 	deinit_drawable(&d_newship);
 	deinit_drawable(&d_teardropship);
 	deinit_drawable(&d_room);
 	deinit_drawable(&d_skybox);
 
-	for (int i = 0; i < num_x_tiles * num_z_tiles; i++)
-		free_terrain(&ground[i]);
-
-	for (LISTNODE *n = terrain_list; n; n = n->next) {
-		free_terrain(n->data);
-		free(n->data);
-	}
-	list_free(terrain_list);
-	terrain_list = NULL;
-
-	free_tree(subdiv_tree);
+	free_proc_planet(test_planet);
 }
 
 static void init_lights()
@@ -190,7 +131,7 @@ void init_render()
 	glClearDepth(0.0);
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_GREATER);
-	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	glClearColor(0.1f, 0.2f, 0.3f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 	make_projection_matrix(FOV, screen_width/screen_height, -1, -far_distance, proj_mat, LENGTH(proj_mat));
@@ -252,9 +193,7 @@ static Drawable *pvs[] = {};
 void render()
 {
 	DRAWLIST terrain_list = NULL;
-	subdivide_tree(subdiv_tree, eye_frame.t, 0);
-	create_drawlist(subdiv_tree, &terrain_list, 0);
-	prune_tree(subdiv_tree, 0);
+	proc_planet_drawlist(test_planet, &terrain_list, eye_frame.t);
 
 	bool wireframe = false;
 	//This is really the wrong place to put all this.
@@ -271,6 +210,7 @@ void render()
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glDepthFunc(GL_GREATER);
+	draw_stars();
 
 	//If we're outside the shadow volume, we can use z-pass instead of z-fail.
 	//z-pass is faster, and not patent-encumbered.
@@ -300,16 +240,12 @@ void render()
 		for (int i = 0; i < LENGTH(pvs); i++)
 			draw_drawable(pvs[i]);
 
-		//Draw terrain, which receives, but does not cast, stencil buffer shadows.
-		for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
-			draw_forward(&effects.forward, ground[i].bg, grid_frame);
-
-		// for (LISTNODE *n = terrain_list; n; n = n->next)
-		// 	draw_forward(&effects.forward, ((struct terrain *)n->data)->bg, tri_frame);
-		for (DRAWLIST l = terrain_list; l; l = l->next)
+		//Draw procedural planet
+		for (DRAWLIST l = terrain_list; l; l = l->next) {
 			draw_forward(&effects.forward, l->t->bg, tri_frame);
+			checkErrors("After drawing a tri_tile");
+		}
 
-		glUseProgram(effects.forward.handle);
 		checkErrors("After drawing into depth");
 		glUniform1i(effects.forward.ambient_pass, 0);
 	}
@@ -395,31 +331,31 @@ void update(float dt)
 
 	float ts = 1/300000.0;
 	float rs = 1/600000.0;
-	if (key_state[SDL_SCANCODE_9])
-		for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
-			recalculate_terrain_normals_cheap(&ground[i]);
-	if (key_state[SDL_SCANCODE_8])
-		for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
-			erode_terrain(&ground[i], 100);
-	if (key_state[SDL_SCANCODE_8] || key_state[SDL_SCANCODE_9])
-		for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
-			buffer_terrain(&ground[i]);
+	// if (key_state[SDL_SCANCODE_9])
+	// 	for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
+	// 		recalculate_terrain_normals_cheap(&ground[i]);
+	// if (key_state[SDL_SCANCODE_8])
+	// 	for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
+	// 		erode_terrain(&ground[i], 100);
+	// if (key_state[SDL_SCANCODE_8] || key_state[SDL_SCANCODE_9])
+	// 	for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
+	// 		buffer_terrain(&ground[i]);
 
-	static bool divide = false;
-	if (key_state[SDL_SCANCODE_4]) {
-		divide = true;
-	} else {
-		if (divide) {
-			subdiv_triangle_terrain_list(&terrain_list);
-			divide = false;
-		}
-	}
+	// static bool divide = false;
+	// if (key_state[SDL_SCANCODE_4]) {
+	// 	divide = true;
+	// } else {
+	// 	if (divide) {
+	// 		subdiv_triangle_terrain_list(&terrain_list);
+	// 		divide = false;
+	// 	}
+	// }
 
 	//If you're moving forward, turn the light on to show it.
 	//point_lights.enabled_for_draw[2] = (axes[LEFTY] < 0)?true:false;
 	point_lights.enabled_for_draw[2] = key_state[SDL_SCANCODE_6];
 	float camera_speed = 20.0;
-	float ship_speed = 80.0;
+	float ship_speed = 280.0;
 
 	//Translate the camera using WASD.
 	ship_cam.t = vec3_add(ship_cam.t,
@@ -436,9 +372,9 @@ void update(float dt)
 
 	//Set the ship's acceleration using the arrow keys.
 	acceleration = mat3_multvec(ship_frame.a, (vec3){{
-		(key_state[SDL_SCANCODE_RIGHT] - key_state[SDL_SCANCODE_LEFT]) * dt * ship_speed,
+		(key_state[SDL_SCANCODE_RIGHT] - key_state[SDL_SCANCODE_LEFT])   * dt * ship_speed,
 		(key_state[SDL_SCANCODE_PERIOD] - key_state[SDL_SCANCODE_SLASH]) * dt * ship_speed,
-		(key_state[SDL_SCANCODE_DOWN] - key_state[SDL_SCANCODE_UP]) * dt * ship_speed}});
+		(key_state[SDL_SCANCODE_DOWN] - key_state[SDL_SCANCODE_UP])      * dt * ship_speed}});
 
 	//Angular velocity is currently determined by how much each axis is deflected.
 	float angle = -axes[RIGHTX]*rs;

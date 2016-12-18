@@ -4,6 +4,7 @@ in vec3 vPos;
 
 uniform mat4 model_view_projection_matrix;
 uniform vec3 eye_pos;
+uniform float stars_radius;
 
 out vec3 fPos;
 
@@ -17,15 +18,14 @@ void main()
 	vec3 pos_ship_relative = vPos - eye_pos;
 	//float star_dist = distance(eye_position, vPos);
 	float star_dist = distance(eye_pos, vPos);
-	/*
-	float s = 80;
-	float p = mag(pos_ship_relative) / s;
-	p = s * 1-(pow(1.001, -1*(p*p)));
-	pos_ship_relative = p * normalize(pos_ship_relative) + ship_position;
-	vec4 pos = vec4(pos_ship_relative, 1);
-	*/
-	vec4 pos = vec4(vPos, 1);
-	gl_Position = model_view_projection_matrix * pos;
-	gl_PointSize = 1;//(1-(star_dist / 700)) + 2;
-	fPos = pos.xyz;
+	
+	// float s = 80;
+	// float p = mag(pos_ship_relative) / s;
+	// p = s * 1-(pow(1.001, -1*(p*p)));
+	// pos_ship_relative = p * normalize(pos_ship_relative) + eye_pos;
+	// vec4 pos = vec4(pos_ship_relative, 1);
+	
+	gl_Position = model_view_projection_matrix * vec4(vPos, 1);
+	gl_PointSize = (1-(star_dist / (0.7*stars_radius))) + 2;
+	fPos = vPos.xyz;
 }

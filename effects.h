@@ -16,6 +16,7 @@ typedef struct effect_data {
 			GLint model_view_normal_matrix;
 			GLint model_view_projection_matrix;
 			GLint projection_view_matrix;
+			GLint stars_radius;
 			GLint sun_color;
 			GLint sun_direction;
 			GLint uLight_attr;
@@ -24,7 +25,7 @@ typedef struct effect_data {
 			GLint uOrigin;
 			GLint zpass;
 		};
-		GLint unif[15];
+		GLint unif[16];
 	};
 	union {
 		struct {
@@ -49,7 +50,7 @@ union effect_list {
 
 union effect_list effects;
 
-const char *uniform_strings[15];
+const char *uniform_strings[16];
 const char *attribute_strings[3];
 const char *shader_file_paths[15];
 
