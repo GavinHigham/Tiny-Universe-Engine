@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <math.h>
-#include <glalgebra.h>
+#include <glla.h>
 #include "macros.h"
 
 float rand_float()

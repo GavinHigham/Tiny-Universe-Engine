@@ -5,7 +5,7 @@
 #include <math.h>
 #include <assert.h>
 #include <GL/glew.h>
-#include <glalgebra.h>
+#include <glla.h>
 #include "triangular_terrain_tile.h"
 #include "open-simplex-noise-in-c/open-simplex-noise.h"
 #include "math/utility.h"
@@ -18,7 +18,7 @@ extern int PRIMITIVE_RESTART_INDEX;
 extern struct osn_context *osnctx;
 
 enum {
-	TERRAIN_AMPLITUDE = 16
+	TERRAIN_AMPLITUDE = 32
 };
 
 //The index buffer of a triangular tile of n rows contains that of one for n+1 rows.
@@ -69,10 +69,12 @@ tri_tile * new_tri_tile()
 
 //Creates storage for the positions, normals, and colors, as well as OpenGL handles.
 //Should be freed by the caller, using free_tri_tile.
-tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], int num_rows, vec3 s_origin, float s_radius)
+tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], int num_rows, vec3 up, vec3 s_origin, float s_radius)
 {
 	//We'll leak memory and OpenGL handles and junk if we try to init more than once.
 	assert(!t->is_init);
+	printf("sizeof(vec3) = %lu\n", sizeof(vec3));
+	assert(sizeof(vec3) == (sizeof(float) * 3));
 
 	//Get counts.
 	t->bg.index_count = num_tri_tile_indices(num_rows);
@@ -88,6 +90,7 @@ tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], int num_rows, vec3 s_ori
 
 	t->s_origin = s_origin;
 	t->s_radius = s_radius;
+	t->up = up;
 
 	//Set up GPU buffer storage.
 	t->bg.primitive_type = GL_TRIANGLE_STRIP;
@@ -111,6 +114,7 @@ tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], int num_rows, vec3 s_ori
 	int numverts = tri_tile_vertices(t->positions, t->num_rows, vertices[0], vertices[1], vertices[2]);
 	assert(t->num_vertices == numverts);
 	reproject_vertices_to_spherical(t->positions, t->num_vertices, t->s_origin, t->s_radius);
+	reproject_vertices_to_spherical(&t->pos, 1, t->s_origin, t->s_radius);
 
 	//Determine basis vectors aligned with the triangle, for vertex normal generation.
 	t->basis_x = vec3_normalize(vec3_sub(t->tile_vertices[2], t->tile_vertices[1]));
@@ -149,8 +153,12 @@ float tri_height_map(vec3 pos)
 {
 	float scale = 0.01;
 	float amplitude = TERRAIN_AMPLITUDE;
-	float height = (open_simplex_noise3(osnctx, pos.x*scale, pos.y*scale, pos.z*scale) + 1)/2;
-	return amplitude * -pow(height, 4);
+	float height = 0;
+	for (int i = 1; i < 2; i++) {
+		height += (open_simplex_noise3(osnctx, pos.x*scale, pos.y*scale, pos.z*scale) + 1)/pow(2, i);
+		scale *= 2;
+	}
+	return amplitude * pow(height, 4);
 }
 
 float tri_height_map_flat(vec3 pos)
@@ -215,9 +223,8 @@ void reproject_vertices_to_spherical(vec3 vertices[], int num_vertices, vec3 spo
 //position: In/Out, the starting and ending position of the vertex.
 //normal: Output for the normal of the vertex.
 //Returns the "height", or displacement along basis_y.
-static float position_and_normal(height_map_func height, vec3 basis_x, vec3 basis_y, vec3 basis_z, vec3 *position, vec3 *normal)
+static float position_and_normal(height_map_func height, vec3 basis_x, vec3 basis_y, vec3 basis_z, float epsilon, vec3 *position, vec3 *normal)
 {
-		float epsilon = 0.001;
 		//Create two points, scootched out along the basis vectors.
 		vec3 pos1 = vec3_add(vec3_scale(basis_x, epsilon), *position);
 		vec3 pos2 = vec3_add(vec3_scale(basis_z, epsilon), *position);
@@ -226,16 +233,26 @@ static float position_and_normal(height_map_func height, vec3 basis_x, vec3 basi
 		pos2      = vec3_add(vec3_scale(basis_y, height(pos2)),      pos2);
 		*position = vec3_add(vec3_scale(basis_y, height(*position)), *position);
 		//Compute the normal.
-		*normal = vec3_normalize(vec3_cross(vec3_sub(pos2, *position), vec3_sub(pos1, *position)));
+		*normal = vec3_normalize(vec3_cross(vec3_sub(pos1, *position), vec3_sub(pos2, *position)));
 		return position->y;
 }
 
 tri_tile * gen_tri_tile_vertices_and_normals(tri_tile *t, height_map_func height)
 {
 	t->height = height;
+	vec3 brownish = {0.40, .37, 0.31};
+	vec3 whiteish = {0.96, .94, 0.96};
+	float epsilon = t->s_radius / 100000;
 	for (int i = 0; i < t->num_vertices; i++) {
-		float y_displacement = position_and_normal(height, t->basis_x, t->basis_y, t->basis_z, &t->positions[i], &t->normals[i]);
-		t->colors[i] = vec3_normalize(vec3_sub(t->positions[i], t->s_origin));
+		//Points towards vector
+		vec3 pos = vec3_sub(t->positions[i], t->s_origin);
+
+		vec3 x = vec3_normalize(vec3_cross(t->up, pos));
+		vec3 z = vec3_normalize(vec3_cross(pos, x));
+		vec3 y = vec3_normalize(pos);
+		position_and_normal(height, x, y, z, epsilon, &t->positions[i], &t->normals[i]);
+		t->colors[i] = vec3_lerp(brownish, whiteish, fmax((vec3_dist(t->positions[i], t->s_origin) - t->s_radius) / TERRAIN_AMPLITUDE, 0.0));
+		//t->normals[i] = y;
 	}
 	return t;
 }
@@ -250,10 +267,10 @@ void subdiv_tri_tile(tri_tile *in, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS])
 
 	reproject_vertices_to_spherical(new_tile_vertices, 3, in->s_origin, in->s_radius);
 
-	init_tri_tile(out[0], (vec3[3]){in->tile_vertices[0], new_tile_vertices[0], new_tile_vertices[1]}, DEFAULT_NUM_TRI_TILE_ROWS, in->s_origin, in->s_radius);
-	init_tri_tile(out[1], (vec3[3]){new_tile_vertices[0], in->tile_vertices[1], new_tile_vertices[2]}, DEFAULT_NUM_TRI_TILE_ROWS, in->s_origin, in->s_radius);
-	init_tri_tile(out[2], (vec3[3]){new_tile_vertices[0], new_tile_vertices[2], new_tile_vertices[1]}, DEFAULT_NUM_TRI_TILE_ROWS, in->s_origin, in->s_radius);
-	init_tri_tile(out[3], (vec3[3]){new_tile_vertices[1], new_tile_vertices[2], in->tile_vertices[2]}, DEFAULT_NUM_TRI_TILE_ROWS, in->s_origin, in->s_radius);
+	init_tri_tile(out[0], (vec3[3]){in->tile_vertices[0], new_tile_vertices[0], new_tile_vertices[1]}, DEFAULT_NUM_TRI_TILE_ROWS, in->up, in->s_origin, in->s_radius);
+	init_tri_tile(out[1], (vec3[3]){new_tile_vertices[0], in->tile_vertices[1], new_tile_vertices[2]}, DEFAULT_NUM_TRI_TILE_ROWS, in->up, in->s_origin, in->s_radius);
+	init_tri_tile(out[2], (vec3[3]){new_tile_vertices[0], new_tile_vertices[2], new_tile_vertices[1]}, DEFAULT_NUM_TRI_TILE_ROWS, in->up, in->s_origin, in->s_radius);
+	init_tri_tile(out[3], (vec3[3]){new_tile_vertices[1], new_tile_vertices[2], in->tile_vertices[2]}, DEFAULT_NUM_TRI_TILE_ROWS, in->up, in->s_origin, in->s_radius);
 
 	for (int i = 0; i < DEFAULT_NUM_TRI_TILE_DIVS; i++)
 		gen_tri_tile_vertices_and_normals(out[i], in->height);

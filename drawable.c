@@ -1,4 +1,4 @@
-#include <glalgebra.h>
+#include <glla.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include "effects.h"

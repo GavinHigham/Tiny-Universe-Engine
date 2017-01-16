@@ -1,6 +1,6 @@
 #ifndef UTILITY_H
 #define UTILITY_H
-#include <glalgebra.h>
+#include <glla.h>
 
 //Returns a random float between -1 and 1
 float rand_float();

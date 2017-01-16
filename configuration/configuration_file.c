@@ -4,7 +4,7 @@
 #include <string.h>
 #include <assert.h>
 #include "configuration_file.h"
-#include <glalgebra.h>
+#include <glla.h>
 
 //Parse config file. Will need a mechanism to register configurable variables.
 //When the config file is parsed, they will be set.

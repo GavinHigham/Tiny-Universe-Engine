@@ -1,7 +1,7 @@
 #ifndef TERRAIN_TYPES_H
 #define TERRAIN_TYPES_H
 #include <stdbool.h>
-#include <glalgebra.h>
+#include <glla.h>
 #include <GL/glew.h>
 #include "buffer_group.h"
 #include "terrain_constants.h"
@@ -24,6 +24,8 @@ typedef struct {
 	//these are the three outermost vertices of the entire triangular tile (pre-deformation).
 	vec3 tile_vertices[3];
 	height_map_func height;
+	//Used for normals calculation.
+	vec3 up;
 	//Bases for x, y, z movement relative to the surface of the triangular tile, y is normal to the tile as a whole.
 	vec3 basis_x;
 	vec3 basis_y;
@@ -60,6 +62,7 @@ struct drawlist_node {
 typedef struct procedural_planet {
 	vec3 pos;
 	float radius;
+	float edge_len;
 	struct dynamic_terrain_node *tiles[NUM_ICOSPHERE_FACES];
 	height_map_func height;
 } proc_planet;

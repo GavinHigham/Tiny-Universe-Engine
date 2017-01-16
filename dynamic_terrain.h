@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
-#include <glalgebra.h>
+#include <glla.h>
 #include "terrain_types.h"
 
 DRAWLIST drawlist_prepend(DRAWLIST list, tri_tile *t);

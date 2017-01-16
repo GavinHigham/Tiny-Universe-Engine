@@ -14,6 +14,7 @@ enum {
 };
 extern Sint16 axes[NUM_HANDLED_AXES];
 
+
 void axisevent(SDL_Event e);
 
 #endif

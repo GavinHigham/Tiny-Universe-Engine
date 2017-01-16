@@ -1,5 +1,6 @@
 #include <GL/glew.h>
 #include <stdlib.h>
+#include <math.h>
 #include "procedural_planet.h"
 #include "triangular_terrain_tile.h"
 #include "dynamic_terrain.h"
@@ -11,9 +12,9 @@ static const float x = 0.525731112119133606;
 static const float z = 0.850650808352039932;
  
 static vec3 ico_v[] = {    
-	{{-x, 0.0, z}}, {{x, 0.0, z}},   {{-x, 0.0, -z}}, {{x, 0.0, -z}} , 
-	{{0.0, z, x}},  {{0.0, z, -x}}, {{0.0, -z, x}},  {{0.0, -z, -x}}, 
-	{{z, x, 0.0}},  {{-z, x, 0.0}},  {{z, -x, 0.0}},  {{-z, -x, 0.0}}
+	{-x, 0.0, z}, {x, 0.0, z},   {-x, 0.0, -z}, {x, 0.0, -z} , 
+	{0.0, z, x},  {0.0, z, -x}, {0.0, -z, x},  {0.0, -z, -x}, 
+	{z, x, 0.0},  {-z, x, 0.0},  {z, -x, 0.0},  {-z, -x, 0.0}
 };
 
 static const GLuint ico_i[] = { 
@@ -34,9 +35,12 @@ void proc_planet_drawlist(proc_planet *p, DRAWLIST *terrain_list, vec3 camera_po
 
 proc_planet * new_proc_planet(vec3 pos, float radius, height_map_func height)
 {
+	vec3 up = {0, 1, 0}; //TODO: Choose a better "up"
 	proc_planet *p = malloc(sizeof(proc_planet));
 	p->pos = pos;
 	p->radius = radius;
+	p->edge_len = radius / sin(2.0*M_PI/5.0);
+	p->height = height;
 	for (int i = 0; i < NUM_ICOSPHERE_FACES; i++) {
 		tri_tile t = {.is_init = false};
 		vec3 verts[] = {
@@ -44,7 +48,7 @@ proc_planet * new_proc_planet(vec3 pos, float radius, height_map_func height)
 			vec3_add(vec3_scale(ico_v[ico_i[3*i+1]], radius), pos),
 			vec3_add(vec3_scale(ico_v[ico_i[3*i+2]], radius), pos)};
 
-		init_tri_tile(&t, verts, DEFAULT_NUM_TRI_TILE_ROWS, pos, radius);
+		init_tri_tile(&t, verts, DEFAULT_NUM_TRI_TILE_ROWS, up, pos, radius);
 		gen_tri_tile_vertices_and_normals(&t, height);
 		p->tiles[i] = new_tree(t, 0);
 	}

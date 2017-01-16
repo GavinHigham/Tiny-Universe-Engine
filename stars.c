@@ -1,14 +1,16 @@
 #include <gl/glew.h>
 #include <math.h>
 #include <stdlib.h>
-#include <glalgebra.h>
+#include <glla.h>
 #include <stdio.h>
 #include "math/utility.h"
 #include "effects.h"
 #include "macros.h"
 
-#define NUM_STARS 100000
-#define STAR_RADIUS 10000
+#define NUM_STARS 40000
+const float star_radius = 10000;
+//Bias the star distance out this much to move them away from the planet
+const float star_bias = star_radius/2.0;
 
 GLuint stars_vbo;
 GLuint stars_vao;
@@ -25,17 +27,17 @@ void init_stars()
 	glUseProgram(effects.stars.handle);
 	//glUniformMatrix4fv(effects.stars.projection_matrix, 1, GL_TRUE, proj_mat);
 
-	vec3 c1 = {{-STAR_RADIUS, -STAR_RADIUS, -STAR_RADIUS}};
-	vec3 c2 = {{STAR_RADIUS, STAR_RADIUS, STAR_RADIUS}};
+	vec3 c1 = {-star_radius, -star_radius, -star_radius};
+	vec3 c2 = {star_radius, star_radius, star_radius};
 	//Cube volume: 8*radius^3, Sphere volume: (4/3)*pi*r^3
 	//Point is outside of sphere volume (1-((4/3)*pi)/8) or 47.6% of the time
 	for (int i = 0; i < NUM_STARS; i++) {
 		vec3 p = rand_box_point3d(c1, c2);
-		if (p.x*p.x + p.y*p.y + p.z*p.z < STAR_RADIUS * STAR_RADIUS)
-			star_buffer[i] = p;
+		if (p.x*p.x + p.y*p.y + p.z*p.z < star_radius * star_radius)
+			star_buffer[i] = vec3_add(p, vec3_scale(p, star_bias/vec3_mag(p)));
 		else
 			i--;
-		// vec3 p = rand_bunched_point3d_in_sphere((vec3){{0,0,0}}, STAR_RADIUS);
+		// vec3 p = rand_bunched_point3d_in_sphere((vec3){{0,0,0}}, star_radius);
 		//star_buffer[i] = (vec3){{p.x, p.y, p.z/10}};
 	}
 
@@ -62,8 +64,8 @@ void draw_stars()
 	glBindVertexArray(stars_vao);
 	glUseProgram(effects.stars.handle);
 	//glUniform3fv(effects.stars.ship_position, 1, eye_frame.T);
-	glUniform3fv(effects.stars.eye_pos, 1, eye_frame.T);
-	glUniform1f(effects.stars.stars_radius, STAR_RADIUS);
+	glUniform3fv(effects.stars.eye_pos, 1, (float *)&eye_frame.t);
+	glUniform1f(effects.stars.stars_radius, star_radius+star_bias);
 	glUniformMatrix4fv(effects.stars.model_view_projection_matrix, 1, GL_TRUE, proj_view_mat);
 	glDrawArrays(GL_POINTS, 0, NUM_STARS);
 	glDisable(GL_BLEND);

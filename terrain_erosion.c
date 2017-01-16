@@ -1,4 +1,4 @@
-#include <glalgebra.h>
+#include <glla.h>
 #include <math.h>
 #include <stdio.h>
 #include <assert.h>
@@ -51,7 +51,7 @@ int simulate_raindrop(struct terrain *t, struct raindrop_config rc, float x, flo
 {
 	tpos(t, 0, 0);
 	//Raindrop starts at x, y.
-	struct raindrop r = {.pos = {{x, 0, z}}, .vel = {{0, 0, 0}}, .load = 0, .steps = 0};
+	struct raindrop r = {.pos = {x, 0, z}, .vel = {0, 0, 0}, .load = 0, .steps = 0};
 	float deltah = 1;
 	float timescale = 1;
 	int hit_steplimit = 0;
@@ -60,11 +60,11 @@ int simulate_raindrop(struct terrain *t, struct raindrop_config rc, float x, flo
 		vec3 *c1 = tpos(t, r.pos.x+1, r.pos.z);
 		vec3 *c2 = tpos(t, r.pos.x+1, r.pos.z+1);
 		vec3 *c3 = tpos(t, r.pos.x,   r.pos.z+1);
-		vec3 grad = (vec3){{
+		vec3 grad = (vec3){
 			p->y + c3->y - c1->y - c2->y,
 			0,
 			c2->y + c3->y - p->y - c1->y
-		}};
+		};
 		if (vec3_mag(grad) > 0)
 			grad = vec3_normalize(grad);
 
@@ -79,11 +79,11 @@ int simulate_raindrop(struct terrain *t, struct raindrop_config rc, float x, flo
 		float Af = -Fn * (rc.friction / rc.mass); //Acceleration (deceleration) due to friction.
 		float Ag = deltah / b; //Acceleration due to gravity aligned down the gradient.
 		float A = Ag + Af; //Total acceleration experienced by the drop.
-		vec3 a_vec = {{
+		vec3 a_vec = {
 			grad.x*A,
 			grad.y*A,
 			grad.z*A
-		}};
+		};
 		r.vel = vec3_add(r.vel, vec3_scale(a_vec, timescale));
 		float vmag = vec3_mag(r.vel);
 		if (vmag == 0)
@@ -219,5 +219,5 @@ vec3 nearest_terrain_origin(vec3 pos, float terrain_width, float terrain_depth)
 {
 	unsigned int x = fmod(fmod(pos.x, terrain_width) + terrain_width, terrain_width);
 	unsigned int z = fmod(fmod(pos.z, terrain_depth) + terrain_depth, terrain_depth);
-	return (vec3){{pos.x - x, 0, pos.z - z}};
+	return (vec3){pos.x - x, 0, pos.z - z};
 }

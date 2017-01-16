@@ -1,12 +1,12 @@
 #ifndef PROCEDURAL_TERRAIN_H
 #define PROCEDURAL_TERRAIN_H
-#include <glalgebra.h>
+#include <glla.h>
 #include <stdbool.h>
 #include "buffer_group.h"
 #include "terrain_types.h"
 
 tri_tile * new_tri_tile();
-tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], int num_rows, vec3 spos, float srad);
+tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], int num_rows, vec3 up, vec3 spos, float srad);
 void deinit_tri_tile(tri_tile *t);
 void free_tri_tile(tri_tile *t);
 

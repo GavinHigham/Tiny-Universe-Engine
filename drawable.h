@@ -1,7 +1,7 @@
 #ifndef DRAWABLE_H
 #define DRAWABLE_H
 
-#include <glalgebra.h>
+#include <glla.h>
 #include <stdbool.h>
 #include "effects.h"
 #include "buffer_group.h"

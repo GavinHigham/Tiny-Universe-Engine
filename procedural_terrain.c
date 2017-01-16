@@ -5,7 +5,7 @@
 #include <math.h>
 #include <assert.h>
 #include <GL/glew.h>
-#include <glalgebra.h>
+#include <glla.h>
 #include "procedural_terrain.h"
 #include "open-simplex-noise-in-c/open-simplex-noise.h"
 #include "math/utility.h"
@@ -64,8 +64,8 @@ float height_map_flat(vec3 pos)
 vec3 height_map_normal(height_map_func height, vec3 pos)
 {
 	float epsilon = 0.001;
-	vec3 pos1 = {{pos.x + epsilon, pos.y, pos.z}};
-	vec3 pos2 = {{pos.x, pos.y, pos.z + epsilon}};
+	vec3 pos1 = {pos.x + epsilon, pos.y, pos.z};
+	vec3 pos2 = {pos.x, pos.y, pos.z + epsilon};
 	pos.y  = height(pos);
 	pos1.y = height(pos1);
 	pos2.y = height(pos2);
@@ -105,7 +105,7 @@ void populate_terrain(struct terrain *t, vec3 world_pos, height_map_func height)
 			vec3 pos = world_pos;
 			pos.y = height(world_pos);
 			float intensity = pow(pos.y/100.0, 2);
-			vec3 color = {{intensity, intensity, intensity}};
+			vec3 color = {intensity, intensity, intensity};
 			vec3 norm = height_map_normal(height, pos);
 			t->positions[offset] = pos;
 			t->normals[offset] = norm;
@@ -249,7 +249,7 @@ void populate_triangular_terrain(struct terrain *t, vec3 points[3], height_map_f
 		ppos->y = height(*ppos);
 		float intensity = pow(ppos->y/100.0, 2);
 		t->normals[i] = height_map_normal(height, *ppos);
-		t->colors[i] = (vec3){{intensity, intensity, intensity}};
+		t->colors[i] = (vec3){intensity, intensity, intensity};
 	}
 }
 

@@ -1,7 +1,7 @@
 CC = gcc
 SDL = -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW
 CFLAGS = -Wall -c -std=c99 -g -pthread
-LDFLAGS = $(SDL) -lglalgebra
+LDFLAGS = $(SDL) -lglla
 MATH_OBJECTS = math/utility.o
 MODELS_OBJECTS = models/models.o
 SHADERS = shaders/*.vs shaders/*.fs shaders/*.gs
@@ -10,13 +10,16 @@ CONFIGURATION_OBJECTS = configuration/configuration_file.o
 OBJECTS = main.o init.o image_load.o keyboard.o render.o buffer_group.o controller.o \
 deferred_framebuffer.o lights.o func_list.o shader_utils.o gl_utils.o stars.o procedural_terrain.o \
 effects.o drawf.o draw.o drawable.o terrain_erosion.o dynamic_terrain.o triangular_terrain_tile.o \
-procedural_planet.o \
+procedural_planet.o ship_control.o \
 open-simplex-noise-in-c/open-simplex-noise.o \
 $(MATH_OBJECTS) $(MODELS_OBJECTS) $(CONFIGURATION_OBJECTS)
 EXE = sock
 
 all: $(OBJECTS) math_module models_module configuration_module open-simplex-noise
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(EXE)
+
+.depend:
+	gcc -M *.c > .depend
 
 init.o: effects.o
 
@@ -47,7 +50,7 @@ buffer_group.h: effects.o
 
 buffer_group.c: buffer_group.h
 
-dynamic_terrain.o: dynamic_terrain.h procedural_terrain.h triangular_terrain_tile.h
+dynamic_terrain.o: dynamic_terrain.h procedural_terrain.h triangular_terrain_tile.h terrain_constants.h terrain_types.h
 
 clean:
 	rm $(OBJECTS) && rm $(EXE)
@@ -55,3 +58,5 @@ clean:
 rclean: clean
 	cd math; make clean
 	cd models; make clean
+
+include .depend

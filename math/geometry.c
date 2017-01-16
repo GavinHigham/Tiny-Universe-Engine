@@ -1,6 +1,6 @@
 #include <stdbool.h>
 #include "geometry.h"
-#include <glalgebra.h>
+#include <glla.h>
 
 //Ported from http://geometrictools.com/Documentation/IntersectionSphereCone.pdf
 bool sphere_cone_intersect(struct sphere s, struct cone c)

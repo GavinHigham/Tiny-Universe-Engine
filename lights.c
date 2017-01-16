@@ -7,7 +7,7 @@ int bits_per_color_channel = 16;
 float point_light_radius(struct point_light_attributes *lights, int i)
 {
 	//Most of these should be optimized out by the compiler, right?
-	float ci = fmax(fmax(lights->color[i].r, lights->color[i].g), lights->color[i].b); //Color intensity.
+	float ci = fmax(fmax(lights->color[i].x, lights->color[i].y), lights->color[i].z); //Color intensity.
 	float li = lights->intensity[i];
 	float ti = 1.0/pow(2, bits_per_color_channel); //Threshold intensity. We want the radius at which light emitted from our point is this intense.
 	float a = lights->atten_e[i];

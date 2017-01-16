@@ -1,4 +1,4 @@
-#include <glalgebra.h>
+#include <glla.h>
 #include <math.h>
 #include <assert.h>
 #include <stdio.h>
@@ -34,14 +34,22 @@ Using n = center point of tile
 		s = log2((w * L/n) / ((d - L/sqrt(3)) * 2 * p))
 	No narrower than p
 		s = log2((w * L/n) / ((d + L/sqrt(3)) * 2 * p))
+
+
+TODO:
+
+Look at all these equations and re-evaluate them, considering that some values change with each subdivision.
+Using TRI_BASE_LEN is not correct anymore.
+
+Finding the distance to the horizon and comparing with tile centers will not always be correct.
 */
 
 //#define SUBDIVS (dot_div_depth(tree->t.pos, tree->t.s_origin, cam_pos))
 #define SUBDIVS (subdivision_depth(tree, cam_pos, planet))
 
-int subdivisions_per_distance(float distance, float tri_pixel_width)
+int subdivisions_per_distance(float distance, float tri_pixel_width, float tile_base_len)
 {
-	return fmin(log2((screen_width * TRI_BASE_LEN/DEFAULT_NUM_TRI_TILE_ROWS) / ((distance * 2 * tri_pixel_width))), MAX_SUBDIVISIONS);
+	return fmin(log2((screen_width * tile_base_len) / (distance * 2 * tri_pixel_width * DEFAULT_NUM_TRI_TILE_ROWS)), MAX_SUBDIVISIONS);
 }
 
 int dot_div_depth(vec3 tile_pos, vec3 planet_center, vec3 cam_pos)
@@ -52,13 +60,13 @@ int dot_div_depth(vec3 tile_pos, vec3 planet_center, vec3 cam_pos)
 
 int subdivision_depth(PDTNODE tree, vec3 cam_pos, proc_planet *planet)
 {
-	float h = vec3_mag(vec3_sub(cam_pos, planet->pos)) - planet->radius; //If negative, we're below sea level.
+	float h = vec3_dist(cam_pos, planet->pos) - planet->radius; //If negative, we're below sea level.
 	h = fmax(h, 0); //Don't handle "within the planet" case yet.
 	float d = sqrt(2*planet->radius*h + h*h);
-	if (tree->dist > d) //Node is beyond the horizon (add a correct margin later, since this distance is to tile center)
+	if (tree->dist > d + planet->edge_len/pow(2.0, tree->depth + 1)) //Node is beyond the horizon.
 		return 0;
 	else
-		return subdivisions_per_distance(h, 100);
+		return subdivisions_per_distance(h, 40, planet->edge_len);
 }
 
 DRAWLIST drawlist_prepend(DRAWLIST list, tri_tile *t)

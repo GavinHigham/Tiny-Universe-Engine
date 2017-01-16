@@ -1,6 +1,6 @@
 #ifndef PROCEDURAL_PLANET_H
 #define PROCEDURAL_PLANET_H
-#include <glalgebra.h>
+#include <glla.h>
 #include "terrain_types.h"
 
 proc_planet * new_proc_planet(vec3 pos, float radius, height_map_func height);

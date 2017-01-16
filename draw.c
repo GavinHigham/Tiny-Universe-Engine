@@ -20,7 +20,7 @@ void draw_forward(EFFECT *e, struct buffer_group bg, amat4 model_matrix)
 	GLfloat nmvm[16];
 	amat4_to_array(model_matrix, mm);
 	amat4_buf_mult(proj_view_mat, mm, mvpm);
-	mat3_vec3_to_array(mat3_transp(model_matrix.a), (vec3){{0, 0, 0}}, nmvm);
+	mat3_vec3_to_array(mat3_transp(model_matrix.a), (vec3){0, 0, 0}, nmvm);
 	drawf("-m-m-m", e->model_matrix, mm, e->model_view_projection_matrix, mvpm, e->model_view_normal_matrix, nmvm);
 	glDrawElements(bg.primitive_type, bg.index_count, GL_UNSIGNED_INT, NULL);
 }
@@ -33,7 +33,7 @@ void draw_forward_adjacent(EFFECT *e, struct buffer_group bg, amat4 model_matrix
 	GLfloat mvnm[16];
 	amat4_to_array(model_matrix, mm);
 	amat4_buf_mult(proj_view_mat, mm, mvpm);
-	mat3_vec3_to_array(mat3_transp(model_matrix.a), (vec3){{0, 0, 0}}, mvnm);
+	mat3_vec3_to_array(mat3_transp(model_matrix.a), (vec3){0, 0, 0}, mvnm);
 	drawf("-m-m-m", e->model_matrix, mm, e->model_view_projection_matrix, mvpm, e->model_view_normal_matrix, mvnm);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
 	glDrawElements(GL_TRIANGLES_ADJACENCY, bg.index_count*2, GL_UNSIGNED_INT, NULL);
@@ -60,6 +60,6 @@ void draw_skybox_forward(EFFECT *e, struct buffer_group bg, amat4 model_matrix)
 	GLfloat mm[16];
 	amat4_to_array(model_matrix, mm);
 	amat4_buf_mult(proj_view_mat, mm, mvpm);
-	drawf("-m-m-*3f-*3f", e->model_matrix, mm, e->model_view_projection_matrix, mvpm, e->camera_position, model_matrix.T, e->sun_direction, sun_direction.A);
+	drawf("-m-m-*3f-*3f", e->model_matrix, mm, e->model_view_projection_matrix, mvpm, e->camera_position, (float *)&model_matrix.t, e->sun_direction, (float *)&sun_direction);
 	glDrawElements(GL_TRIANGLES, bg.index_count, GL_UNSIGNED_INT, NULL);
 }
