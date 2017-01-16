@@ -1,2 +1,2 @@
 #include <math.h>
-#include <glalgebra.h>
+#include <glla.h>

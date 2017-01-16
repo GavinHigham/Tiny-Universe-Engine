@@ -3,11 +3,27 @@
 in vec3 fPos;
 out vec4 LFragment;
 
+uniform float stars_radius;
+
 void main() {
 	vec2 pd = gl_PointCoord - vec2(0.5);
-	float x = sqrt(2*(pd.x*pd.x + pd.y*pd.y));
-	vec3 color = vec3(1-x*1.1, 1-x*1.11, 1-x);
-	float b = 1-distance(fPos, vec3(0.0))/1000;
-	LFragment = vec4((vec3(pow(b+0.25, 7.5)-0.1, pow(b, 1.8), b+0.3)+vec3(0.1))*(1-x), 1.0);
+	float alpha = 1-sqrt(2*(pd.x*pd.x + pd.y*pd.y));
+	vec3 far_color = vec3(0.5, 0.6, 0.9);
+	vec3 near_color = vec3(0.4, 0.88, 0.7);
+	vec3 color_center = vec3(0.0);
+	float dist = distance(fPos, color_center);
+	float color_mix = smoothstep(stars_radius / 3, stars_radius * 3 / 2, dist);
+	vec3 color = mix(near_color, far_color, color_mix);
+	//color = far_color;
+	LFragment = vec4(color, alpha);
+
+	//vec3 color = vec3(1-x*1.1, 1-x*1.11, 1-x);
+	float b = 1-distance(fPos, vec3(0.0))/(stars_radius);
+	LFragment = vec4((vec3(
+		pow(b+0.25, 7.5)-0.05,
+		pow(b+.18, 1.8),
+		b+0.1
+		) + vec3(0.1)), alpha);
+	//LFragment = vec4(1.0);
 	//LFragment = vec4(vec3(attenuation), 1.0);
 }

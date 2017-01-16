@@ -12,6 +12,11 @@ uniform int ambient_pass;
 #define INTENSITY   3
 #define M_PI 3.1415926535897932384626433832795
 
+// set important material values
+float roughnessValue = 0.15; // 0 : smooth, 1: rough
+float F0 = 0.2; // fresnel reflectance at normal incidence
+float k = 0.2; // fraction of diffuse reflection (specular reflection = 1 - k)
+
 in vec3 fPos;
 in vec3 fColor;
 in vec3 fNormal;
@@ -33,11 +38,6 @@ void point_light_fragment(in vec3 l, in vec3 v, in vec3 normal, out float specul
 
 void point_light_fragment2(in vec3 l, in vec3 v, in vec3 normal, out float specular, out float diffuse)
 {
-	// set important material values
-	float roughnessValue = 0.1; // 0 : smooth, 1: rough
-	float F0 = 0.8; // fresnel reflectance at normal incidence
-	float k = 0.2; // fraction of diffuse reflection (specular reflection = 1 - k)
-
 	vec3 h = normalize(l + v); //Halfway vector.
 	
 	// do the lighting calculation for each fragment.
@@ -84,6 +84,7 @@ vec3 sky_color(vec3 v, vec3 s, vec3 c)
 
 
 void main() {
+	//roughnessValue = pow(0.2*length(fColor), 8);
 	float gamma = 2.2;
 	vec3 normal = normalize(fNormal);
 	vec3 final_color = vec3(0.0);
@@ -93,8 +94,10 @@ void main() {
 	vec3 v = normalize(camera_position - fPos); //View vector.
 	if (ambient_pass == 1) {
 		point_light_fragment2(uLight_pos, v, normal, specular, diffuse);
-		diffuse_frag = fColor*diffuse*sky_color(normal, normalize(vec3(0.1, 0.8, 0.1)), uLight_col);
-		specular_frag = fColor*specular*sky_color(reflect(v, normal), normalize(vec3(0.1, 0.8, 0.1)), uLight_col);
+		//diffuse_frag = fColor*diffuse*sky_color(normal, normalize(vec3(0.1, 0.8, 0.1)), uLight_col);
+		//specular_frag = fColor*specular*sky_color(reflect(v, normal), normalize(vec3(0.1, 0.8, 0.1)), uLight_col);
+		diffuse_frag = fColor*diffuse*uLight_col;
+		specular_frag = fColor*specular*uLight_col;
 	} else {
 		float dist = distance(fPos, uLight_pos);
 		float attenuation = uLight_attr[CONSTANT] + uLight_attr[LINEAR]*dist + uLight_attr[EXPONENTIAL]*dist*dist;
@@ -105,16 +108,16 @@ void main() {
 	}
 
 	final_color += (diffuse_frag + specular_frag);
+	//vec3 fog_color = vec3(0.0, 0.0, 0.0);
+	//final_color = mix(final_color, fog_color, pow(distance(fPos, camera_position)/1000, 4.0)); 
 
 	//Tone mapping.
-	float x = 0.0001;
-	final_color = (final_color * (6.2 * x + 0.5))/(final_color * (6.2 * final_color + 1.7) + 0.06);
-	vec3 fog_color = vec3(1.0);
-	//final_color = mix(final_color, fog_color, pow(distance(fPos, camera_position)/1000, 4.0)); 
+	//float x = 0.0001;
+	//final_color = (final_color * (6.2 * x + 0.5))/(final_color * (6.2 * final_color + 1.7) + 0.06);
 	final_color = final_color / (final_color + vec3(1.0));
 	//final_color = final_color / (max(max(final_color.x, final_color.y), final_color.z) + 1);
+
 	//Gamma correction.
 	final_color = pow(final_color, vec3(1.0 / gamma));
 	LFragment = vec4(final_color, 1.0);
-	//LFragment = vec4(normal, 1.0);
 }

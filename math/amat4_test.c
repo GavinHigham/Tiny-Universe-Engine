@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <glalgebra.h>
+#include <glla.h>
 
 int main()
 {

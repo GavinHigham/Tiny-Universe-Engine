@@ -1,6 +1,6 @@
 #ifndef GEOMETRY_H
 #define GEOMETRY_H
-#include <glalgebra.h>
+#include <glla.h>
 
 /*
 Some values will be squared and stored with suffix _sq.

@@ -2,7 +2,7 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <GL/glew.h>
-#include <glalgebra.h>
+#include <glla.h>
 
 void drawf_fv(GLint name, GLfloat *val, int num)
 {
