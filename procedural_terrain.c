@@ -70,7 +70,7 @@ vec3 height_map_normal(height_map_func height, vec3 pos)
 	pos1.y = height(pos1);
 	pos2.y = height(pos2);
 
-	return vec3_normalize(vec3_cross(vec3_sub(pos2, pos), vec3_sub(pos1, pos)));
+	return vec3_normalize(vec3_cross(pos2 - pos, pos1 - pos));
 }
 
 //Frees the dynamic storage and OpenGL objects held by a terrain struct.
@@ -238,7 +238,7 @@ struct terrain new_triangular_terrain(int numrows)
 //Generates an initial heightmap terrain and associated normals.
 void populate_triangular_terrain(struct terrain *t, vec3 points[3], height_map_func height)
 {
-	t->pos = vec3_scale(vec3_add(vec3_add(points[0], points[1]), points[2]), 1.0/3.0);
+	t->pos = (points[0] + points[1] + points[2]) * 1.0/3.0;
 	for (int i = 0; i < 3; i++)
 		t->points[i] = points[i];
 	int numverts = triangle_tile_vertices(t->positions, t->numrows, points[0], points[1], points[2]);

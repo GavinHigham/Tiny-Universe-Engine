@@ -39,15 +39,10 @@ vec3 rand_bunched_point3d_in_sphere(vec3 origin, float radius)
 	radius = pow(rand_float(), 4) * radius; //Distribute stars within the sphere, not on the outside.
 	float a1 = rand_float() * 2 * M_PI;
 	float a2 = rand_float() * 2 * M_PI;
-	return vec3_add(origin, (vec3){radius*sin(a1)*cos(a2), radius*sin(a1)*sin(a2), radius*cos(a1)});
+	return origin + (vec3){radius*sin(a1)*cos(a2), radius*sin(a1)*sin(a2), radius*cos(a1)};
 }
 
 vec3 rand_box_point3d(vec3 corner1, vec3 corner2)
 {
-	vec3 size = vec3_sub(corner2, corner1); //size can be negative, it'll still work.
-	return (vec3){
-		corner1.x + rand_float()*size.x,
-		corner1.y + rand_float()*size.y,
-		corner1.z + rand_float()*size.z
-	};
+	return (vec3){rand_float(), rand_float(), rand_float()} * (corner2 - corner1) + corner1;
 }

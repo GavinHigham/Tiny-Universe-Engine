@@ -19,7 +19,7 @@ extern amat4 eye_frame;
 extern amat4 ship_frame;
 extern GLfloat proj_view_mat[16];
 
-vec3 star_buffer[NUM_STARS];
+float star_buffer[NUM_STARS * 3];
 
 void init_stars()
 {
@@ -33,8 +33,8 @@ void init_stars()
 	//Point is outside of sphere volume (1-((4/3)*pi)/8) or 47.6% of the time
 	for (int i = 0; i < NUM_STARS; i++) {
 		vec3 p = rand_box_point3d(c1, c2);
-		if (p.x*p.x + p.y*p.y + p.z*p.z < star_radius * star_radius)
-			star_buffer[i] = vec3_add(p, vec3_scale(p, star_bias/vec3_mag(p)));
+		if (vec3_mag(p) < star_radius * star_radius)
+			vec3_unpack(&star_buffer[i*3], p + p * (star_bias/vec3_mag(p)));
 		else
 			i--;
 		// vec3 p = rand_bunched_point3d_in_sphere((vec3){{0,0,0}}, star_radius);

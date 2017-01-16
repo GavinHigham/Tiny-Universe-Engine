@@ -5,6 +5,8 @@
 #include "math/utility.h"
 #include "procedural_terrain.h"
 
+//Todo, make this not rely on a grid pattern. Gather a list of neighbors. Then I can erode arbitrary meshes.
+
 const float ACCELERATION_DUE_TO_GRAVITY = 9.81;
 
 //Calculates an array index for t->positions.
@@ -84,15 +86,15 @@ int simulate_raindrop(struct terrain *t, struct raindrop_config rc, float x, flo
 			grad.y*A,
 			grad.z*A
 		};
-		r.vel = vec3_add(r.vel, vec3_scale(a_vec, timescale));
+		r.vel = r.vel + a_vec * timescale;
 		float vmag = vec3_mag(r.vel);
 		if (vmag == 0)
 			timescale = 1;
 		else
 			timescale = 1/vmag;
 		assert(timescale != NAN);
-		r.pos = vec3_add(r.pos, vec3_scale(r.vel, timescale)); //Move the raindrop by one unit in its velocity direction.
-		// r.pos  = vec3_add(r.pos, grad); //Move the raindrop along the gradient.
+		r.pos = r.pos + r.vel * timescale; //Move the raindrop by one unit in its velocity direction.
+		// r.pos  = r.pos + grad; //Move the raindrop along the gradient.
 		vec3 *newp = tpos(t, r.pos.x, r.pos.z);
 		deltah = newp->y - p->y;
 		if (deltah < 0) { //The drop moves downhill
@@ -140,16 +142,10 @@ void recalculate_terrain_normals_expensive(struct terrain *t)
 			vec3 *p8 = tpos(t, x+1, z-1);
 
 			*tnorm(t, x, z) = vec3_normalize(
-				vec3_add(
-					vec3_add(
-						vec3_cross(vec3_sub(*p1, p0), vec3_sub(*p3, p0)),
-						vec3_cross(vec3_sub(*p5, p0), vec3_sub(*p7, p0))
-					),
-					vec3_add(
-						vec3_cross(vec3_sub(*p2, p0), vec3_sub(*p4, p0)),
-						vec3_cross(vec3_sub(*p6, p0), vec3_sub(*p8, p0))
-					)
-				)
+				vec3_cross(*p1 - p0, *p3 - p0) +
+				vec3_cross(*p5 - p0, *p7 - p0) +
+				vec3_cross(*p2 - p0, *p4 - p0) +
+				vec3_cross(*p6 - p0, *p8 - p0)
 			);
 		}
 	}
@@ -165,7 +161,7 @@ void recalculate_terrain_normals_cheap(struct terrain *t)
 			vec3 *p3 = tpos(t, x, z+1);
 			vec3 *p7 = tpos(t, x, z-1);
 
-			*tnorm(t, x, z) = vec3_normalize(vec3_cross(vec3_sub(*p1, *p5), vec3_sub(*p3, *p7)));
+			*tnorm(t, x, z) = vec3_normalize(vec3_cross(*p1 - *p5, *p3 - *p7));
 		}
 	}
 }

@@ -8,10 +8,10 @@ enum {
 	DEFAULT_NUM_TRI_TILE_ROWS = 128,
 	//A triangular tile is divided in "triforce" fashion, that is,
 	//by dividing along the edges of a triangle whose vertices are the bisection of each original tile edge.
-	DEFAULT_NUM_TRI_TILE_DIVS = 1,
+	DEFAULT_NUM_TRI_TILE_DIVS = 4,
 	TRI_BASE_LEN = 10000,
 	PIXELS_PER_TRI = 2,
-	MAX_SUBDIVISIONS = 3,
+	MAX_SUBDIVISIONS = 5,
 	YIELD_AFTER_DIVS = 5,
 	NUM_ICOSPHERE_FACES = 20
 };

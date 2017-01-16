@@ -3,21 +3,7 @@
 #include <math.h>
 #include <glla.h>
 #include "macros.h"
-
-float rand_float()
-{
-	return (float)((double)rand()/RAND_MAX); //Discard precision after the division.
-}
-
-vec3 rand_box_point3d(vec3 corner1, vec3 corner2)
-{
-	vec3 size = vec3_sub(corner2, corner1); //size can be negative, it'll still work.
-	return (vec3){{{
-		corner1.x + rand_float()*size.x,
-		corner1.y + rand_float()*size.y,
-		corner1.z + rand_float()*size.z
-	}}};
-}
+#include "math/utility.h"
 
 int point_in_bounds(vec3 point, vec3 corner1, vec3 corner2)
 {
@@ -34,7 +20,7 @@ vec3 rand_sphere_shell_point3d(vec3 origin, float minradius, float maxradius)
 	float radius = r1*minradius + (1-r1)*maxradius; //Lerp between the min and max radius.
 	float a1 = rand_float() * 2 * M_PI;
 	float a2 = rand_float() * 2 * M_PI;
-	return vec3_add(origin, (vec3){{{radius*cos(a1)*sin(a2), radius*sin(a1)*sin(a2), radius*cos(a2)}}});
+	return origin + (vec3){radius*cos(a1)*sin(a2), radius*sin(a1)*sin(a2), radius*cos(a2)};
 }
 
 struct poisson_grid {
@@ -85,9 +71,9 @@ void poisson_points_3d(vec3 *points, int maxpoints, vec3 corner1, vec3 corner2, 
 {
 	float cell_size = radius/sqrt(2.0);
 	struct poisson_grid grid;
-	vec3 grid_size = vec3_sub(corner2, corner1);
+	vec3 grid_size = corner2 - corner1;
 	//Determine grid dimensions.
-	grid.gd = vec3_scale(grid_size, 1/cell_size);
+	grid.gd = grid_size * 1/cell_size;
 	for (int i = 0; i < LENGTH(grid.gd.A); i++)
 		grid.gd.A[i] = ceil(grid.gd.A[i]);
 

@@ -355,15 +355,25 @@ void update(float dt)
 	light_time += dt * 0.2;
 	point_lights.position[0] = (vec3){10*cos(light_time), 4, 10*sin(light_time)-8};
 
+	if (key_state[SDL_SCANCODE_T]) {
+		printf("Ship is at {%f, %f, %f}. Where would you like to teleport?\n", ship.position.t.x, ship.position.t.y, ship.position.t.z);
+		float x, y, z;
+		// *((float *)&ship.position.t) = 100;
+		// *((float *)&ship.position.t+1) = 100;
+		// *((float *)&ship.position.t+2) = 100;
+		scanf("%f %f %f", &x, &y, &z);
+		ship.position.t = (vec3){x, y, z};
+	}
+
 	// float ts = 1/300000.0;
 	// float rs = 1/600000.0;
 
 	float camera_speed = 20.0;
-	ship.movable_camera = vec3_add(ship.movable_camera,
+	ship.movable_camera = ship.movable_camera +
 		mat3_multvec(eye_frame.a, (vec3){
 		(key_state[SDL_SCANCODE_D] - key_state[SDL_SCANCODE_A]) * dt * camera_speed,
 		(key_state[SDL_SCANCODE_Q] - key_state[SDL_SCANCODE_E]) * dt * camera_speed,
-		(key_state[SDL_SCANCODE_S] - key_state[SDL_SCANCODE_W]) * dt * camera_speed}));
+		(key_state[SDL_SCANCODE_S] - key_state[SDL_SCANCODE_W]) * dt * camera_speed});
 
 	float controller_max = 32768.0;
 	ship = ship_control(dt, (struct controller_input){
@@ -413,5 +423,5 @@ void update(float dt)
 		sunscale += 0.1;
 	if (key_state[SDL_SCANCODE_MINUS])
 		sunscale -= 0.1;
-	sun_color = vec3_scale(ambient_color, sunscale);
+	sun_color = ambient_color * sunscale;
 }

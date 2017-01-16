@@ -73,8 +73,8 @@ tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], int num_rows, vec3 up, v
 {
 	//We'll leak memory and OpenGL handles and junk if we try to init more than once.
 	assert(!t->is_init);
-	printf("sizeof(vec3) = %lu\n", sizeof(vec3));
-	assert(sizeof(vec3) == (sizeof(float) * 3));
+	//printf("sizeof(vec3) = %lu\n", sizeof(vec3));
+	//assert(sizeof(vec3) == (sizeof(float) * 3));
 
 	//Get counts.
 	t->bg.index_count = num_tri_tile_indices(num_rows);
@@ -106,7 +106,7 @@ tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], int num_rows, vec3 up, v
 	t->bg.ibo = get_shared_tri_tile_indices_buffer_object(num_rows);
 
 	//Calculate center point (centroid) and copy tile vertices.
-	t->pos = vec3_scale(vec3_add(vec3_add(vertices[0], vertices[1]), vertices[2]), 1.0/3.0);
+	t->pos = vertices[0] + vertices[1] + vertices[2] * 1.0/3.0;
 	for (int i = 0; i < 3; i++)
 		t->tile_vertices[i] = vertices[i];
 
@@ -117,9 +117,9 @@ tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], int num_rows, vec3 up, v
 	reproject_vertices_to_spherical(&t->pos, 1, t->s_origin, t->s_radius);
 
 	//Determine basis vectors aligned with the triangle, for vertex normal generation.
-	t->basis_x = vec3_normalize(vec3_sub(t->tile_vertices[2], t->tile_vertices[1]));
-	t->basis_z = vec3_normalize(vec3_sub(t->tile_vertices[0], t->pos));
-	t->basis_y = vec3_normalize(vec3_sub(t->pos, t->s_origin));
+	t->basis_x = vec3_normalize(t->tile_vertices[2] - t->tile_vertices[1]);
+	t->basis_z = vec3_normalize(t->tile_vertices[0] - t->pos);
+	t->basis_y = vec3_normalize(t->pos - t->s_origin);
 
 	return t;
 }
@@ -210,10 +210,8 @@ int tri_tile_vertices(vec3 vertices[], int num_rows, vec3 a, vec3 b, vec3 c)
 void reproject_vertices_to_spherical(vec3 vertices[], int num_vertices, vec3 spos, float srad)
 {
 	for (int i = 0; i < num_vertices; i++) {
-		vec3 d = vec3_sub(vertices[i], spos);
-		float m = vec3_mag(d);
-		float s = srad/m;
-		vertices[i] = vec3_add(vec3_scale(d, s), spos);
+		vec3 d = vertices[i] - spos;
+		vertices[i] = d * srad/vec3_mag(d) + spos;
 	}
 }
 
@@ -226,14 +224,14 @@ void reproject_vertices_to_spherical(vec3 vertices[], int num_vertices, vec3 spo
 static float position_and_normal(height_map_func height, vec3 basis_x, vec3 basis_y, vec3 basis_z, float epsilon, vec3 *position, vec3 *normal)
 {
 		//Create two points, scootched out along the basis vectors.
-		vec3 pos1 = vec3_add(vec3_scale(basis_x, epsilon), *position);
-		vec3 pos2 = vec3_add(vec3_scale(basis_z, epsilon), *position);
+		vec3 pos1 = basis_x * epsilon + *position;
+		vec3 pos2 = basis_z * epsilon + *position;
 		//Find procedural heights, and add them.
-		pos1      = vec3_add(vec3_scale(basis_y, height(pos1)),      pos1);
-		pos2      = vec3_add(vec3_scale(basis_y, height(pos2)),      pos2);
-		*position = vec3_add(vec3_scale(basis_y, height(*position)), *position);
+		pos1      = basis_y * height(pos1) + pos1;
+		pos2      = basis_y * height(pos2) + pos2;
+		*position = basis_y * height(*position) + *position;
 		//Compute the normal.
-		*normal = vec3_normalize(vec3_cross(vec3_sub(pos1, *position), vec3_sub(pos2, *position)));
+		*normal = vec3_normalize(vec3_cross(pos1 - *position, pos2 - *position));
 		return position->y;
 }
 
@@ -245,14 +243,13 @@ tri_tile * gen_tri_tile_vertices_and_normals(tri_tile *t, height_map_func height
 	float epsilon = t->s_radius / 100000;
 	for (int i = 0; i < t->num_vertices; i++) {
 		//Points towards vector
-		vec3 pos = vec3_sub(t->positions[i], t->s_origin);
+		vec3 pos = t->positions[i] - t->s_origin;
 
 		vec3 x = vec3_normalize(vec3_cross(t->up, pos));
 		vec3 z = vec3_normalize(vec3_cross(pos, x));
 		vec3 y = vec3_normalize(pos);
 		position_and_normal(height, x, y, z, epsilon, &t->positions[i], &t->normals[i]);
 		t->colors[i] = vec3_lerp(brownish, whiteish, fmax((vec3_dist(t->positions[i], t->s_origin) - t->s_radius) / TERRAIN_AMPLITUDE, 0.0));
-		//t->normals[i] = y;
 	}
 	return t;
 }
@@ -280,16 +277,29 @@ void subdiv_tri_tile(tri_tile *in, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS])
 
 void buffer_tri_tile(tri_tile *t)
 {
+	GLfloat *positions = malloc(t->num_vertices * 3 * sizeof(GLfloat));
+	GLfloat *normals = malloc(t->num_vertices * 3 * sizeof(GLfloat));
+	GLfloat *colors = malloc(t->num_vertices * 3 * sizeof(GLfloat));
+
+	for (int i = 0; i < t->num_vertices; i++) {
+		vec3_unpack(&positions[i*3], t->positions[i]);
+		vec3_unpack(&normals[i*3], t->normals[i]);
+		vec3_unpack(&colors[i*3], t->colors[i]);
+	}
+
 	glBindVertexArray(t->bg.vao);
 	glEnable(GL_PRIMITIVE_RESTART);
 	glPrimitiveRestartIndex(PRIMITIVE_RESTART_INDEX);
 	glBindBuffer(GL_ARRAY_BUFFER, t->bg.vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vec3)*t->num_vertices, t->positions, GL_DYNAMIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)*3*t->num_vertices, positions, GL_STATIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, t->bg.nbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vec3)*t->num_vertices, t->normals, GL_DYNAMIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)*3*t->num_vertices, normals, GL_STATIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, t->bg.cbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vec3)*t->num_vertices, t->colors, GL_DYNAMIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)*3*t->num_vertices, colors, GL_STATIC_DRAW);
 	//Bind buffer to current bound vao so it's used as the index buffer for draw calls.
 	glBindBuffer(GL_ARRAY_BUFFER, t->bg.ibo);
 	t->buffered = true;
+	free(positions);
+	free(normals);
+	free(colors);
 }

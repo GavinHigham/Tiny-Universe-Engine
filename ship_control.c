@@ -21,13 +21,13 @@ struct ship_physics ship_control(float dt, struct controller_input input, struct
 	ship.velocity.a = mat3_rot(mat3_rotmat(0, 0, 1, sin(a1), cos(a1)), 1, 0, 0, sin(a2), cos(a2));
 
 	//Add our acceleration to our velocity to change our speed.
-	ship.velocity.t = vec3_add(ship.velocity.t, vec3_scale(ship.acceleration, dt));
+	ship.velocity.t = ship.velocity.t + ship.acceleration * dt;
 
 	//Rotate the ship by applying the angular velocity to the angular orientation.
 	ship.position.a = mat3_mult(ship.position.a, ship.velocity.a);
 
 	//Move the ship by applying the velocity to the position.
-	ship.position.t = vec3_add(ship.position.t, ship.velocity.t);
+	ship.position.t = ship.position.t + ship.velocity.t;
 
 	//The ship camera should be positioned 2 up and 8 back relative to the ship's frame.
 	ship.locked_camera.t      = amat4_multpoint(ship.position, ship.movable_camera);

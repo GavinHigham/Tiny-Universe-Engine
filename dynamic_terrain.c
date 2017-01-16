@@ -54,7 +54,7 @@ int subdivisions_per_distance(float distance, float tri_pixel_width, float tile_
 
 int dot_div_depth(vec3 tile_pos, vec3 planet_center, vec3 cam_pos)
 {
-	float d = fmax(0, pow(vec3_dot(vec3_normalize(vec3_sub(tile_pos, planet_center)), vec3_normalize(vec3_sub(cam_pos, planet_center))), 16));
+	float d = fmax(0, pow(vec3_dot(vec3_normalize(tile_pos - planet_center), vec3_normalize(cam_pos - planet_center)), 16));
 	return pow(MAX_SUBDIVISIONS, d);
 }
 

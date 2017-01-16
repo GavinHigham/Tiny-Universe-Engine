@@ -44,9 +44,10 @@ proc_planet * new_proc_planet(vec3 pos, float radius, height_map_func height)
 	for (int i = 0; i < NUM_ICOSPHERE_FACES; i++) {
 		tri_tile t = {.is_init = false};
 		vec3 verts[] = {
-			vec3_add(vec3_scale(ico_v[ico_i[3*i]],   radius), pos),
-			vec3_add(vec3_scale(ico_v[ico_i[3*i+1]], radius), pos),
-			vec3_add(vec3_scale(ico_v[ico_i[3*i+2]], radius), pos)};
+			ico_v[ico_i[3*i]]   * radius + pos,
+			ico_v[ico_i[3*i+1]] * radius + pos,
+			ico_v[ico_i[3*i+2]] * radius + pos
+		};
 
 		init_tri_tile(&t, verts, DEFAULT_NUM_TRI_TILE_ROWS, up, pos, radius);
 		gen_tri_tile_vertices_and_normals(&t, height);
