@@ -2,11 +2,9 @@
 #include <math.h>
 #include <assert.h>
 #include <stdio.h>
-#include "dynamic_terrain.h"
-#include "triangular_terrain_tile.h"
 #include "buflist.h"
 #include "render.h"
-#include "terrain_types.h"
+#include "dynamic_terrain_tree.h"
 
 /*
 TODO:
@@ -31,7 +29,7 @@ int dot_div_depth(vec3 tile_pos, vec3 planet_center, vec3 cam_pos)
 	return pow(MAX_SUBDIVISIONS, d);
 }
 
-int subdivision_depth(PDTNODE tree, vec3 cam_pos, proc_planet *planet)
+int subdivision_depth(terrain_tree_node *tree, vec3 cam_pos, proc_planet *planet)
 {
 	float h = vec3_dist(cam_pos, planet->pos) - planet->radius; //If negative, we're below sea level.
 	h = fmax(h, 0); //Don't handle "within the planet" case yet.
@@ -77,43 +75,85 @@ PDTNODE new_tree(tri_tile t, int depth)
 	return new;
 }
 
-void subdivide_tree(PDTNODE tree, vec3 cam_pos, proc_planet *planet)
+int example_subdiv(terrain_tree_node *tree, void *context)
 {
-	assert(tree);
-	
-	// tree->dist = fmin(
-	// 	vec3_dist(tree->t.points[0], cam_pos),
-	// 	fmin(
-	// 		vec3_dist(tree->t.points[1], cam_pos),
-	// 		vec3_dist(tree->t.points[2], cam_pos)));
-	tree->dist = vec3_dist(tree->t.pos, cam_pos);
-
-	if (tree->depth > SUBDIVS)
-		return; //Node is divided enough, done.
+	struct planet_terrain_context *ctx = (struct planet_terrain_context *)context;
+	tri_tile *tile = (tri_tile *)tree->tile;
+	vec3 dist = vec3_dist(tile->pos, ctx->cam_pos);
 
 	//Cap the number of subdivisions per whole-tree traversal (per frame essentially)
-	static int remaining_subdivisions = 0;
 	if (tree->depth == 0)
-		remaining_subdivisions = YIELD_AFTER_DIVS;
-	if (remaining_subdivisions <= 0)
-	 	return;
+		ctx->subdivs_left = YIELD_AFTER_DIVS;
+	if (ctx->subdivs_left <= 0)
+	 	return 0;
+
+	if (tree->depth >= subdivision_depth(tree, ctx->cam_pos, ctx->planet))
+		return false;
+
+	ctx->subdivs_left--;
+	return true;
+}
+
+void split_tree(
+	terrain_tree_node *tree,
+	int (subdiv)(terrain_tree_node *, void *),
+	void *context,
+	int num_children,
+	void (*split)(void *parent, void *children))
+{
+	assert(tree);
+
+	if (tree->depth >= subdiv(tree, context))
+		return; //Node is divided enough, done.
 
 	//Create children and subdivide if they don't yet exist.
 	if (!tree_has_children(tree)) {
 		printf("Subdiving node at <%f, %f, %f>, depth %i\n", tree->t.pos.x, tree->t.pos.y, tree->t.pos.z, tree->depth);
-		tri_tile *new_t[DEFAULT_NUM_TRI_TILE_DIVS];
-		for (int i = 0; i < DEFAULT_NUM_TRI_TILE_DIVS; i++) {
+		tri_tile *new_t[num_children];
+		for (int i = 0; i < num_children; i++) {
 			tree->children[i] = new_tree((tri_tile){.is_init = false}, tree->depth + 1);
 			new_t[i] = &(tree->children[i]->t);
 		}
 
-		remaining_subdivisions--;
-		subdiv_tri_tile(&(tree->t), new_t);
+		split(&(tree->t), new_t);
 	}
 
 	//Visit children
-	for (int i = 0; i < DEFAULT_NUM_TRI_TILE_DIVS; i++)
-		subdivide_tree(tree->children[i], cam_pos, planet);
+	for (int i = 0; i < num_children; i++)
+		split_tree(tree->children[i], cam_pos, planet);
+}
+
+void prune_tree(
+	terrain_tree_node *tree,
+	int (subdiv)(terrain_tree_node *, void *),
+	void *context,
+	int num_children,
+	void (*free_data)(void *data))
+{
+	if (tree && tree->depth > SUBDIVS + 5) {
+		if (tree_has_children(tree)) {
+			for (int i = 0; i < num_children; i++) {
+				prune_tree(tree->children[i], cam_pos, planet);
+				deinit_tri_tile(&tree->children[i]->t);
+				free(tree->children[i]);
+			}
+			tree_set_childless(tree);
+		}
+	}
+}
+
+void free_tree(PDTNODE tree, void (*free_data)(void *data), int num_children)
+{
+	if (tree) {
+		if (tree->children[0]) {
+			for (int i = 0; i < num_children; i++) {
+				free_tree(tree->children[i]);
+			}
+			tree_set_childless(tree);
+		}
+		free_data(&tree->t);
+		free(tree);
+	}
 }
 
 void create_drawlist(PDTNODE tree, DRAWLIST *drawlist, vec3 cam_pos, proc_planet *planet)
@@ -126,35 +166,7 @@ void create_drawlist(PDTNODE tree, DRAWLIST *drawlist, vec3 cam_pos, proc_planet
 	}
 
 	//assert(tree->children[0]); //The tree should have children if subdivide was called earlier.
-	for (int i = 0; i < DEFAULT_NUM_TRI_TILE_DIVS; i++)
+	for (int i = 0; i < num_children; i++)
 		create_drawlist(tree->children[i], drawlist, cam_pos, planet);
-}
-
-void prune_tree(PDTNODE tree, vec3 cam_pos, proc_planet *planet)
-{
-	if (tree && tree->depth > SUBDIVS + 5) {
-		if (tree_has_children(tree)) {
-			for (int i = 0; i < DEFAULT_NUM_TRI_TILE_DIVS; i++) {
-				prune_tree(tree->children[i], cam_pos, planet);
-				deinit_tri_tile(&tree->children[i]->t);
-				free(tree->children[i]);
-			}
-			tree_set_childless(tree);
-		}
-	}
-}
-
-void free_tree(PDTNODE tree)
-{
-	if (tree) {
-		if (tree->children[0]) {
-			for (int i = 0; i < DEFAULT_NUM_TRI_TILE_DIVS; i++) {
-				free_tree(tree->children[i]);
-			}
-			tree_set_childless(tree);
-		}
-		deinit_tri_tile(&tree->t);
-		free(tree);
-	}
 }
 

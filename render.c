@@ -89,16 +89,28 @@ proc_planet *test_planet = NULL;
 float planet_radius;
 vec3 planet_center;
 
+//Just a hacky record so that I allocate/free all these properly as I develop this.
+struct drawable_rec {
+	Drawable *drawable;
+	Draw_func draw;
+	EFFECT *effect;
+	amat4 *frame;
+	int (*buffering_function)(struct buffer_group);
+} drawables[] = {
+	{&d_ship,         draw_forward,        &effects.forward, &ship.position,      buffer_ship        },
+	{&d_newship,      draw_forward,        &effects.forward, &newship_frame,      buffer_newship     },
+	{&d_teardropship, draw_forward,        &effects.forward, &teardropship_frame, buffer_teardropship},
+	{&d_room,         draw_forward,        &effects.forward, &room_frame,         buffer_newroom     },
+	{&d_skybox,       draw_skybox_forward, &effects.skybox,  &skybox_frame,       buffer_cube        }
+};
+
 static void init_models()
 {
 	//In the future, this function should be called in a loop on all entities with the drawable component.
 	//Maybe configured from some config file?
 	//init_heap_drawable(Drawable *drawable, Draw_func draw, EFFECT *effect, amat4 *frame, int (*buffering_function)(struct buffer_group));
-	init_heap_drawable(&d_ship,         draw_forward,        &effects.forward, &ship.position,      buffer_ship);
-	init_heap_drawable(&d_newship,      draw_forward,        &effects.forward, &newship_frame,      buffer_newship);
-	init_heap_drawable(&d_teardropship, draw_forward,        &effects.forward, &teardropship_frame, buffer_teardropship);
-	init_heap_drawable(&d_room,         draw_forward,        &effects.forward, &room_frame,         buffer_newroom);
-	init_heap_drawable(&d_skybox,       draw_skybox_forward, &effects.skybox,  &skybox_frame,       buffer_cube);
+	for (int i = 0; i < LENGTH(drawables); i++)
+		init_heap_drawable(drawables[i].drawable, drawables[i].draw, drawables[i].effect, drawables[i].frame, drawables[i].buffering_function);
 
 	planet_radius = 10000;
 	planet_center = (vec3){0, 0, 0};
@@ -106,11 +118,8 @@ static void init_models()
 }
 static void deinit_models()
 {
-	deinit_drawable(&d_ship);
-	deinit_drawable(&d_newship);
-	deinit_drawable(&d_teardropship);
-	deinit_drawable(&d_room);
-	deinit_drawable(&d_skybox);
+	for (int i = 0; i < LENGTH(drawables); i++)
+		deinit_drawable(drawables[i].drawable);
 
 	free_proc_planet(test_planet);
 }
