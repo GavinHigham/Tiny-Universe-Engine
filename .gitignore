@@ -1,5 +1,7 @@
 *.o
 *.d
+*.orig
+.depend
 sock
 *.sublime-project
 *.sublime-workspace

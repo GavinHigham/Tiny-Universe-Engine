@@ -16,23 +16,17 @@
 #include "func_list.h"
 #include "shader_utils.h"
 #include "gl_utils.h"
-#include "dynamic_terrain.h"
 #include "stars.h"
 #include "draw.h"
 #include "drawf.h"
 #include "drawable.h"
 #include "procedural_planet.h"
 #include "triangular_terrain_tile.h"
-#include "terrain_types.h"
 #include "ship_control.h"
 
 float FOV = M_PI/3.0;
 float far_distance = 100000;
 int PRIMITIVE_RESTART_INDEX = 0xFFFFFFFF;
-const int num_x_tiles = 1;
-const int num_z_tiles = 1;
-bool DEFERRED_MODE = false;
-extern bool draw_light_bounds;
 
 float screen_width = SCREEN_WIDTH;
 float screen_height = SCREEN_HEIGHT;
@@ -78,16 +72,9 @@ GLfloat proj_view_mat[16];
 
 Drawable d_ship, d_newship, d_teardropship, d_room, d_skybox;
 
-#include "table.h"
-//Add this to makefile later.
-#include "table.c"
-
-//LISTNODE *terrain_list = NULL;
-
 proc_planet *test_planet = NULL;
-// PDTNODE subdiv_tree = NULL;
-float planet_radius;
-vec3 planet_center;
+float planet_radius = 10000;
+vec3 planet_center = {0, 0, 0};;
 
 //Just a hacky record so that I allocate/free all these properly as I develop this.
 struct drawable_rec {
@@ -112,10 +99,9 @@ static void init_models()
 	for (int i = 0; i < LENGTH(drawables); i++)
 		init_heap_drawable(drawables[i].drawable, drawables[i].draw, drawables[i].effect, drawables[i].frame, drawables[i].buffering_function);
 
-	planet_radius = 10000;
-	planet_center = (vec3){0, 0, 0};
 	test_planet = new_proc_planet(planet_center, planet_radius, tri_height_map);
 }
+
 static void deinit_models()
 {
 	for (int i = 0; i < LENGTH(drawables); i++)
@@ -213,7 +199,7 @@ static Drawable *pvs[] = {&d_ship};
 
 void render()
 {
-	DRAWLIST terrain_list = NULL;
+	terrain_tree_drawlist terrain_list = NULL;
 	proc_planet_drawlist(test_planet, &terrain_list, eye_frame.t);
 	//float h = vec3_dist(eye_frame.t, test_planet->pos) - test_planet->radius; //If negative, we're below sea level.
 	//printf("Height: %f\n", h);
@@ -270,8 +256,11 @@ void render()
 			draw_drawable(pvs[i]);
 
 		//Draw procedural planet
-		for (DRAWLIST l = terrain_list; l; l = l->next) {
-			draw_forward(&effects.forward, l->t->bg, tri_frame);
+		for (terrain_tree_drawlist l = terrain_list; l; l = l->next) {
+			tri_tile *t = l->tile;
+			if (!t->buffered) //Last resort "BUFFER RIGHT NOW", will cause hiccups.
+				buffer_tri_tile(t);
+			draw_forward(&effects.forward, t->bg, tri_frame);
 			checkErrors("After drawing a tri_tile");
 		}
 
@@ -350,7 +339,7 @@ void render()
 	skybox_frame.t = eye_frame.t;
 	//draw_drawable(&d_skybox);
 
-	drawlist_free(terrain_list);
+	terrain_tree_drawlist_free(terrain_list);
 
 	checkErrors("After forward junk");
 }
@@ -359,23 +348,15 @@ void update(float dt)
 {
 	func_list_call(&update_func_list);
 	static float light_time = 0;
-	// static amat4 velocity = AMAT4_IDENT;
-	// static amat4 ship_cam = {.a = MAT3_IDENT, .T = {0, 4, 8}}; //Camera position, relative to the ship's frame.
 	light_time += dt * 0.2;
 	point_lights.position[0] = (vec3){10*cos(light_time), 4, 10*sin(light_time)-8};
 
 	if (key_state[SDL_SCANCODE_T]) {
 		printf("Ship is at {%f, %f, %f}. Where would you like to teleport?\n", ship.position.t.x, ship.position.t.y, ship.position.t.z);
 		float x, y, z;
-		// *((float *)&ship.position.t) = 100;
-		// *((float *)&ship.position.t+1) = 100;
-		// *((float *)&ship.position.t+2) = 100;
 		scanf("%f %f %f", &x, &y, &z);
 		ship.position.t = (vec3){x, y, z};
 	}
-
-	// float ts = 1/300000.0;
-	// float rs = 1/600000.0;
 
 	float camera_speed = 20.0;
 	ship.movable_camera = ship.movable_camera +
@@ -395,38 +376,10 @@ void update(float dt)
 
 	}, ship);
 
-	//point_lights.position[0] = ship.position.t;
-
 	//Translate the camera using WASD.
 	eye_frame = ship.eased_camera;
-	//eye_frame.t = ship.eased_camera.t;
-	// if (key_state[SDL_SCANCODE_9])
-	// 	for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
-	// 		recalculate_terrain_normals_cheap(&ground[i]);
-	// if (key_state[SDL_SCANCODE_8])
-	// 	for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
-	// 		erode_terrain(&ground[i], 100);
-	// if (key_state[SDL_SCANCODE_8] || key_state[SDL_SCANCODE_9])
-	// 	for (int i = 0; i < num_x_tiles*num_z_tiles; i++)
-	// 		buffer_terrain(&ground[i]);
-
-	// static bool divide = false;
-	// if (key_state[SDL_SCANCODE_4]) {
-	// 	divide = true;
-	// } else {
-	// 	if (divide) {
-	// 		subdiv_triangle_terrain_list(&terrain_list);
-	// 		divide = false;
-	// 	}
-	// }
-
-	//If you're moving forward, turn the light on to show it.
-	//point_lights.enabled_for_draw[2] = (axes[LEFTY] < 0)?true:false;
 	point_lights.enabled_for_draw[2] = key_state[SDL_SCANCODE_6];
 	
-	//Move the engine light to just behind the ship.
-	// point_lights.position[2] = amat4_multpoint(ship_frame, (vec3){{0, 0, 6}});
-
 	static float sunscale = 50.0;
 	if (key_state[SDL_SCANCODE_EQUALS])
 		sunscale += 0.1;

@@ -23,38 +23,44 @@ enum {
 
 //The index buffer of a triangular tile of n rows contains that of one for n+1 rows.
 //Memoize the largest requested index buffer and store here for reuse.
-GLuint *shared_tri_tile_indices = NULL;
-int shared_tri_tile_indices_num_rows = 0;
-GLuint shared_tri_tile_indices_buffer_object = 0;
-GLuint shared_tri_tile_indices_buffer_object_rows_buffered = 0;
+struct {
+	GLuint *indices;
+	GLuint buffer_object;
+	int num_rows;
+	int rows_buffered;
+} shared_tri_tile_ibo = {NULL, 0, 0, 0};
+//GLuint *shared_tri_tile_indices = NULL;
+//int shared_tri_tile_indices_num_rows = 0;
+//GLuint shared_tri_tile_indices_buffer_object = 0;
+//int shared_tri_tile_indices_buffer_object_rows_buffered = 0;
 
 static GLuint *get_shared_tri_tile_indices(int num_rows)
 {
-	GLuint *old = shared_tri_tile_indices;
-	if (num_rows > shared_tri_tile_indices_num_rows)
-		shared_tri_tile_indices = realloc(old, sizeof(GLuint)*num_tri_tile_indices(num_rows));
-	if (shared_tri_tile_indices) {
-		tri_tile_indices(shared_tri_tile_indices, num_rows, shared_tri_tile_indices_num_rows);
-		shared_tri_tile_indices_num_rows = num_rows;
+	GLuint *old = shared_tri_tile_ibo.indices;
+	if (num_rows > shared_tri_tile_ibo.num_rows)
+		shared_tri_tile_ibo.indices = realloc(old, sizeof(GLuint)*num_tri_tile_indices(num_rows));
+	if (shared_tri_tile_ibo.indices) {
+		tri_tile_indices(shared_tri_tile_ibo.indices, num_rows, shared_tri_tile_ibo.num_rows);
+		shared_tri_tile_ibo.num_rows = num_rows;
 	} else {
 		free(old);
-		shared_tri_tile_indices_num_rows = 0;
+		shared_tri_tile_ibo.num_rows = 0;
 	}
 
-	return shared_tri_tile_indices;
+	return shared_tri_tile_ibo.indices;
 }
 
 static GLuint get_shared_tri_tile_indices_buffer_object(int num_rows)
 {
-	if (!shared_tri_tile_indices_buffer_object)
-		glGenBuffers(1, &shared_tri_tile_indices_buffer_object);
+	if (!shared_tri_tile_ibo.buffer_object)
+		glGenBuffers(1, &shared_tri_tile_ibo.buffer_object);
 
-	if (num_rows > shared_tri_tile_indices_buffer_object_rows_buffered) {
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shared_tri_tile_indices_buffer_object);
+	if (num_rows > shared_tri_tile_ibo.rows_buffered) {
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shared_tri_tile_ibo.buffer_object);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLuint)*num_tri_tile_indices(num_rows), get_shared_tri_tile_indices(num_rows), GL_STATIC_DRAW);
 	}
 
-	return shared_tri_tile_indices_buffer_object;
+	return shared_tri_tile_ibo.buffer_object;
 }
 
 //Creates a terrain struct.
@@ -252,6 +258,16 @@ tri_tile * gen_tri_tile_vertices_and_normals(tri_tile *t, height_map_func height
 		t->colors[i] = vec3_lerp(brownish, whiteish, fmax((vec3_dist(t->positions[i], t->s_origin) - t->s_radius) / TERRAIN_AMPLITUDE, 0.0));
 	}
 	return t;
+}
+
+void tri_tile_split(tri_tile *in, tri_tile **out[DEFAULT_NUM_TRI_TILE_DIVS])
+{
+	tri_tile *tmp[DEFAULT_NUM_TRI_TILE_DIVS];
+	for (int i = 0; i < DEFAULT_NUM_TRI_TILE_DIVS; i++) {
+		*out[i] = new_tri_tile();
+		tmp[i] = *out[i];
+	}
+	subdiv_tri_tile(in, tmp);
 }
 
 void subdiv_tri_tile(tri_tile *in, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS])

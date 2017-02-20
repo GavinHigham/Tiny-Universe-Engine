@@ -7,37 +7,39 @@
 #include <stdbool.h>
 #include <glla.h>
 
-/*
-Subdivide, drawlist, and prune take a depth-definining function, and a void * context.
-The depth function determines from the tree node and data retreived from the context
-what depth the node should be subdivided to. Subdivide calls this function at every node
-visited, checking if the node has been divided enough.
+enum { TERRAIN_TREE_NUM_CHILDREN = 4 };
 
-Subdivide takes an additional "split" 
+/*
+Gen, prune and drawlist take a depth-definining function, and a void * context.
+The depth function determines from the tree node and the context pointer how many times
+the node should be split. Gen calls this function at every depth until it reaches a point
+where the tree is sufficiently generated. Gen also takes a "split" function, which is
+called on the void * tile member to generate split tiles for each child. 
 */
 
 typedef struct dynamic_terrain_tree_node {
 	int depth;
+	float dist; //Just keep around while I adapt the code, remove later.
 	void *tile;
+	struct dynamic_terrain_tree_node *children[TERRAIN_TREE_NUM_CHILDREN];
 } terrain_tree_node;
 
-struct planet_terrain_context {
-	int subdivs_left;
-	vec3 cam_pos;
-	proc_planet *planet;
+typedef struct terrain_tree_drawlist_node *terrain_tree_drawlist;
+struct terrain_tree_drawlist_node {
+	struct terrain_tree_drawlist_node *next;
+	void *tile;
 };
 
-DRAWLIST drawlist_prepend(DRAWLIST list, tri_tile *t);
-void drawlist_free(DRAWLIST list);
+typedef int (*terrain_tree_depth_fn)(terrain_tree_node *, void *);
+typedef void (*terrain_tree_split_fn)(void *parent, void **children[TERRAIN_TREE_NUM_CHILDREN]);
+typedef void (*terrain_tree_free_fn)(void *data);
 
-int dt_depth_per_distance(float distance);
-int dt_node_distance_compare(const void *n1, const void *n2);
-int dt_node_closeness_compare(const void *n1, const void *n2);
+terrain_tree_node * terrain_tree_new(void *tile, int depth);
+void terrain_tree_gen(terrain_tree_node *tree, terrain_tree_depth_fn subdiv, void *context, terrain_tree_split_fn split);
+void terrain_tree_prune(terrain_tree_node *tree, terrain_tree_depth_fn subdiv, void *context, void (*free_data)(void *));
+void terrain_tree_free(terrain_tree_node *tree, void (*free_data)(void *data));
 
-PDTNODE new_tree(tri_tile t, int depth);
-void subdivide_tree(terrain_tree_node *tree, bool (subdiv)(terrain_tree_node *, void *), void *subdiv_ctx);
-void create_drawlist(PDTNODE tree, DRAWLIST *drawlist, vec3 cam_pos, proc_planet *planet);
-void prune_tree(terrain_tree_node *tree, bool (subdiv)(terrain_tree_node *, void *), void *subdiv_ctx);
-void free_tree(PDTNODE tree);
+void terrain_tree_drawlist_new(terrain_tree_node *tree, terrain_tree_depth_fn subdiv, void *context, terrain_tree_drawlist *list);
+void terrain_tree_drawlist_free(terrain_tree_drawlist list);
 
 #endif

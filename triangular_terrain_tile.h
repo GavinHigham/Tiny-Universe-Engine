@@ -3,7 +3,7 @@
 #include <glla.h>
 #include <stdbool.h>
 #include "buffer_group.h"
-#include "terrain_types.h"
+#include "dynamic_terrain_types.h"
 
 tri_tile * new_tri_tile();
 tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], int num_rows, vec3 up, vec3 spos, float srad);
@@ -30,6 +30,9 @@ int tri_tile_vertices(vec3 vertices[], int num_rows, vec3 a, vec3 b, vec3 c);
 
 void reproject_vertices_to_spherical(vec3 vertices[], int num_vertices, vec3 spos, float srad);
 
+//This one allocates new memory and overwrites the pointers in out.
+void tri_tile_split(tri_tile *in, tri_tile **out[DEFAULT_NUM_TRI_TILE_DIVS]);
+//This one doesn't.
 void subdiv_tri_tile(tri_tile *in, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS]);
 //Buffers the position, normal and color buffers of a terrain struct onto the GPU.
 void buffer_tri_tile(tri_tile *t);
