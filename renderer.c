@@ -4,7 +4,7 @@
 #include <string.h>
 #include <glla.h>
 #include <GL/glew.h>
-#include "render.h"
+#include "renderer.h"
 #include "models/models.h"
 #include "keyboard.h"
 #include "default_settings.h"
@@ -24,6 +24,7 @@
 #include "triangular_terrain_tile.h"
 #include "ship_control.h"
 
+static bool renderer_is_init = false;
 float FOV = M_PI/3.0;
 float far_distance = 100000;
 int PRIMITIVE_RESTART_INDEX = 0xFFFFFFFF;
@@ -132,8 +133,10 @@ void handle_resize(int width, int height)
 }
 
 //Set up everything needed to start rendering frames.
-void init_render()
+void renderer_init()
 {
+	if (renderer_is_init)
+		return;
 	glUseProgram(0);
 	glClearDepth(0.0);
 	glEnable(GL_DEPTH_TEST);
@@ -156,13 +159,17 @@ void init_render()
 
 	glUseProgram(0);
 	checkErrors("After init_render");
+	renderer_is_init = true;
 }
 
-void deinit_render()
+void renderer_deinit()
 {
+	if (!renderer_is_init)
+		return;
 	deinit_models();
 	deinit_stars();
 	point_lights.num_lights = 0;
+	renderer_is_init = false;
 }
 
 //Create a projection matrix with "fov" field of view, "a" aspect ratio, n and f near and far planes.

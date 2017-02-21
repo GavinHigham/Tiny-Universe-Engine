@@ -11,7 +11,7 @@
 #include "math/utility.h"
 #include "buffer_group.h"
 #include "macros.h"
-#include "render.h"
+#include "renderer.h"
 
 //If I add margins to all my heightmaps later then I can avoid A LOT of work.
 extern int PRIMITIVE_RESTART_INDEX;

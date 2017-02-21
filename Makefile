@@ -7,7 +7,7 @@ MODELS_OBJECTS = models/models.o
 SHADERS = shaders/*.vs shaders/*.fs shaders/*.gs
 SHADER_GENERATOR = /usr/local/bin/ceffectpp
 CONFIGURATION_OBJECTS = configuration/configuration_file.o
-OBJECTS = main.o init.o image_load.o keyboard.o render.o buffer_group.o controller.o \
+OBJECTS = main.o init.o image_load.o keyboard.o renderer.o buffer_group.o controller.o \
 deferred_framebuffer.o lights.o func_list.o shader_utils.o gl_utils.o stars.o procedural_terrain.o \
 effects.o drawf.o draw.o drawable.o terrain_erosion.o triangular_terrain_tile.o procedural_planet.o \
 ship_control.o dynamic_terrain_tree.o open-simplex-noise-in-c/open-simplex-noise.o \
@@ -43,7 +43,7 @@ configuration_module:
 open-simplex-noise:
 	cd open-simplex-noise-in-c; make
 
-render.o: effects.o procedural_terrain.h models_module
+renderer.o: effects.o procedural_terrain.h models_module
 
 buffer_group.h: effects.o
 
@@ -53,6 +53,7 @@ dynamic_terrain.o: dynamic_terrain.h procedural_terrain.h triangular_terrain_til
 
 clean:
 	rm $(OBJECTS) && rm $(EXE)
+	rm .depend
 
 rclean: clean
 	cd math; make clean

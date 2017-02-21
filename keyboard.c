@@ -3,7 +3,7 @@
 #include "keyboard.h"
 #include "init.h"
 #include "shader_utils.h"
-#include "render.h"
+#include "renderer.h"
 #include "func_list.h"
 
 extern SDL_Window *window;

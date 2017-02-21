@@ -1,7 +1,7 @@
 
 #Sock Engine#
  
-Sock is a free 3D game engine that I'm making in my free time as a hobby and learning project. Sock sort of stands for Shitty OpenGL C. The 'k' is silent.
+Sock is a free 3D game engine that I'm making in my free time as a hobby and learning project. Sock sort of stands for Simple OpenGL C. The 'k' is silent.
 
 Currently only really maintained for OSX.
 

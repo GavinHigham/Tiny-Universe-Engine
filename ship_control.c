@@ -13,7 +13,7 @@ struct ship_physics ship_control(float dt, struct controller_input input, struct
 	ship.acceleration = mat3_multvec(ship.position.a, (vec3){
 		ship.speed *  input.leftx,
 		ship.speed * -input.lefty,
-		ship.speed * -(input.rtrigger - input.ltrigger)});
+		ship.speed * (input.rtrigger - input.ltrigger)});
 
 	//Angular velocity is currently determined by how much each axis is deflected.
 	float a1 = -input.rightx / 100;

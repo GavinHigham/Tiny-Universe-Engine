@@ -5,11 +5,15 @@
 #include <SDL2/SDL.h>
 //#include <SDL2/SDL_opengl.h>
 #include <SDL2_image/SDL_image.h>
+//Lua headers
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
 //Project headers.
 #include "init.h"
 #include "image_load.h"
 #include "keyboard.h"
-#include "render.h"
+#include "renderer.h"
 #include "controller.h"
 #include "default_settings.h"
 
@@ -58,13 +62,13 @@ int main()
 		return -1;
 	}
 
-	result = init_engine(&context, window);
+	result = engine_init(&context, window);
 	if (result < 0) {
 		printf("Something went wrong in init_engine! Aborting.\n");
 		return -1;
 	}
+	renderer_init();
 
-	//renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
 	SDL_AddEventWatch(quit_event, &quit);
 
 	Uint32 windowID = SDL_GetWindowID(window);
@@ -75,12 +79,12 @@ int main()
 
 		while (SDL_PollEvent(&e)) { //Exhaust our event queue before updating and rendering
 			switch (e.type) {
-			case SDL_KEYDOWN: keyevent(e.key.keysym, (SDL_EventType)e.type);
-				break;
-			case SDL_KEYUP: keyevent(e.key.keysym, (SDL_EventType)e.type);
-				break;
-			case SDL_CONTROLLERAXISMOTION: axisevent(e);
-				break;
+			case SDL_KEYDOWN:              keyevent(e.key.keysym, (SDL_EventType)e.type); break;
+			case SDL_KEYUP:                keyevent(e.key.keysym, (SDL_EventType)e.type); break;
+			case SDL_CONTROLLERAXISMOTION: caxisevent(e); break;
+			case SDL_JOYAXISMOTION:        jaxisevent(e); break;
+			case SDL_JOYBUTTONDOWN:        jbuttonevent(e); break;
+			case SDL_JOYBUTTONUP:          jbuttonevent(e); break;
 			case SDL_WINDOWEVENT:
 				if (e.window.windowID == windowID) {
             		switch (e.window.event)  {
@@ -108,10 +112,10 @@ int main()
 			SDL_Delay(frame_time_ms - since_update_ms - wake_early_ms); //Sleep up until wake_early_ms milliseconds left. (Busywait the rest)
 		}
 	}
-	
-	deinit_render();
-	SDL_DestroyWindow(window);
+
+	renderer_deinit();
 	SDL_GL_DeleteContext(context);
-	deinit_engine();
+	SDL_DestroyWindow(window);
+	engine_deinit();
 	return 0;
 }

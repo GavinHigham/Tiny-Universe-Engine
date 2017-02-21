@@ -2,7 +2,7 @@
 #define INIT_H
 #include <SDL2/SDL.h>
 
-int init_engine(SDL_GLContext *context, SDL_Window *window);
-void deinit_engine();
+int engine_init(SDL_GLContext *context, SDL_Window *window);
+void engine_deinit();
 
 #endif

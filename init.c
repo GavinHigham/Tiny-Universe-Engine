@@ -10,7 +10,7 @@
 #include "effects.h"
 #include "shader_utils.h"
 #include "gl_utils.h"
-#include "render.h"
+#include "renderer.h"
 #include "macros.h"
 #include "func_list.h"
 #include "keyboard.h"
@@ -19,22 +19,18 @@
 int open_simplex_noise_seed = 83619; //No special significance, I just mashed on the keyboard.
 struct osn_context *osnctx;
 
-int init_gl(SDL_GLContext *context, SDL_Window *window);
-int init_glew();
+int gl_init(SDL_GLContext *context, SDL_Window *window);
+int glew_init();
 
 void reload_effects_void_wrapper()
 {
-	// if (!reload_effects(shader_programs, shader_infos, LENGTH(shader_programs))) {
-	// 	deinit_render();
-	// 	init_render();
-	// }
 	load_effects(
 		effects.all,       LENGTH(effects.all),
 		shader_file_paths, LENGTH(shader_file_paths),
 		attribute_strings, LENGTH(attribute_strings),
 		uniform_strings,   LENGTH(uniform_strings));
-	deinit_render();
-	init_render();
+	renderer_deinit();
+	renderer_init();
 }
 
 static void reload_signal_handler(int signo) {
@@ -42,7 +38,7 @@ static void reload_signal_handler(int signo) {
 	func_list_add(&update_func_list, 1, reload_effects_void_wrapper);
 }
 
-int init_engine(SDL_GLContext *context, SDL_Window *window)
+int engine_init(SDL_GLContext *context, SDL_Window *window)
 {
 	int img_flags = IMG_INIT_PNG;
 	if (!(IMG_Init(img_flags) & img_flags)) {
@@ -50,16 +46,11 @@ int init_engine(SDL_GLContext *context, SDL_Window *window)
 		return -1;
 	}
 
-	if (init_gl(context, window))
+	if (gl_init(context, window))
 		return -1;
 
-	if (init_glew())
+	if (glew_init())
 		return -1;
-
-	// if (init_effects(shader_programs, shader_infos, LENGTH(shader_programs))) {
-	// 	printf("Something went wrong with shader program initialization!\n");
-	// 	return -1;
-	// }
 
 	load_effects(
 		effects.all,       LENGTH(effects.all),
@@ -72,6 +63,7 @@ int init_engine(SDL_GLContext *context, SDL_Window *window)
 	SDL_GameControllerEventState(SDL_ENABLE);
 	/* Open the first available controller. */
 	SDL_GameController *controller = NULL;
+	SDL_Joystick *joystick = NULL;
 	for (int i = 0; i < SDL_NumJoysticks(); ++i) {
 		printf("Testing controller %i\n", i);
 		if (SDL_IsGameController(i)) {
@@ -83,12 +75,12 @@ int init_engine(SDL_GLContext *context, SDL_Window *window)
 				printf("Could not open gamecontroller %i: %s\n", i, SDL_GetError());
 			}
 		} else {
+			joystick = SDL_JoystickOpen(i);
 			printf("Controller %i is not a controller?\n", i);
 		}
 	}
 
 	init_keyboard();
-	init_render(); //Located in render.c
 
 	if (signal(SIGUSR1, reload_signal_handler) == SIG_ERR) {
 		printf("An error occurred while setting a signal handler.\n");
@@ -97,7 +89,7 @@ int init_engine(SDL_GLContext *context, SDL_Window *window)
 	return 0;
 }
 
-int init_gl(SDL_GLContext *context, SDL_Window *window)
+int gl_init(SDL_GLContext *context, SDL_Window *window)
 {
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
@@ -118,7 +110,7 @@ int init_gl(SDL_GLContext *context, SDL_Window *window)
 	return 0;
 }
 
-int init_glew()
+int glew_init()
 {
 	glewExperimental = true;
 	GLenum glewError = glewInit();
@@ -130,7 +122,7 @@ int init_glew()
 	return 0;
 }
 
-void deinit_engine()
+void engine_deinit()
 {
 	open_simplex_noise_free(osnctx);
 	IMG_Quit();

@@ -15,6 +15,8 @@ enum {
 extern Sint16 axes[NUM_HANDLED_AXES];
 
 
-void axisevent(SDL_Event e);
+void caxisevent(SDL_Event e);
+void jaxisevent(SDL_Event e);
+void jbuttonevent(SDL_Event e);
 
 #endif
