@@ -1,36 +1,31 @@
 #version 330 
 
-in vec3 vPos; 
+//in vec3 sector_pos; //Position relative to sector origin.
+in ivec3 sector_coords;
 
-uniform mat4 model_view_projection_matrix;
 uniform vec3 eye_pos;
-uniform float stars_radius;
-uniform float hella_time;
+uniform ivec3 eye_sector_coords;
 
-out vec3 fPos;
+uniform float sector_size;
+//uniform float stars_radius;
+uniform mat4 model_view_projection_matrix;
 
-float mag(vec3 v)
+out vec3 fpos;
+
+//Copied from space_sector.c
+vec3 star_in_eye_space(ivec3 camera_sector, ivec3 sector, vec3 pos)
 {
-	return sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+	//Local position + (sector displacement on each axis) * (size of a sector)
+	return pos + (sector - camera_sector) * sector_size;	
 }
 
 void main()
 {
-	vec3 iPos = vPos;
-	//float height = 100 * -sin(distance(vPos, vec3(0, 10000, 0))/150 + 5*hella_time);
-	//iPos.y += height;
-
-	vec3 pos_ship_relative = vPos - eye_pos;
-	//float star_dist = distance(eye_position, vPos);
-	float star_dist = distance(eye_pos, vPos);
+	vec3 sector_pos = vec3(0);
+	vec3 vpos = star_in_eye_space(eye_sector_coords, sector_coords, sector_pos);
+	//float star_dist = distance(eye_pos, vpos);
 	
-	// float s = 80;
-	// float p = mag(pos_ship_relative) / s;
-	// p = s * 1-(pow(1.001, -1*(p*p)));
-	// pos_ship_relative = p * normalize(pos_ship_relative) + eye_pos;
-	// vec4 pos = vec4(pos_ship_relative, 1);
-	
-	gl_Position = model_view_projection_matrix * vec4(vPos, 1);
-	gl_PointSize = (1-(star_dist / (0.7*stars_radius))) + 2;
-	fPos = vPos;
+	gl_Position = model_view_projection_matrix * vec4(vpos, 1);
+	gl_PointSize = 1;//(1-(star_dist / (0.7*stars_radius))) + 2;
+	fpos = vpos;
 }

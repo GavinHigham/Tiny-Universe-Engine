@@ -26,7 +26,7 @@
 
 static bool renderer_is_init = false;
 float FOV = M_PI/3.0;
-float far_distance = 100000;
+float far_distance = 12000;
 int PRIMITIVE_RESTART_INDEX = 0xFFFFFFFF;
 
 float screen_width = SCREEN_WIDTH;
@@ -60,7 +60,7 @@ struct ship_physics ship = {
 	.speed = 10,
 	.acceleration = (vec3){0, 0, 0},
 	.velocity     = AMAT4_IDENT,
-	.position      = {.a = MAT3_IDENT, .t = {0, 10500, 0}},
+	.position      = {.a = MAT3_IDENT, .t = {0, 12500, 0}},
 	.locked_camera = {.a = MAT3_IDENT, .t = {0, 4, 8}},
 	.eased_camera  = {.a = MAT3_IDENT, .t = {0, 4, 8}},
 	.locked_camera_target = (vec3){0, 0, -4},
@@ -74,7 +74,7 @@ GLfloat proj_view_mat[16];
 Drawable d_ship, d_newship, d_teardropship, d_room, d_skybox;
 
 proc_planet *test_planet = NULL;
-float planet_radius = 10000;
+float planet_radius = 12000;
 vec3 planet_center = {0, 0, 0};;
 
 //Just a hacky record so that I allocate/free all these properly as I develop this.
@@ -148,7 +148,7 @@ void renderer_init()
 
 	init_models();
 	init_lights();
-	init_stars();
+	//init_stars();
 
 	float skybox_distance = sqrt((far_distance*far_distance)/2);
 	skybox_frame.a = mat3_scalemat(skybox_distance, skybox_distance, skybox_distance);
@@ -167,7 +167,7 @@ void renderer_deinit()
 	if (!renderer_is_init)
 		return;
 	deinit_models();
-	deinit_stars();
+	//deinit_stars();
 	point_lights.num_lights = 0;
 	renderer_is_init = false;
 }
@@ -207,7 +207,7 @@ static Drawable *pvs[] = {&d_ship};
 void render()
 {
 	terrain_tree_drawlist terrain_list = NULL;
-	proc_planet_drawlist(test_planet, &terrain_list, eye_frame.t);
+	//proc_planet_drawlist(test_planet, &terrain_list, eye_frame.t);
 	//float h = vec3_dist(eye_frame.t, test_planet->pos) - test_planet->radius; //If negative, we're below sea level.
 	//printf("Height: %f\n", h);
 	static float hella_time = 0.0;
@@ -232,7 +232,7 @@ void render()
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glDepthFunc(GL_GREATER);
-	draw_stars();
+	//draw_stars();
 
 	//If we're outside the shadow volume, we can use z-pass instead of z-fail.
 	//z-pass is faster, and not patent-encumbered.

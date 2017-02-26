@@ -79,8 +79,7 @@ void terrain_tree_prune(terrain_tree_node *tree, terrain_tree_depth_fn subdiv, v
 		if (tree_has_children(tree)) {
 			for (int i = 0; i < NCHILDREN; i++) {
 				terrain_tree_prune(tree->children[i], subdiv, context, free_data);
-				free_data(&tree->children[i]->tile);
-				free(tree->children[i]);
+				terrain_tree_free(tree->children[i], free_data);
 			}
 			tree_set_childless(tree);
 		}

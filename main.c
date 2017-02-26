@@ -16,6 +16,10 @@
 #include "renderer.h"
 #include "controller.h"
 #include "default_settings.h"
+#include "configuration/lua_configuration.h"
+
+extern float screen_width;
+extern float screen_height;
 
 enum {
 	MS_PER_SECOND = 1000
@@ -50,13 +54,24 @@ int main()
 		return result;
 	}
 
+	lua_State *L = luaL_newstate();
+	luaL_openlibs(L);
+	char *screen_title = NULL;
+	lua_Number w = screen_width, h = screen_height;
+	load_lua_config(L, "conf.lua", &w, &h, &screen_title);
+	screen_width = w;
+	screen_height = h;
+
 	window = SDL_CreateWindow(
-		"Creative Title",
+		screen_title ? screen_title : "Creative Title",
 		WINDOW_OFFSET_X,
 		WINDOW_OFFSET_Y,
-		SCREEN_WIDTH,
-		SCREEN_HEIGHT,
+		w,
+		h,
 		WINDOW_FLAGS);
+
+	free(screen_title);
+
 	if (window == NULL) {
 		printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
 		return -1;
