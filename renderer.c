@@ -23,6 +23,7 @@
 #include "procedural_planet.h"
 #include "triangular_terrain_tile.h"
 #include "ship_control.h"
+#include "math/space_sector.h"
 
 static bool renderer_is_init = false;
 float FOV = M_PI/3.0;
@@ -43,13 +44,17 @@ struct func_list update_func_list = {
 GLuint gVAO = 0;
 amat4 inv_eye_frame;
 amat4 eye_frame = {.a = MAT3_IDENT,          .t = {6, 0, 0}};
+space_sector eye_sector = {0, 0, 0};
 //Object frames. Need a better system for this.
 amat4 ship_frame = {.a = MAT3_IDENT,         .t = {-2.5, 0, -8}};
+space_sector ship_sector = {0, 0, 0};
 amat4 newship_frame = {.a = MAT3_IDENT,      .t = {3, 0, -8}};
 amat4 teardropship_frame = {.a = MAT3_IDENT, .t = {6, 0, -8}};
 amat4 room_frame = {.a = MAT3_IDENT,         .t = {0, -4, -8}};
 amat4 grid_frame = {.a = MAT3_IDENT,         .t = {-50, -90, -550}};
 amat4 tri_frame  = {.a = MAT3_IDENT,         .t = {0, 0, 0}};
+space_sector tri_sector = {0, 0, 0};
+amat4 tri_frame_eye_relative  = {.a = MAT3_IDENT, .t = {0, 0, 0}};
 amat4 big_asteroid_frame = {.a = MAT3_IDENT, .t = {0, -4, -20}};
 amat4 skybox_frame; //Set in init_render() and update()
 vec3 ambient_color = {0.01, 0.01, 0.01};
@@ -61,7 +66,7 @@ struct ship_physics ship = {
 	.speed = 10,
 	.acceleration = (vec3){0, 0, 0},
 	.velocity     = AMAT4_IDENT,
-	.position      = {.a = MAT3_IDENT, .t = {0, 12500, 0}},
+	.position      = {.a = MAT3_IDENT, .t = {0, 6000500, 0}},
 	.locked_camera = {.a = MAT3_IDENT, .t = {0, 4, 8}},
 	.eased_camera  = {.a = MAT3_IDENT, .t = {0, 4, 8}},
 	.locked_camera_target = (vec3){0, 0, -4},
@@ -75,7 +80,7 @@ GLfloat proj_view_mat[16];
 Drawable d_ship, d_newship, d_teardropship, d_room, d_skybox;
 
 proc_planet *test_planet = NULL;
-float planet_radius = 12000;
+float planet_radius = 6000000;
 vec3 planet_center = {0, 0, 0};;
 
 //Just a hacky record so that I allocate/free all these properly as I develop this.
@@ -272,7 +277,7 @@ void render()
 			tri_tile *t = l->tile;
 			if (!t->buffered) //Last resort "BUFFER RIGHT NOW", will cause hiccups.
 				buffer_tri_tile(t);
-			draw_forward(&effects.forward, t->bg, tri_frame);
+			draw_forward(&effects.forward, t->bg, tri_frame_eye_relative);
 			checkErrors("After drawing a tri_tile");
 		}
 
@@ -364,9 +369,11 @@ void update(float dt)
 	point_lights.position[0] = (vec3){10*cos(light_time), 4, 10*sin(light_time)-8};
 
 	if (key_state[SDL_SCANCODE_T]) {
-		printf("Ship is at {%f, %f, %f}. Where would you like to teleport?\n", ship.position.t.x, ship.position.t.y, ship.position.t.z);
+		printf("Ship is at {%f, %f, %f}<%lli, %lli, %lli>. Where would you like to teleport?\n",
+			ship.position.t.x, ship.position.t.y, ship.position.t.z,
+			ship_sector.x, ship_sector.y, ship_sector.z);
 		float x, y, z;
-		scanf("%f %f %f", &x, &y, &z);
+		scanf("%f %f %f %lli %lli %lli", &x, &y, &z, &ship_sector.x, &ship_sector.y, &ship_sector.z);
 		ship.position.t = (vec3){x, y, z};
 	}
 
@@ -385,11 +392,14 @@ void update(float dt)
 		axes[RIGHTY] / controller_max,
 		axes[TRIGGERLEFT]  / controller_max,
 		axes[TRIGGERRIGHT] / controller_max,
-
 	}, ship);
+	space_sector_canonicalize(&ship.position.t, &ship_sector);
 
 	//Translate the camera using WASD.
-	eye_frame = ship.eased_camera;
+	eye_frame = ship.locked_camera;
+	space_sector_canonicalize(&eye_frame.t, &eye_sector);
+	tri_frame_eye_relative.a = tri_frame.a;
+	tri_frame_eye_relative.t = space_sector_position_relative_to_sector(tri_frame.t, tri_sector, eye_sector);
 	point_lights.enabled_for_draw[2] = key_state[SDL_SCANCODE_6];
 	
 	static float sunscale = 50.0;
