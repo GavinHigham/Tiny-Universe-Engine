@@ -26,7 +26,7 @@
 
 static bool renderer_is_init = false;
 float FOV = M_PI/3.0;
-float far_distance = 12000;
+float far_distance = 100000000;
 float near_distance = 1;
 int PRIMITIVE_RESTART_INDEX = 0xFFFFFFFF;
 
@@ -139,9 +139,9 @@ void renderer_init()
 	if (renderer_is_init)
 		return;
 	glUseProgram(0);
-	glClearDepth(0.0);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_GREATER);
+	glClearDepth(1);
+	//glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
 	glClearColor(0.01f, 0.02f, 0.03f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
@@ -150,6 +150,10 @@ void renderer_init()
 	init_models();
 	init_lights();
 	init_stars();
+
+	glUseProgram(effects.forward.handle);
+	glUniform1f(effects.forward.log_depth_intermediate_factor, 2.0/log(far_distance/near_distance));
+	glUniform1f(effects.forward.near_plane_dist, near_distance);
 
 	float skybox_distance = sqrt((far_distance*far_distance)/2);
 	skybox_frame.a = mat3_scalemat(skybox_distance, skybox_distance, skybox_distance);
@@ -232,7 +236,7 @@ void render()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
-	glDepthFunc(GL_GREATER);
+	glDepthFunc(GL_LESS);
 	draw_stars();
 
 	//If we're outside the shadow volume, we can use z-pass instead of z-fail.
@@ -282,7 +286,7 @@ void render()
 		//Render shadow volumes into the stencil buffer.
 		if (point_lights.shadowing[i]) {
 			glEnable(GL_DEPTH_CLAMP);
-			glDepthFunc(GL_GREATER);
+			glDepthFunc(GL_LESS);
 			glDisable(GL_CULL_FACE);
 			glDisable(GL_BLEND);
 			glDepthMask(GL_FALSE);
@@ -339,7 +343,7 @@ void render()
 		glClear(GL_STENCIL_BUFFER_BIT);
 	}
 	glDisable(GL_BLEND);
-	glDepthFunc(GL_GREATER);
+	glDepthFunc(GL_LESS);
 
 	glUseProgram(effects.skybox.handle);
 	glUniform3fv(effects.skybox.sun_direction, 1, (float *)&sun_direction);

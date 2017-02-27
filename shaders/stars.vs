@@ -10,16 +10,15 @@ uniform vec3 eye_pos;
 uniform ivec3 eye_sector_coords;
 
 uniform float sector_size;
-//uniform float stars_radius;
 uniform mat4 model_view_projection_matrix;
 
 out vec3 fpos;
 
 //Copied from space_sector.c
-vec3 star_in_eye_space(ivec3 camera_sector, ivec3 sector, vec3 pos)
+vec3 star_in_eye_space(ivec3 eye_sector, ivec3 sector, vec3 pos)
 {
 	//Local position + (sector displacement on each axis) * (size of a sector)
-	return pos + (sector - camera_sector) * sector_size;	
+	return pos + (sector - eye_sector) * sector_size;	
 }
 
 void main()
