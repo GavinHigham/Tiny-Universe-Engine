@@ -21,6 +21,8 @@ extern amat4 inv_eye_frame;
 extern amat4 eye_frame;
 extern amat4 ship_frame;
 extern GLfloat proj_view_mat[16];
+extern float far_distance;
+extern float near_distance;
 
 space_sector star_buffer[NUM_STARS];
 int32_t nearby_stars[3 * NUM_STARS];
@@ -81,6 +83,8 @@ void init_stars()
 	glEnableVertexAttribArray(effects.stars.sector_coords);
 	glVertexAttribPointer(effects.stars.sector_coords, 3, GL_INT, GL_FALSE, 0, NULL);
 	glUniform1f(effects.stars.sector_size, SPACE_SECTOR_SIZE);
+	glUniform1f(effects.stars.log_depth_intermediate_factor, 2.0/log(far_distance/near_distance));
+	glUniform1f(effects.stars.near_plane_dist, near_distance);
 }
 
 void deinit_stars()

@@ -4,3 +4,6 @@
 [submodule "glla"]
 	path = glla
 	url = https://github.com/GavinHigham/glla.git
+[submodule "ceffectpp"]
+	path = ceffectpp
+	url = https://github.com/GavinHigham/ceffectpp.git

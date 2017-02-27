@@ -38,10 +38,6 @@ This should come pre-installed with OSX.
 ###Luajit###
 I'm in the process of converting my awk scripts to Lua for performance and ease of editing. You can use a different version of Lua than luajit, but you'll have to change the command which calls it in models/Makefile.
 
-###glalgebra###
-glalgebra implements vector/matrix operations I wrote for this project, then later split off to make a separate library.
-https://github.com/GavinHigham/glalgebra
-
 ###ceffectpp###
 ceffectpp preprocesses shaders to group them by effect, and extract vertex attribute and uniform variable names.
 https://github.com/GavinHigham/ceffectpp

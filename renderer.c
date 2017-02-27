@@ -27,6 +27,7 @@
 static bool renderer_is_init = false;
 float FOV = M_PI/3.0;
 float far_distance = 12000;
+float near_distance = 1;
 int PRIMITIVE_RESTART_INDEX = 0xFFFFFFFF;
 
 float screen_width = SCREEN_WIDTH;
@@ -129,7 +130,7 @@ void handle_resize(int width, int height)
 	glViewport(0, 0, width, height);
 	screen_width = width;
 	screen_height = height;
-	make_projection_matrix(FOV, screen_width/screen_height, -1, -far_distance, proj_mat, LENGTH(proj_mat));	
+	make_projection_matrix(FOV, screen_width/screen_height, -near_distance, -far_distance, proj_mat, LENGTH(proj_mat));	
 }
 
 //Set up everything needed to start rendering frames.

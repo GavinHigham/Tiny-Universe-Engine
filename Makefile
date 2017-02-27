@@ -4,7 +4,6 @@ MODULE_PATHS = -I./glla
 CFLAGS = $(MODULE_PATHS) -Wall -c -std=c11 -g -pthread
 LDFLAGS = $(SDL) -llua
 SHADERS = shaders/*.vs shaders/*.fs shaders/*.gs
-SHADER_GENERATOR = /usr/local/bin/ceffectpp
 EXE = sock
 
 #Objects in the top-level directory.
@@ -51,11 +50,14 @@ include models/Makefile
 .depend:
 	gcc -M $(**/.c) *.c > .depend #Generate dependencies from all .c files, searching recursively.
 
-effects.c: $(SHADERS) $(SHADER_GENERATOR) effects.h
-	$(SHADER_GENERATOR) -c $(SHADERS) > effects.c
+effects.c: ceffectpp $(SHADERS) effects.h
+	ceffectpp/ceffectpp -c $(SHADERS) > effects.c
 
-effects.h: $(SHADERS) $(SHADER_GENERATOR)
-	$(SHADER_GENERATOR) -h $(SHADERS) > effects.h
+effects.h: ceffectpp $(SHADERS)
+	ceffectpp/ceffectpp -h $(SHADERS) > effects.h
+
+ceffectpp:
+	cd ceffectpp; make
 
 open-simplex-noise:
 	cd open-simplex-noise-in-c; make
