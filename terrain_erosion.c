@@ -1,7 +1,7 @@
-#include <glla.h>
 #include <math.h>
 #include <stdio.h>
 #include <assert.h>
+#include "glla.h"
 #include "math/utility.h"
 #include "procedural_terrain.h"
 

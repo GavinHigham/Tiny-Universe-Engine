@@ -1,10 +1,10 @@
 #ifndef DRAWABLE_H
 #define DRAWABLE_H
 
-#include <glla.h>
 #include <stdbool.h>
 #include "effects.h"
 #include "buffer_group.h"
+#include "glla.h"
 
 typedef struct drawable {
 	EFFECT *effect;

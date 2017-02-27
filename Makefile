@@ -1,32 +1,55 @@
 CC = gcc
 SDL = -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW
-CFLAGS = -Wall -c -std=c99 -g -pthread
-LDFLAGS = $(SDL) -lglla -llua
-MATH_OBJECTS = math/utility.o
-MODELS_OBJECTS = models/models.o
+MODULE_PATHS = -I./glla
+CFLAGS = $(MODULE_PATHS) -Wall -c -std=c11 -g -pthread
+LDFLAGS = $(SDL) -llua
 SHADERS = shaders/*.vs shaders/*.fs shaders/*.gs
 SHADER_GENERATOR = /usr/local/bin/ceffectpp
-CONFIGURATION_OBJECTS = configuration/configuration_file.o configuration/lua_configuration.o
-OBJECTS = main.o init.o image_load.o keyboard.o renderer.o buffer_group.o controller.o \
-deferred_framebuffer.o lights.o func_list.o shader_utils.o gl_utils.o stars.o procedural_terrain.o \
-effects.o drawf.o draw.o drawable.o terrain_erosion.o triangular_terrain_tile.o procedural_planet.o \
-ship_control.o dynamic_terrain_tree.o open-simplex-noise-in-c/open-simplex-noise.o \
-$(MATH_OBJECTS) $(MODELS_OBJECTS) $(CONFIGURATION_OBJECTS)
 EXE = sock
 
-all: $(OBJECTS) math_module models_module configuration_module open-simplex-noise
+#Objects in the top-level directory.
+OBJECTS = \
+	main.o \
+	init.o \
+	image_load.o \
+	keyboard.o \
+	renderer.o \
+	buffer_group.o \
+	controller.o \
+	deferred_framebuffer.o \
+	lights.o \
+	func_list.o \
+	shader_utils.o \
+	gl_utils.o \
+	stars.o \
+	procedural_terrain.o \
+	effects.o \
+	drawf.o \
+	draw.o \
+	drawable.o \
+	terrain_erosion.o \
+	triangular_terrain_tile.o \
+	procedural_planet.o \
+	ship_control.o \
+	dynamic_terrain_tree.o \
+	open-simplex-noise-in-c/open-simplex-noise.o \
+	glla/glla.o
+
+#Module includes append to OBJECTS and define other custom rules.
+include configuration/configuration.mk
+include math/math.mk
+include models/models.mk
+
+all: $(OBJECTS) open-simplex-noise
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(EXE)
 
+#I want "all" to be the default rule, so any module-specific build rules should be specified in a separate makefile.
+include models/Makefile
+
+#include entity_component.mk #include when I get around to making this
+
 .depend:
-	gcc -M *.c > .depend
-
-init.o: effects.o
-
-math_module:
-	cd math; make
-
-models_module:
-	cd models; make
+	gcc -M $(**/.c) *.c > .depend #Generate dependencies from all .c files, searching recursively.
 
 effects.c: $(SHADERS) $(SHADER_GENERATOR) effects.h
 	$(SHADER_GENERATOR) -c $(SHADERS) > effects.c
@@ -34,22 +57,12 @@ effects.c: $(SHADERS) $(SHADER_GENERATOR) effects.h
 effects.h: $(SHADERS) $(SHADER_GENERATOR)
 	$(SHADER_GENERATOR) -h $(SHADERS) > effects.h
 
-configuration_module:
-	cd configuration; make
-
 open-simplex-noise:
 	cd open-simplex-noise-in-c; make
 
-buffer_group.h: effects.o
-
-renderer.o: effects.o procedural_terrain.h models_module
+renderer.o: effects.o procedural_terrain.h
 
 clean:
-	rm $(OBJECTS) && rm $(EXE)
-	rm .depend
-
-rclean: clean
-	cd math; make clean
-	cd models; make clean
+	rm $(OBJECTS) && rm $(EXE) && rm .depend
 
 include .depend

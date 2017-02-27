@@ -5,7 +5,7 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
-#include <glla.h>
+#include "glla.h"
 
 enum { TERRAIN_TREE_NUM_CHILDREN = 4 };
 

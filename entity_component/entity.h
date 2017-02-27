@@ -1,7 +1,7 @@
 #ifndef ENTITY_H
 #define ENTITY_H
 
-#include <glla.h>
+#include "glla.h"
 #include "../drawable.h"
 
 /* Entity-Component Design

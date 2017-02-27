@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include "configuration_file.h"
-#include <glla.h>
+#include "glla.h"
 
 #define BOOLSTR(x) (x ? "true" : "false")
 

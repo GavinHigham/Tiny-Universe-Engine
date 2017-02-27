@@ -1,7 +1,7 @@
-#include <glla.h>
 #include <math.h>
 #include <assert.h>
 #include <stdio.h>
+#include "glla.h"
 #include "renderer.h"
 #include "dynamic_terrain_tree.h"
 #include "dynamic_terrain_types.h"

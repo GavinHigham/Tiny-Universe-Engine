@@ -1,12 +1,12 @@
 #include <gl/glew.h>
 #include <math.h>
 #include <stdlib.h>
-#include <glla.h>
 #include <stdio.h>
 #include <inttypes.h>
-#include "math/utility.h"
-#include "effects.h"
+#include "glla.h"
 #include "macros.h"
+#include "effects.h"
+#include "math/utility.h"
 #include "math/space_sector.h"
 
 const int NUM_STARS = 40000;

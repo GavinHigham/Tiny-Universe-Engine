@@ -2,8 +2,8 @@
 #include <math.h>
 #include <assert.h>
 #include <string.h>
-#include <glla.h>
 #include <GL/glew.h>
+#include "glla.h"
 #include "renderer.h"
 #include "models/models.h"
 #include "keyboard.h"

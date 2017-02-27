@@ -1,6 +1,6 @@
 #ifndef PROCEDURAL_PLANET_H
 #define PROCEDURAL_PLANET_H
-#include <glla.h>
+#include "glla.h"
 #include "dynamic_terrain_types.h"
 #include "dynamic_terrain_tree.h"
 //#include "terrain_types.h"

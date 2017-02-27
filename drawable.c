@@ -1,9 +1,9 @@
-#include <glla.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include "effects.h"
 #include "buffer_group.h"
 #include "drawable.h"
+#include "glla.h"
 
 void init_drawable(Drawable *d, void (*draw)(EFFECT *, struct buffer_group, amat4), EFFECT *effect, amat4 *frame, struct buffer_group *buffers)
 {

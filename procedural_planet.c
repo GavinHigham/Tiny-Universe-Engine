@@ -94,6 +94,8 @@ void proc_planet_drawlist(proc_planet *p, terrain_tree_drawlist *list, vec3 came
 	}
 }
 
+
+
 proc_planet * new_proc_planet(vec3 pos, float radius, height_map_func height)
 {
 	vec3 up = {0, 1, 0}; //TODO: Choose a better "up"

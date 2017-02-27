@@ -1,6 +1,8 @@
-#include <glla.h>
 #include <math.h>
 #include "space_sector.h"
+#include "glla.h"
+
+const float SPACE_SECTOR_SIZE = 8192;
 
 void space_sector_canonicalize(vec3 *pos, space_sector *sec)
 {

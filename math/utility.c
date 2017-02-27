@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include "utility.h"
-#include <glla.h>
+#include "glla.h"
 
 #define RANDOM_SEED 42 * 1337 + 0xBAE //An excellent random seed
 

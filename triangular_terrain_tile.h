@@ -1,7 +1,7 @@
 #ifndef PROCEDURAL_TERRAIN_H
 #define PROCEDURAL_TERRAIN_H
-#include <glla.h>
 #include <stdbool.h>
+#include "glla.h"
 #include "buffer_group.h"
 #include "dynamic_terrain_types.h"
 

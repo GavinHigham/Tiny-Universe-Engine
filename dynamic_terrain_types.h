@@ -1,8 +1,8 @@
 #ifndef TERRAIN_TYPES_H
 #define TERRAIN_TYPES_H
 #include <stdbool.h>
-#include <glla.h>
 #include <GL/glew.h>
+#include "glla.h"
 #include "buffer_group.h"
 #include "terrain_constants.h"
 

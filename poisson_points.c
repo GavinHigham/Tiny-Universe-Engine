@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <math.h>
-#include <glla.h>
+#include "glla.h"
 #include "macros.h"
 #include "math/utility.h"
 

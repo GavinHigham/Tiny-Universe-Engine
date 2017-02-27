@@ -1,5 +1,5 @@
-#include <glla.h>
 #include <math.h>
+#include "glla.h"
 #include "ship_control.h"
 
 void apply_impulse(struct ship_physics *ship, vec3 impulse)

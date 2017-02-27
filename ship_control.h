@@ -1,6 +1,6 @@
 #ifndef SHIP_CONTROL_H
 #define SHIP_CONTROL_H
-#include <glla.h>
+#include "glla.h"
 
 struct controller_input {
 	float leftx;

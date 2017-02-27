@@ -1,3 +1,6 @@
 [submodule "open-simplex-noise-in-c"]
 	path = open-simplex-noise-in-c
 	url = https://github.com/smcameron/open-simplex-noise-in-c.git
+[submodule "glla"]
+	path = glla
+	url = https://github.com/GavinHigham/glla.git

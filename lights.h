@@ -1,7 +1,8 @@
 #ifndef LIGHTS_H
 #define LIGHTS_H
 #include <stdbool.h>
-#include <glla.h>
+#include "glla/glla.h"
+
 
 enum default_light_settings {
 	MAX_NUM_LIGHTS = 10

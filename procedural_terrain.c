@@ -5,7 +5,7 @@
 #include <math.h>
 #include <assert.h>
 #include <GL/glew.h>
-#include <glla.h>
+#include "glla.h"
 #include "procedural_terrain.h"
 #include "open-simplex-noise-in-c/open-simplex-noise.h"
 #include "math/utility.h"
