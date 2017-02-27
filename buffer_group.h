@@ -26,6 +26,7 @@ struct buffer_group {
 
 struct buffer_group new_buffer_group(int (*buffering_function)(struct buffer_group), EFFECT *effect);
 struct buffer_group new_custom_buffer_group(int (*buffering_function)(struct buffer_group), int buffer_flags, GLenum primitive_type);
+int buffer_group_attribute_index(const char *attr_name);
 void delete_buffer_group(struct buffer_group tmp);
 void setup_attrib_for_draw(GLuint attr_handle, GLuint buffer, GLenum attr_type, int attr_size);
 

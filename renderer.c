@@ -148,7 +148,7 @@ void renderer_init()
 
 	init_models();
 	init_lights();
-	//init_stars();
+	init_stars();
 
 	float skybox_distance = sqrt((far_distance*far_distance)/2);
 	skybox_frame.a = mat3_scalemat(skybox_distance, skybox_distance, skybox_distance);
@@ -167,7 +167,7 @@ void renderer_deinit()
 	if (!renderer_is_init)
 		return;
 	deinit_models();
-	//deinit_stars();
+	deinit_stars();
 	point_lights.num_lights = 0;
 	renderer_is_init = false;
 }
@@ -207,7 +207,7 @@ static Drawable *pvs[] = {&d_ship};
 void render()
 {
 	terrain_tree_drawlist terrain_list = NULL;
-	//proc_planet_drawlist(test_planet, &terrain_list, eye_frame.t);
+	proc_planet_drawlist(test_planet, &terrain_list, eye_frame.t);
 	//float h = vec3_dist(eye_frame.t, test_planet->pos) - test_planet->radius; //If negative, we're below sea level.
 	//printf("Height: %f\n", h);
 	static float hella_time = 0.0;
@@ -232,7 +232,7 @@ void render()
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glDepthFunc(GL_GREATER);
-	//draw_stars();
+	draw_stars();
 
 	//If we're outside the shadow volume, we can use z-pass instead of z-fail.
 	//z-pass is faster, and not patent-encumbered.

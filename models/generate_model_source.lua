@@ -130,17 +130,24 @@ for _, file in ipairs(arg) do
 		print("\t\t" .. face[1] .. ", " .. face[2] .. ", " .. face[3] .. lineEnd)
 	end
 	print([[
-	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);]])
+	int attr_index = -1;
+	if ((attr_index = buffer_group_attribute_index("vPos")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
+	}]])
 	if usingColors then
 		print([[
-	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);]])
+	if ((attr_index = buffer_group_attribute_index("vColor")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
+	}]])
 	end
 	if usingNormals then
 		print([[
-	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);]])
+	if ((attr_index = buffer_group_attribute_index("vNormal")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
+	}]])
 	end
 	print([[
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);

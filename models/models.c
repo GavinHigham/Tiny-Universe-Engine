@@ -3391,12 +3391,19 @@ int buffer_ball(struct buffer_group bg)
 		469, 472, 3
 	};
 
-	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
+	int attr_index = -1;
+	if ((attr_index = buffer_group_attribute_index("vPos")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
+	}
+	if ((attr_index = buffer_group_attribute_index("vColor")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
+	}
+	if ((attr_index = buffer_group_attribute_index("vNormal")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
+	}
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(adjacent_indices), adjacent_indices, GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
@@ -3446,8 +3453,11 @@ int buffer_cube(struct buffer_group bg)
 		7, 5, 0
 	};
 
-	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
+	int attr_index = -1;
+	if ((attr_index = buffer_group_attribute_index("vPos")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
+	}
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(adjacent_indices), adjacent_indices, GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
@@ -3667,8 +3677,11 @@ int buffer_icosphere(struct buffer_group bg)
 		1, 3, 10
 	};
 
-	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
+	int attr_index = -1;
+	if ((attr_index = buffer_group_attribute_index("vPos")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
+	}
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(adjacent_indices), adjacent_indices, GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
@@ -8362,12 +8375,19 @@ int buffer_newroom(struct buffer_group bg)
 		670, 667, 205
 	};
 
-	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
+	int attr_index = -1;
+	if ((attr_index = buffer_group_attribute_index("vPos")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
+	}
+	if ((attr_index = buffer_group_attribute_index("vColor")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
+	}
+	if ((attr_index = buffer_group_attribute_index("vNormal")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
+	}
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(adjacent_indices), adjacent_indices, GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
@@ -12528,12 +12548,19 @@ int buffer_newship(struct buffer_group bg)
 		789, 737, 727
 	};
 
-	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
+	int attr_index = -1;
+	if ((attr_index = buffer_group_attribute_index("vPos")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
+	}
+	if ((attr_index = buffer_group_attribute_index("vColor")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
+	}
+	if ((attr_index = buffer_group_attribute_index("vNormal")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
+	}
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(adjacent_indices), adjacent_indices, GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
@@ -17344,12 +17371,19 @@ int buffer_room(struct buffer_group bg)
 		276, 709, 279
 	};
 
-	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
+	int attr_index = -1;
+	if ((attr_index = buffer_group_attribute_index("vPos")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
+	}
+	if ((attr_index = buffer_group_attribute_index("vColor")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
+	}
+	if ((attr_index = buffer_group_attribute_index("vNormal")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
+	}
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(adjacent_indices), adjacent_indices, GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
@@ -18699,12 +18733,19 @@ int buffer_ship(struct buffer_group bg)
 		285, 249, 251
 	};
 
-	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
+	int attr_index = -1;
+	if ((attr_index = buffer_group_attribute_index("vPos")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
+	}
+	if ((attr_index = buffer_group_attribute_index("vColor")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
+	}
+	if ((attr_index = buffer_group_attribute_index("vNormal")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
+	}
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(adjacent_indices), adjacent_indices, GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
@@ -76015,12 +76056,19 @@ int buffer_teardropship(struct buffer_group bg)
 		8268, 4241, 8078
 	};
 
-	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
+	int attr_index = -1;
+	if ((attr_index = buffer_group_attribute_index("vPos")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
+	}
+	if ((attr_index = buffer_group_attribute_index("vColor")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
+	}
+	if ((attr_index = buffer_group_attribute_index("vNormal")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
+	}
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(adjacent_indices), adjacent_indices, GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
@@ -76126,12 +76174,19 @@ int buffer_thrust_flare(struct buffer_group bg)
 		5, 0, 13
 	};
 
-	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
+	int attr_index = -1;
+	if ((attr_index = buffer_group_attribute_index("vPos")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
+	}
+	if ((attr_index = buffer_group_attribute_index("vColor")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
+	}
+	if ((attr_index = buffer_group_attribute_index("vNormal")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
+	}
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(adjacent_indices), adjacent_indices, GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
@@ -76237,12 +76292,19 @@ int buffer_thrust_flare_forward(struct buffer_group bg)
 		5, 0, 13
 	};
 
-	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
+	int attr_index = -1;
+	if ((attr_index = buffer_group_attribute_index("vPos")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
+	}
+	if ((attr_index = buffer_group_attribute_index("vColor")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
+	}
+	if ((attr_index = buffer_group_attribute_index("vNormal")) != -1) {
+		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
+	}
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(adjacent_indices), adjacent_indices, GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);

@@ -40,6 +40,8 @@ configuration_module:
 open-simplex-noise:
 	cd open-simplex-noise-in-c; make
 
+buffer_group.h: effects.o
+
 renderer.o: effects.o procedural_terrain.h models_module
 
 clean:
