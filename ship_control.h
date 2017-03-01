@@ -1,6 +1,7 @@
 #ifndef SHIP_CONTROL_H
 #define SHIP_CONTROL_H
 #include "glla.h"
+#include "math/space_sector.h"
 
 struct controller_input {
 	float leftx;
@@ -23,6 +24,7 @@ struct ship_physics {
 	vec3 locked_camera_target;
 	vec3 eased_camera_target;
 	vec3 movable_camera;
+	space_sector sector;
 };
 
 struct ship_physics ship_control(float dt, struct controller_input input, struct ship_physics ship);

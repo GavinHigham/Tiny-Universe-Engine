@@ -18,7 +18,7 @@ extern int PRIMITIVE_RESTART_INDEX;
 extern struct osn_context *osnctx;
 
 enum {
-	TERRAIN_AMPLITUDE = 32
+	TERRAIN_AMPLITUDE = 34
 };
 
 //The index buffer of a triangular tile of n rows contains that of one for n+1 rows.
@@ -96,6 +96,7 @@ tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], int num_rows, vec3 up, v
 
 	t->s_origin = s_origin;
 	t->s_radius = s_radius;
+	t->noise_radius = 6000;
 	t->up = up;
 
 	//Set up GPU buffer storage.
@@ -164,7 +165,7 @@ float tri_height_map(vec3 pos)
 		height += (open_simplex_noise3(osnctx, pos.x*scale, pos.y*scale, pos.z*scale) + 1)/pow(2, i);
 		scale *= 2;
 	}
-	return amplitude * pow(height, 4);
+	return amplitude * pow(height, 4) - amplitude / 2;
 }
 
 float tri_height_map_flat(vec3 pos)
@@ -244,18 +245,24 @@ static float position_and_normal(height_map_func height, vec3 basis_x, vec3 basi
 tri_tile * gen_tri_tile_vertices_and_normals(tri_tile *t, height_map_func height)
 {
 	t->height = height;
-	vec3 brownish = {0.40, .37, 0.31};
+	vec3 brownish = {0.30, .27, 0.21};
 	vec3 whiteish = {0.96, .94, 0.96};
-	float epsilon = t->s_radius / 100000;
+	float epsilon = t->noise_radius / 100000;
 	for (int i = 0; i < t->num_vertices; i++) {
-		//Points towards vector
+		//Points towards vertex
 		vec3 pos = t->positions[i] - t->s_origin;
+		vec3 noise_surface = vec3_scale(pos, t->noise_radius / t->s_radius);
 
+		//Basis vectors
 		vec3 x = vec3_normalize(vec3_cross(t->up, pos));
 		vec3 z = vec3_normalize(vec3_cross(pos, x));
 		vec3 y = vec3_normalize(pos);
-		position_and_normal(height, x, y, z, epsilon, &t->positions[i], &t->normals[i]);
-		t->colors[i] = vec3_lerp(brownish, whiteish, fmax((vec3_dist(t->positions[i], t->s_origin) - t->s_radius) / TERRAIN_AMPLITUDE, 0.0));
+
+		//Calculate position and normal on a sphere of noise_radius.
+		position_and_normal(height, x, y, z, epsilon, &noise_surface, &t->normals[i]);
+		//Scale back up to planet size.
+		t->positions[i] = vec3_scale(noise_surface, t->s_radius / t->noise_radius) + t->s_origin;
+		t->colors[i] = vec3_lerp(brownish, whiteish, fmax((vec3_dist(noise_surface, (vec3){0,0,0}) - t->noise_radius) / TERRAIN_AMPLITUDE, 0.0));
 	}
 	return t;
 }

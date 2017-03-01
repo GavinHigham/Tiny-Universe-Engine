@@ -35,6 +35,7 @@ typedef struct {
 	//Sphere origin and radius, used to appropriately curve tiles.
 	vec3 s_origin;
 	float s_radius;
+	float noise_radius;
 	//Information needed for rendering.
 	struct buffer_group bg;
 	//Is this tile buffered to the GPU yet?

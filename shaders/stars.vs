@@ -13,6 +13,7 @@ uniform float sector_size;
 uniform mat4 model_view_projection_matrix;
 
 out vec3 fpos;
+out vec3 fcol;
 
 //Copied from space_sector.c
 vec3 star_in_eye_space(ivec3 eye_sector, ivec3 sector, vec3 pos)
@@ -30,6 +31,9 @@ void main()
 	gl_Position = model_view_projection_matrix * vec4(vpos, 1);
     gl_Position.z = log(gl_Position.w/near_plane_dist) * log_depth_intermediate_factor - 1; 
     gl_Position.z *= gl_Position.w;
-	gl_PointSize = 1;//(1-(star_dist / (0.7*stars_radius))) + 2;
+	//gl_PointSize = 10;//(1-(star_dist / (0.7*stars_radius))) + 2;
+	float index = (gl_VertexID / 40000);
+	gl_PointSize = 5;
+	fcol = vec3(1.0);
 	fpos = vpos;
 }

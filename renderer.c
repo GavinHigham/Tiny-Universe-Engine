@@ -27,7 +27,7 @@
 
 static bool renderer_is_init = false;
 float FOV = M_PI/3.0;
-float far_distance = 100000000;
+float far_distance = 1000000000;
 float near_distance = 1;
 int PRIMITIVE_RESTART_INDEX = 0xFFFFFFFF;
 
@@ -47,7 +47,6 @@ amat4 eye_frame = {.a = MAT3_IDENT,          .t = {6, 0, 0}};
 space_sector eye_sector = {0, 0, 0};
 //Object frames. Need a better system for this.
 amat4 ship_frame = {.a = MAT3_IDENT,         .t = {-2.5, 0, -8}};
-space_sector ship_sector = {0, 0, 0};
 amat4 newship_frame = {.a = MAT3_IDENT,      .t = {3, 0, -8}};
 amat4 teardropship_frame = {.a = MAT3_IDENT, .t = {6, 0, -8}};
 amat4 room_frame = {.a = MAT3_IDENT,         .t = {0, -4, -8}};
@@ -71,7 +70,8 @@ struct ship_physics ship = {
 	.eased_camera  = {.a = MAT3_IDENT, .t = {0, 4, 8}},
 	.locked_camera_target = (vec3){0, 0, -4},
 	.eased_camera_target  = (vec3){0, 0, -4},
-	.movable_camera       = (vec3){0, 4, 8}
+	.movable_camera       = (vec3){0, 4, 8},
+	.sector               = (space_sector){0, 0, 0}
 };
 
 GLfloat proj_mat[16];
@@ -371,10 +371,11 @@ void update(float dt)
 	if (key_state[SDL_SCANCODE_T]) {
 		printf("Ship is at {%f, %f, %f}<%lli, %lli, %lli>. Where would you like to teleport?\n",
 			ship.position.t.x, ship.position.t.y, ship.position.t.z,
-			ship_sector.x, ship_sector.y, ship_sector.z);
+			ship.sector.x, ship.sector.y, ship.sector.z);
 		float x, y, z;
-		scanf("%f %f %f %lli %lli %lli", &x, &y, &z, &ship_sector.x, &ship_sector.y, &ship_sector.z);
+		scanf("%f %f %f %lli %lli %lli", &x, &y, &z, &ship.sector.x, &ship.sector.y, &ship.sector.z);
 		ship.position.t = (vec3){x, y, z};
+		space_sector_canonicalize(&ship.position.t, &ship.sector);
 	}
 
 	float camera_speed = 20.0;
@@ -393,10 +394,11 @@ void update(float dt)
 		axes[TRIGGERLEFT]  / controller_max,
 		axes[TRIGGERRIGHT] / controller_max,
 	}, ship);
-	space_sector_canonicalize(&ship.position.t, &ship_sector);
+	space_sector_canonicalize(&ship.position.t, &ship.sector);
 
 	//Translate the camera using WASD.
 	eye_frame = ship.locked_camera;
+	eye_sector = ship.sector;
 	space_sector_canonicalize(&eye_frame.t, &eye_sector);
 	tri_frame_eye_relative.a = tri_frame.a;
 	tri_frame_eye_relative.t = space_sector_position_relative_to_sector(tri_frame.t, tri_sector, eye_sector);
