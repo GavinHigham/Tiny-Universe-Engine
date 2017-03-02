@@ -13,7 +13,7 @@
 #include "renderer.h"
 #include "macros.h"
 #include "func_list.h"
-#include "keyboard.h"
+#include "handle_event.h"
 #include "open-simplex-noise-in-c/open-simplex-noise.h"
 
 int open_simplex_noise_seed = 83619; //No special significance, I just mashed on the keyboard.

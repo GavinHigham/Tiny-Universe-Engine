@@ -12,9 +12,8 @@
 //Project headers.
 #include "init.h"
 #include "image_load.h"
-#include "keyboard.h"
+#include "input_event.h"
 #include "renderer.h"
-#include "controller.h"
 #include "default_settings.h"
 #include "configuration/lua_configuration.h"
 
@@ -27,7 +26,7 @@ enum {
 static int fps = 60; //Frames per second.
 static int wake_early_ms = 2; //How many ms early should the main loop wake from sleep to avoid oversleeping.
 
-//Average number of tight loop iterations. Global so it can be accessed from keyboard.c
+//Average number of tight loop iterations. Global so it can be accessed from handle_event.c
 int loop_iter_ave = 0;
 SDL_Renderer *renderer = NULL;
 SDL_Window *window = NULL;

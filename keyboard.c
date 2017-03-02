@@ -1,6 +1,6 @@
 #include <stdbool.h>
 #include <SDL2/SDL.h>
-#include "keyboard.h"
+#include "handle_event.h"
 #include "init.h"
 #include "shader_utils.h"
 #include "renderer.h"

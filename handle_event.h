@@ -1,5 +1,5 @@
-#ifndef KEYBOARD_H
-#define KEYBOARD_H
+#ifndef INPUT_EVENT_H
+#define INPUT_EVENT_H
 
 #include <SDL2/SDL.h>
 

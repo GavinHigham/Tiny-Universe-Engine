@@ -11,10 +11,9 @@ OBJECTS = \
 	main.o \
 	init.o \
 	image_load.o \
-	keyboard.o \
+	input_event.o \
 	renderer.o \
 	buffer_group.o \
-	controller.o \
 	deferred_framebuffer.o \
 	lights.o \
 	func_list.o \
