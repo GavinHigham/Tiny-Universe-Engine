@@ -1,5 +1,5 @@
-#ifndef PROCEDURAL_TERRAIN_H
-#define PROCEDURAL_TERRAIN_H
+#ifndef TRIANGULAR_TERRAIN_TILE_H
+#define TRIANGULAR_TERRAIN_TILE_H
 #include <stdbool.h>
 #include "glla.h"
 #include "buffer_group.h"

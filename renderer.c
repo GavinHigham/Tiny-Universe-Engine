@@ -12,7 +12,6 @@
 #include "deferred_framebuffer.h"
 #include "lights.h"
 #include "macros.h"
-#include "func_list.h"
 #include "shader_utils.h"
 #include "gl_utils.h"
 #include "stars.h"
@@ -25,6 +24,7 @@
 #include "math/space_sector.h"
 
 static bool renderer_is_init = false;
+static bool renderer_should_reload = false;
 float FOV = M_PI/3.0;
 float far_distance = 1000000000;
 float near_distance = 1;
@@ -32,13 +32,6 @@ int PRIMITIVE_RESTART_INDEX = 0xFFFFFFFF;
 
 float screen_width = SCREEN_WIDTH;
 float screen_height = SCREEN_HEIGHT;
-
-static struct counted_func update_funcs_storage[10];
-struct func_list update_func_list = {
-	update_funcs_storage,
-	0,
-	LENGTH(update_funcs_storage)
-};
 
 GLuint gVAO = 0;
 amat4 inv_eye_frame;
@@ -105,7 +98,7 @@ static void init_models()
 	for (int i = 0; i < LENGTH(drawables); i++)
 		init_heap_drawable(drawables[i].drawable, drawables[i].draw, drawables[i].effect, drawables[i].frame, drawables[i].buffering_function);
 
-	test_planet = new_proc_planet(planet_center, planet_radius, tri_height_map);
+	test_planet = proc_planet_new(planet_center, planet_radius, tri_height_map);
 }
 
 static void deinit_models()
@@ -113,7 +106,7 @@ static void deinit_models()
 	for (int i = 0; i < LENGTH(drawables); i++)
 		deinit_drawable(drawables[i].drawable);
 
-	free_proc_planet(test_planet);
+	proc_planet_free(test_planet);
 }
 
 static void init_lights()
@@ -179,6 +172,22 @@ void renderer_deinit()
 	deinit_stars();
 	point_lights.num_lights = 0;
 	renderer_is_init = false;
+}
+
+void renderer_reload()
+{
+	load_effects(
+		effects.all,       LENGTH(effects.all),
+		shader_file_paths, LENGTH(shader_file_paths),
+		attribute_strings, LENGTH(attribute_strings),
+		uniform_strings,   LENGTH(uniform_strings));
+	renderer_deinit();
+	renderer_init();
+}
+
+void renderer_queue_reload()
+{
+	renderer_should_reload = true;
 }
 
 //Create a projection matrix with "fov" field of view, "a" aspect ratio, n and f near and far planes.
@@ -362,7 +371,11 @@ void render()
 
 void update(float dt)
 {
-	func_list_call(&update_func_list);
+	if (renderer_should_reload) {
+		renderer_reload();
+		renderer_should_reload = false;
+	}
+
 	static float light_time = 0;
 	light_time += dt * 0.2;
 	point_lights.position[0] = (vec3){10*cos(light_time), 4, 10*sin(light_time)-8};

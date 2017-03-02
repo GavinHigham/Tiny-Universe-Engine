@@ -19,8 +19,8 @@ struct planet_terrain_context {
 	proc_planet *planet;
 };
 
-proc_planet * new_proc_planet(vec3 pos, float radius, height_map_func height);
-void free_proc_planet(proc_planet *p);
+proc_planet * proc_planet_new(vec3 pos, float radius, height_map_func height);
+void proc_planet_free(proc_planet *p);
 void proc_planet_drawlist(proc_planet *p, terrain_tree_drawlist *list, vec3 camera_position);
 
 #endif

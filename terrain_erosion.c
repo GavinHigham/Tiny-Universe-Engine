@@ -49,6 +49,22 @@ struct raindrop_config {
 	int max_steps; //Maximum number of steps this raindrop will be simulated for.
 };
 
+vec3 calc_gradient(struct terrain *t, vec3 rpos)
+{
+		vec3 *p  = tpos(t, rpos.x,   rpos.z);
+		vec3 *c1 = tpos(t, rpos.x+1, rpos.z);
+		vec3 *c2 = tpos(t, rpos.x+1, rpos.z+1);
+		vec3 *c3 = tpos(t, rpos.x,   rpos.z+1);
+		vec3 grad = (vec3){
+			p->y + c3->y - c1->y - c2->y,
+			0,
+			c2->y + c3->y - p->y - c1->y
+		};
+		if (vec3_mag(grad) > 0)
+			grad = vec3_normalize(grad);
+		return grad;
+}
+
 int simulate_raindrop(struct terrain *t, struct raindrop_config rc, float x, float z)
 {
 	tpos(t, 0, 0);
@@ -58,17 +74,8 @@ int simulate_raindrop(struct terrain *t, struct raindrop_config rc, float x, flo
 	float timescale = 1;
 	int hit_steplimit = 0;
 	do {
-		vec3 *p  = tpos(t, r.pos.x,   r.pos.z);
-		vec3 *c1 = tpos(t, r.pos.x+1, r.pos.z);
-		vec3 *c2 = tpos(t, r.pos.x+1, r.pos.z+1);
-		vec3 *c3 = tpos(t, r.pos.x,   r.pos.z+1);
-		vec3 grad = (vec3){
-			p->y + c3->y - c1->y - c2->y,
-			0,
-			c2->y + c3->y - p->y - c1->y
-		};
-		if (vec3_mag(grad) > 0)
-			grad = vec3_normalize(grad);
+		vec3 *p = tpos(t, r.pos.x, r.pos.z);
+		vec3 grad = calc_gradient(t, r.pos);
 
 		//Force of gravity pulls down, some becomes normal force, some becomes a force along the slope.
 		//If the downward velocity was higher than would keep it on the surface of the next slope segment,
@@ -180,40 +187,4 @@ void erode_terrain(struct terrain *t, int iterations)
 	for (int i = 0; i < iterations; i++)
 		steplimit_drops += simulate_raindrop(t, rc, rand_float()*(t->numcols-1), rand_float()*(t->numrows-1));
 	printf("%i drops hit the steplimit this iteration.\n", steplimit_drops);
-}
-
-struct terrain_grid {
-	struct terrain *ts;
-	int numx;
-	int numz;
-};
-
-//Calculates an array index for a 2d grid of terrains.
-//Will return a pointer to the terrain struct nearest <fx, fy>, wrapping around as on a torus.
-//To initialize, call with ts as the struct array you wish to navigate, and any fx/fy.
-//On subsequent calls, leave ts as NULL and pass actual fx and fy coordinates.
-struct terrain * tgpos(struct terrain_grid *tg, float fx, float fy)
-{
-	static struct terrain_grid *tref = NULL;
-	static float tilex;
-	static float tilez;
-	if (tg == NULL) {
-		unsigned int x = fmod(fmod(fx/tilex, tref->numx) + tref->numx, tref->numx);
-		unsigned int y = fmod(fmod(fy/tilez, tref->numz) + tref->numz, tref->numz);
-		unsigned int coord = x + y*tref->numx;
-		return &(tref->ts[coord]);
-	}
-	else {
-		tref = tg;
-		tilex = tg->ts->numcols;
-		tilez = tg->ts->numrows;
-		return NULL;
-	}
-}
-
-vec3 nearest_terrain_origin(vec3 pos, float terrain_width, float terrain_depth)
-{
-	unsigned int x = fmod(fmod(pos.x, terrain_width) + terrain_width, terrain_width);
-	unsigned int z = fmod(fmod(pos.z, terrain_depth) + terrain_depth, terrain_depth);
-	return (vec3){pos.x - x, 0, pos.z - z};
 }

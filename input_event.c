@@ -4,7 +4,6 @@
 #include "init.h"
 #include "shader_utils.h"
 #include "renderer.h"
-#include "func_list.h"
 
 extern SDL_Window *window;
 const Uint8 *key_state = NULL;
@@ -50,7 +49,7 @@ void keyevent(SDL_Keysym keysym, SDL_EventType type)
 		break;
 	case SDL_SCANCODE_1:
 		if (!keydown) {
-			func_list_add(&update_func_list, 1, reload_effects_void_wrapper);
+			renderer_queue_reload();
 		}
 		break;
 	default:

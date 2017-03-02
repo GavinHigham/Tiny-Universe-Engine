@@ -12,8 +12,7 @@
 #include "gl_utils.h"
 #include "renderer.h"
 #include "macros.h"
-#include "func_list.h"
-#include "handle_event.h"
+#include "input_event.h"
 #include "open-simplex-noise-in-c/open-simplex-noise.h"
 
 int open_simplex_noise_seed = 83619; //No special significance, I just mashed on the keyboard.
@@ -22,20 +21,9 @@ struct osn_context *osnctx;
 int gl_init(SDL_GLContext *context, SDL_Window *window);
 int glew_init();
 
-void reload_effects_void_wrapper()
-{
-	load_effects(
-		effects.all,       LENGTH(effects.all),
-		shader_file_paths, LENGTH(shader_file_paths),
-		attribute_strings, LENGTH(attribute_strings),
-		uniform_strings,   LENGTH(uniform_strings));
-	renderer_deinit();
-	renderer_init();
-}
-
 static void reload_signal_handler(int signo) {
 	printf("Received SIGUSR1! Reloading shaders!\n");
-	func_list_add(&update_func_list, 1, reload_effects_void_wrapper);
+	renderer_queue_reload();
 }
 
 int engine_init(SDL_GLContext *context, SDL_Window *window)

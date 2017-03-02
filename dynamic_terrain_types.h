@@ -1,5 +1,5 @@
-#ifndef TERRAIN_TYPES_H
-#define TERRAIN_TYPES_H
+#ifndef DYNAMIC_TERRAIN_TYPES_H
+#define DYNAMIC_TERRAIN_TYPES_H
 #include <stdbool.h>
 #include <GL/glew.h>
 #include "glla.h"

@@ -94,9 +94,7 @@ void proc_planet_drawlist(proc_planet *p, terrain_tree_drawlist *list, vec3 came
 	}
 }
 
-
-
-proc_planet * new_proc_planet(vec3 pos, float radius, height_map_func height)
+proc_planet * proc_planet_new(vec3 pos, float radius, height_map_func height)
 {
 	vec3 up = {0, 1, 0}; //TODO: Choose a better "up"
 	proc_planet *p = malloc(sizeof(proc_planet));
@@ -119,7 +117,7 @@ proc_planet * new_proc_planet(vec3 pos, float radius, height_map_func height)
 	return p;
 }
 
-void free_proc_planet(proc_planet *p)
+void proc_planet_free(proc_planet *p)
 {
 	for (int i = 0; i < NUM_ICOSPHERE_FACES; i++)
 		terrain_tree_free(p->tiles[i], (terrain_tree_free_fn)free_tri_tile);

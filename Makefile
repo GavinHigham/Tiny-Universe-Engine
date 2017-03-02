@@ -16,7 +16,6 @@ OBJECTS = \
 	buffer_group.o \
 	deferred_framebuffer.o \
 	lights.o \
-	func_list.o \
 	shader_utils.o \
 	gl_utils.o \
 	stars.o \

@@ -64,12 +64,8 @@ void init_stars()
 			nearby_stars[i*3 + 1] = y;
 			nearby_stars[i*3 + 2] = z;
 			actual_num_stars++;
-			if (i == 13334)
-				printf("%i, %i, %i\n", x, y, z);
 		}
 	}
-	int ind = 13334;
-	printf("%i, %i, %i\n", nearby_stars[ind*3], nearby_stars[ind*3 + 1], nearby_stars[ind*3 + 2]);
 
 	glUseProgram(effects.stars.handle);
 	glGenVertexArrays(1, &stars_vao);
