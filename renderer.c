@@ -39,15 +39,15 @@ amat4 eye_frame = {.a = MAT3_IDENT,          .t = {6, 0, 0}};
 space_sector eye_sector = {0, 0, 0};
 //Object frames. Need a better system for this.
 amat4 ship_frame = {.a = MAT3_IDENT,         .t = {-2.5, 0, -8}};
-amat4 newship_frame = {.a = MAT3_IDENT,      .t = {3, 0, -8}};
-amat4 teardropship_frame = {.a = MAT3_IDENT, .t = {6, 0, -8}};
 amat4 room_frame = {.a = MAT3_IDENT,         .t = {0, -4, -8}};
 amat4 grid_frame = {.a = MAT3_IDENT,         .t = {-50, -90, -550}};
 amat4 tri_frame  = {.a = MAT3_IDENT,         .t = {0, 0, 0}};
-space_sector tri_sector = {0, 0, 0};
+space_sector tri_sector  = {0, 0, 0};
+space_sector room_sector = {0, 0, 0};
 amat4 tri_frame_eye_relative  = {.a = MAT3_IDENT, .t = {0, 0, 0}};
 amat4 big_asteroid_frame = {.a = MAT3_IDENT, .t = {0, -4, -20}};
 amat4 skybox_frame; //Set in init_render() and update()
+space_sector skybox_sector = {0, 0, 0};
 vec3 ambient_color = {0.01, 0.01, 0.01};
 vec3 sun_direction = {0.1, 0.8, 0.1};
 vec3 sun_color     = {0.1, 0.8, 0.1};
@@ -81,13 +81,14 @@ struct drawable_rec {
 	Draw_func draw;
 	EFFECT *effect;
 	amat4 *frame;
+	space_sector *sector;
 	int (*buffering_function)(struct buffer_group);
 } drawables[] = {
-	{&d_ship,         draw_forward,        &effects.forward, &ship.position,      buffer_ship        },
-	{&d_newship,      draw_forward,        &effects.forward, &newship_frame,      buffer_newship     },
-	{&d_teardropship, draw_forward,        &effects.forward, &teardropship_frame, buffer_teardropship},
-	{&d_room,         draw_forward,        &effects.forward, &room_frame,         buffer_newroom     },
-	{&d_skybox,       draw_skybox_forward, &effects.skybox,  &skybox_frame,       buffer_cube        }
+	{&d_ship,         draw_forward,        &effects.forward, &ship.position, &ship.sector,   buffer_ship        },
+	{&d_newship,      draw_forward,        &effects.forward, &ship.position, &ship.sector,   buffer_newship     },
+	{&d_teardropship, draw_forward,        &effects.forward, &ship.position, &ship.sector,   buffer_teardropship},
+	{&d_room,         draw_forward,        &effects.forward, &room_frame,    &room_sector,   buffer_newroom     },
+	{&d_skybox,       draw_skybox_forward, &effects.skybox,  &skybox_frame,  &skybox_sector, buffer_cube        }
 };
 
 static void init_models()
@@ -96,7 +97,7 @@ static void init_models()
 	//Maybe configured from some config file?
 	//init_heap_drawable(Drawable *drawable, Draw_func draw, EFFECT *effect, amat4 *frame, int (*buffering_function)(struct buffer_group));
 	for (int i = 0; i < LENGTH(drawables); i++)
-		init_heap_drawable(drawables[i].drawable, drawables[i].draw, drawables[i].effect, drawables[i].frame, drawables[i].buffering_function);
+		init_heap_drawable(drawables[i].drawable, drawables[i].draw, drawables[i].effect, drawables[i].frame, drawables[i].sector, drawables[i].buffering_function);
 
 	test_planet = proc_planet_new(planet_center, planet_radius, tri_height_map);
 }
@@ -152,7 +153,11 @@ void renderer_init()
 	glUniform1f(effects.forward.log_depth_intermediate_factor, 2.0/log(far_distance/near_distance));
 	glUniform1f(effects.forward.near_plane_dist, near_distance);
 
-	float skybox_distance = sqrt((far_distance*far_distance)/2);
+	glUseProgram(effects.skybox.handle);
+	glUniform1f(effects.skybox.log_depth_intermediate_factor, 2.0/log(far_distance/near_distance));
+	glUniform1f(effects.skybox.near_plane_dist, near_distance);
+
+	float skybox_distance = sqrt((far_distance*far_distance)/2)/2;
 	skybox_frame.a = mat3_scalemat(skybox_distance, skybox_distance, skybox_distance);
 	skybox_frame.t = eye_frame.t;
 
@@ -250,7 +255,6 @@ void render()
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glDepthFunc(GL_LESS);
-	draw_stars();
 
 	//If we're outside the shadow volume, we can use z-pass instead of z-fail.
 	//z-pass is faster, and not patent-encumbered.
@@ -362,7 +366,8 @@ void render()
 	glUniform3fv(effects.skybox.sun_direction, 1, (float *)&sun_direction);
 	glUniform3fv(effects.skybox.sun_color, 1, (float *)&sun_color);
 	skybox_frame.t = eye_frame.t;
-	//draw_drawable(&d_skybox);
+	draw_drawable(&d_skybox);
+	draw_stars();
 
 	terrain_tree_drawlist_free(terrain_list);
 
@@ -387,7 +392,7 @@ void update(float dt)
 		float x, y, z;
 		scanf("%f %f %f %lli %lli %lli", &x, &y, &z, &ship.sector.x, &ship.sector.y, &ship.sector.z);
 		ship.position.t = (vec3){x, y, z};
-		space_sector_canonicalize(&ship.position.t, &ship.sector);
+		//space_sector_canonicalize(&ship.position.t, &ship.sector);
 	}
 
 	float camera_speed = 20.0;

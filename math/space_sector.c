@@ -10,11 +10,9 @@ void space_sector_canonicalize(vec3 *pos, space_sector *sec)
 	sec->y += pos->y / SPACE_SECTOR_SIZE;
 	sec->z += pos->z / SPACE_SECTOR_SIZE;
 
-	*pos = (vec3){
-		fmod(pos->x, SPACE_SECTOR_SIZE),
-		fmod(pos->y, SPACE_SECTOR_SIZE),
-		fmod(pos->z, SPACE_SECTOR_SIZE)
-	};
+	pos->x = fmod(pos->x, SPACE_SECTOR_SIZE);
+	pos->y = fmod(pos->y, SPACE_SECTOR_SIZE);
+	pos->z = fmod(pos->z, SPACE_SECTOR_SIZE);
 }
 
 //Also copied to stars.vs, so update there too if changed.

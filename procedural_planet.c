@@ -6,6 +6,7 @@
 //#include "dynamic_terrain.h"
 #include "dynamic_terrain_tree.h"
 #include "terrain_constants.h"
+#include "math/space_sector.h"
 
 //Adapted from http://www.glprogramming.com/red/chapter02.html
 
@@ -79,11 +80,14 @@ int terrain_tree_example_subdiv(terrain_tree_node *tree, void *context)
 
 // Public Functions //
 
+extern space_sector eye_sector;
+extern space_sector tri_sector;
+
 void proc_planet_drawlist(proc_planet *p, terrain_tree_drawlist *list, vec3 camera_position)
 {
 	struct planet_terrain_context context = {
 		.subdivs_left = 0,
-		.cam_pos = camera_position,
+		.cam_pos = space_sector_position_relative_to_sector(camera_position, eye_sector, tri_sector),
 		.planet = p
 	};
 
