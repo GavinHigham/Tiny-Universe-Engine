@@ -47,7 +47,7 @@ space_sector room_sector = {0, 0, 0};
 amat4 tri_frame_eye_relative  = {.a = MAT3_IDENT, .t = {0, 0, 0}};
 amat4 big_asteroid_frame = {.a = MAT3_IDENT, .t = {0, -4, -20}};
 amat4 skybox_frame; //Set in init_render() and update()
-space_sector skybox_sector = {0, 0, 0};
+float skybox_scale;
 vec3 ambient_color = {0.01, 0.01, 0.01};
 vec3 sun_direction = {0.1, 0.8, 0.1};
 vec3 sun_color     = {0.1, 0.8, 0.1};
@@ -88,7 +88,7 @@ struct drawable_rec {
 	{&d_newship,      draw_forward,        &effects.forward, &ship.position, &ship.sector,   buffer_newship     },
 	{&d_teardropship, draw_forward,        &effects.forward, &ship.position, &ship.sector,   buffer_teardropship},
 	{&d_room,         draw_forward,        &effects.forward, &room_frame,    &room_sector,   buffer_newroom     },
-	{&d_skybox,       draw_skybox_forward, &effects.skybox,  &skybox_frame,  &skybox_sector, buffer_cube        }
+	{&d_skybox,       draw_skybox_forward, &effects.skybox,  &skybox_frame,  &eye_sector,    buffer_cube        }
 };
 
 static void init_models()
@@ -157,8 +157,8 @@ void renderer_init()
 	glUniform1f(effects.skybox.log_depth_intermediate_factor, 2.0/log(far_distance/near_distance));
 	glUniform1f(effects.skybox.near_plane_dist, near_distance);
 
-	float skybox_distance = sqrt((far_distance*far_distance)/2)/2;
-	skybox_frame.a = mat3_scalemat(skybox_distance, skybox_distance, skybox_distance);
+	skybox_scale = 2*far_distance / sqrt(3);
+	skybox_frame.a = mat3_scalemat(skybox_scale, skybox_scale, skybox_scale);
 	skybox_frame.t = eye_frame.t;
 
 	glPointSize(3);
@@ -393,6 +393,11 @@ void update(float dt)
 		scanf("%f %f %f %lli %lli %lli", &x, &y, &z, &ship.sector.x, &ship.sector.y, &ship.sector.z);
 		ship.position.t = (vec3){x, y, z};
 		//space_sector_canonicalize(&ship.position.t, &ship.sector);
+	}
+	if (key_state[SDL_SCANCODE_Y]) {
+		printf("Skybox scale is %f, what would you like the scale to be?\n", skybox_scale);
+		scanf("%f", &skybox_scale);
+		skybox_frame.a = mat3_scalemat(skybox_scale, skybox_scale, skybox_scale);
 	}
 
 	float camera_speed = 20.0;

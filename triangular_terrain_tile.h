@@ -6,7 +6,8 @@
 #include "dynamic_terrain_types.h"
 
 tri_tile * new_tri_tile();
-tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], int num_rows, vec3 up, vec3 spos, float srad);
+//tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], int num_rows, vec3 up, vec3 spos, float srad);
+tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], space_sector sector, int num_rows, void (finishing_touches)(tri_tile *, void *), void *finishing_touches_context);
 void deinit_tri_tile(tri_tile *t);
 void free_tri_tile(tri_tile *t);
 

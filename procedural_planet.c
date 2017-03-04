@@ -78,6 +78,33 @@ int terrain_tree_example_subdiv(terrain_tree_node *tree, void *context)
 	return depth;
 }
 
+tri_tile * proc_planet_vertices_and_normals(tri_tile *t, height_map_func height, vec3 origin, float noise_radius, float amplitude)
+{
+	t->height = height;
+	vec3 brownish = {0.30, .27, 0.21};
+	vec3 whiteish = {0.96, .94, 0.96};
+	float epsilon = noise_radius / 100000; //TODO: Check this value or make it empirical somehow.
+	for (int i = 0; i < t->num_vertices; i++) {
+		//Points towards vertex
+		vec3 pos = t->positions[i] - origin;
+		vec3 noise_surface = vec3_scale(vec3_normalize(pos), noise_radius);
+		vec3 displaced_surface = noise_surface;
+
+		//Basis vectors
+		vec3 x = vec3_normalize(vec3_cross(t->up, pos));
+		vec3 z = vec3_normalize(vec3_cross(pos, x));
+		vec3 y = vec3_normalize(pos);
+
+		//Calculate position and normal on a sphere of noise_radius.
+		position_and_normal(height, x, y, z, epsilon, &displaced_surface, &t->normals[i]);
+		//Scale back up to planet size.
+		t->positions[i] = pos + origin + displaced_surface - noise_surface;
+		//TODO: Create much more interesting colors.
+		t->colors[i] = vec3_lerp(brownish, whiteish, fmax((vec3_dist(noise_surface, (vec3){0,0,0}) - noise_radius) / TERRAIN_AMPLITUDE, 0.0));
+	}
+	return t;
+}
+
 // Public Functions //
 
 extern space_sector eye_sector;
@@ -114,6 +141,15 @@ proc_planet * proc_planet_new(vec3 pos, float radius, height_map_func height)
 		};
 
 		p->tiles[i] = terrain_tree_new(new_tri_tile(), 0);
+		//Will need to pass {vec3 up, vec3 s_origin, float s_radius} in finishing_touches_context.
+		//	t->s_origin = s_origin;
+		//	t->s_radius = s_radius;
+		//	t->noise_radius = 6000;
+		//	t->up = up;
+		//Finishing touches should do:
+		//	reproject_vertices_to_spherical(t->positions, t->num_vertices, t->s_origin, t->s_radius);
+		//	reproject_vertices_to_spherical(&t->pos, 1, t->s_origin, t->s_radius);
+
 		init_tri_tile(p->tiles[i]->tile, verts, DEFAULT_NUM_TRI_TILE_ROWS, up, pos, radius);
 		gen_tri_tile_vertices_and_normals(p->tiles[i]->tile, height);
 	}

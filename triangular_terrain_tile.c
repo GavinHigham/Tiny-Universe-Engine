@@ -12,6 +12,7 @@
 #include "buffer_group.h"
 #include "macros.h"
 #include "renderer.h"
+#include "math/space_sector.h"
 
 //If I add margins to all my heightmaps later then I can avoid A LOT of work.
 extern int PRIMITIVE_RESTART_INDEX;
@@ -75,31 +76,21 @@ tri_tile * new_tri_tile()
 
 //Creates storage for the positions, normals, and colors, as well as OpenGL handles.
 //Should be freed by the caller, using free_tri_tile.
-tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], int num_rows, vec3 up, vec3 s_origin, float s_radius)
+tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], space_sector sector, int num_rows, void (finishing_touches)(tri_tile *, void *), void *finishing_touches_context)
 {
-	//We'll leak memory and OpenGL handles and junk if we try to init more than once.
-	assert(!t->is_init);
-	//printf("sizeof(vec3) = %lu\n", sizeof(vec3));
-	//assert(sizeof(vec3) == (sizeof(float) * 3));
+	if (t->is_init) return t;
 
 	//Get counts.
 	t->bg.index_count = num_tri_tile_indices(num_rows);
-	t->num_indices    = num_tri_tile_indices(num_rows);
 	t->num_vertices   = num_tri_tile_vertices(num_rows);
 	//Generate storage.
 	t->positions = (vec3 *)malloc(sizeof(vec3) * t->num_vertices);
 	t->normals   = (vec3 *)malloc(sizeof(vec3) * t->num_vertices);
 	t->colors    = (vec3 *)malloc(sizeof(vec3) * t->num_vertices);
-	t->num_rows  = num_rows;
 	if (!t->positions || !t->normals || !t->colors)
 		printf("Malloc didn't work lol\n");
 
-	t->s_origin = s_origin;
-	t->s_radius = s_radius;
-	t->noise_radius = 6000;
-	t->up = up;
-
-	//Set up GPU buffer storage.
+	//Set up GPU buffer storage. I hate how this works and need to simplify it.
 	t->bg.primitive_type = GL_TRIANGLE_STRIP;
 	glGenVertexArrays(1, &t->bg.vao);
 	glBindVertexArray(t->bg.vao);
@@ -114,19 +105,15 @@ tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], int num_rows, vec3 up, v
 
 	//Calculate center point (centroid) and copy tile vertices.
 	t->pos = vertices[0] + vertices[1] + vertices[2] * 1.0/3.0;
+	t->sector = sector;
+	space_sector_canonicalize(&t->pos, &t->sector);
 	for (int i = 0; i < 3; i++)
-		t->tile_vertices[i] = vertices[i];
+		t->tile_vertices[i] = space_sector_position_relative_to_sector(vertices[i], sector, t->sector);
 
 	//Generate the initial vertex positions, coplanar points on the triangle formed by vertices[3].
+	//TODO: Needs to either handle sectors, or be passed the radius which noise should be computed at.
 	int numverts = tri_tile_vertices(t->positions, t->num_rows, vertices[0], vertices[1], vertices[2]);
 	assert(t->num_vertices == numverts);
-	reproject_vertices_to_spherical(t->positions, t->num_vertices, t->s_origin, t->s_radius);
-	reproject_vertices_to_spherical(&t->pos, 1, t->s_origin, t->s_radius);
-
-	//Determine basis vectors aligned with the triangle, for vertex normal generation.
-	t->basis_x = vec3_normalize(t->tile_vertices[2] - t->tile_vertices[1]);
-	t->basis_z = vec3_normalize(t->tile_vertices[0] - t->pos);
-	t->basis_y = vec3_normalize(t->pos - t->s_origin);
 
 	return t;
 }
@@ -242,31 +229,6 @@ static float position_and_normal(height_map_func height, vec3 basis_x, vec3 basi
 		return position->y;
 }
 
-tri_tile * gen_tri_tile_vertices_and_normals(tri_tile *t, height_map_func height)
-{
-	t->height = height;
-	vec3 brownish = {0.30, .27, 0.21};
-	vec3 whiteish = {0.96, .94, 0.96};
-	float epsilon = t->noise_radius / 100000;
-	for (int i = 0; i < t->num_vertices; i++) {
-		//Points towards vertex
-		vec3 pos = t->positions[i] - t->s_origin;
-		vec3 noise_surface = vec3_scale(pos, t->noise_radius / t->s_radius);
-
-		//Basis vectors
-		vec3 x = vec3_normalize(vec3_cross(t->up, pos));
-		vec3 z = vec3_normalize(vec3_cross(pos, x));
-		vec3 y = vec3_normalize(pos);
-
-		//Calculate position and normal on a sphere of noise_radius.
-		position_and_normal(height, x, y, z, epsilon, &noise_surface, &t->normals[i]);
-		//Scale back up to planet size.
-		t->positions[i] = vec3_scale(noise_surface, t->s_radius / t->noise_radius) + t->s_origin;
-		t->colors[i] = vec3_lerp(brownish, whiteish, fmax((vec3_dist(noise_surface, (vec3){0,0,0}) - t->noise_radius) / TERRAIN_AMPLITUDE, 0.0));
-	}
-	return t;
-}
-
 void tri_tile_split(tri_tile *in, tri_tile **out[DEFAULT_NUM_TRI_TILE_DIVS])
 {
 	tri_tile *tmp[DEFAULT_NUM_TRI_TILE_DIVS];
@@ -287,10 +249,10 @@ void subdiv_tri_tile(tri_tile *in, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS])
 
 	reproject_vertices_to_spherical(new_tile_vertices, 3, in->s_origin, in->s_radius);
 
-	init_tri_tile(out[0], (vec3[3]){in->tile_vertices[0], new_tile_vertices[0], new_tile_vertices[1]}, DEFAULT_NUM_TRI_TILE_ROWS, in->up, in->s_origin, in->s_radius);
-	init_tri_tile(out[1], (vec3[3]){new_tile_vertices[0], in->tile_vertices[1], new_tile_vertices[2]}, DEFAULT_NUM_TRI_TILE_ROWS, in->up, in->s_origin, in->s_radius);
-	init_tri_tile(out[2], (vec3[3]){new_tile_vertices[0], new_tile_vertices[2], new_tile_vertices[1]}, DEFAULT_NUM_TRI_TILE_ROWS, in->up, in->s_origin, in->s_radius);
-	init_tri_tile(out[3], (vec3[3]){new_tile_vertices[1], new_tile_vertices[2], in->tile_vertices[2]}, DEFAULT_NUM_TRI_TILE_ROWS, in->up, in->s_origin, in->s_radius);
+	init_tri_tile(out[0], (vec3[3]){in->tile_vertices[0], new_tile_vertices[0], new_tile_vertices[1]}, in->sector, DEFAULT_NUM_TRI_TILE_ROWS, in->finishing_touches, in->finishing_touches_context);
+	init_tri_tile(out[1], (vec3[3]){new_tile_vertices[0], in->tile_vertices[1], new_tile_vertices[2]}, in->sector, DEFAULT_NUM_TRI_TILE_ROWS, in->finishing_touches, in->finishing_touches_context);
+	init_tri_tile(out[2], (vec3[3]){new_tile_vertices[0], new_tile_vertices[2], new_tile_vertices[1]}, in->sector, DEFAULT_NUM_TRI_TILE_ROWS, in->finishing_touches, in->finishing_touches_context);
+	init_tri_tile(out[3], (vec3[3]){new_tile_vertices[1], new_tile_vertices[2], in->tile_vertices[2]}, in->sector, DEFAULT_NUM_TRI_TILE_ROWS, in->finishing_touches, in->finishing_touches_context);
 
 	for (int i = 0; i < DEFAULT_NUM_TRI_TILE_DIVS; i++)
 		gen_tri_tile_vertices_and_normals(out[i], in->height);
