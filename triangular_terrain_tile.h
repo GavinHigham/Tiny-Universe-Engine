@@ -15,8 +15,6 @@ void free_tri_tile(tri_tile *t);
 float tri_height_map(vec3 pos);
 float tri_height_map_flat(vec3 pos);
 
-tri_tile * gen_tri_tile_vertices_and_normals(tri_tile *t, height_map_func height);
-
 int num_tri_tile_indices(int num_rows);
 int num_tri_tile_vertices(int num_rows);
 
@@ -29,13 +27,15 @@ int tri_tile_indices(GLuint indices[], int num_rows, int start_row);
 //For n rows of triangle strips, the array of vertices must be of length (n+2)(n+1)/2
 int tri_tile_vertices(vec3 vertices[], int num_rows, vec3 a, vec3 b, vec3 c);
 
-void reproject_vertices_to_spherical(vec3 vertices[], int num_vertices, vec3 spos, float srad);
-
-//This one allocates new memory and overwrites the pointers in out.
-void tri_tile_split(tri_tile *in, tri_tile **out[DEFAULT_NUM_TRI_TILE_DIVS]);
-//This one doesn't.
-void subdiv_tri_tile(tri_tile *in, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS]);
 //Buffers the position, normal and color buffers of a terrain struct onto the GPU.
 void buffer_tri_tile(tri_tile *t);
+
+//Using height, take position and distort it along the basis vectors, and compute its normal.
+//height: A heightmap function which will affect the final position of the vertex along the basis_y vector.
+//basis x, basis_y, basis_z: Basis vectors for the vertex.
+//position: In/Out, the starting and ending position of the vertex.
+//normal: Output for the normal of the vertex.
+//Returns the "height", or displacement along basis_y.
+float tri_tile_vertex_position_and_normal(height_map_func height, vec3 basis_x, vec3 basis_y, vec3 basis_z, float epsilon, vec3 *position, vec3 *normal);
 
 #endif

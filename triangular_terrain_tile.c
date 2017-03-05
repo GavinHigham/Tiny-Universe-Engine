@@ -18,10 +18,6 @@
 extern int PRIMITIVE_RESTART_INDEX;
 extern struct osn_context *osnctx;
 
-enum {
-	TERRAIN_AMPLITUDE = 34
-};
-
 //The index buffer of a triangular tile of n rows contains that of one for n+1 rows.
 //Memoize the largest requested index buffer and store here for reuse.
 struct {
@@ -78,6 +74,7 @@ tri_tile * new_tri_tile()
 //Should be freed by the caller, using free_tri_tile.
 tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], space_sector sector, int num_rows, void (finishing_touches)(tri_tile *, void *), void *finishing_touches_context)
 {
+	assert(!t->is_init);
 	if (t->is_init) return t;
 
 	//Get counts.
@@ -112,8 +109,13 @@ tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], space_sector sector, int
 
 	//Generate the initial vertex positions, coplanar points on the triangle formed by vertices[3].
 	//TODO: Needs to either handle sectors, or be passed the radius which noise should be computed at.
-	int numverts = tri_tile_vertices(t->positions, t->num_rows, vertices[0], vertices[1], vertices[2]);
+	int numverts = tri_tile_vertices(t->positions, num_rows, vertices[0], vertices[1], vertices[2]);
+
 	assert(t->num_vertices == numverts);
+
+	t->finishing_touches = finishing_touches;
+	t->finishing_touches_context = finishing_touches_context;
+	t->finishing_touches(t, finishing_touches_context);
 
 	return t;
 }
@@ -201,21 +203,13 @@ int tri_tile_vertices(vec3 vertices[], int num_rows, vec3 a, vec3 b, vec3 c)
 	return written;
 }
 
-void reproject_vertices_to_spherical(vec3 vertices[], int num_vertices, vec3 spos, float srad)
-{
-	for (int i = 0; i < num_vertices; i++) {
-		vec3 d = vertices[i] - spos;
-		vertices[i] = d * srad/vec3_mag(d) + spos;
-	}
-}
-
 //Using height, take position and distort it along the basis vectors, and compute its normal.
 //height: A heightmap function which will affect the final position of the vertex along the basis_y vector.
 //basis x, basis_y, basis_z: Basis vectors for the vertex.
 //position: In/Out, the starting and ending position of the vertex.
 //normal: Output for the normal of the vertex.
 //Returns the "height", or displacement along basis_y.
-static float position_and_normal(height_map_func height, vec3 basis_x, vec3 basis_y, vec3 basis_z, float epsilon, vec3 *position, vec3 *normal)
+float tri_tile_vertex_position_and_normal(height_map_func height, vec3 basis_x, vec3 basis_y, vec3 basis_z, float epsilon, vec3 *position, vec3 *normal)
 {
 		//Create two points, scootched out along the basis vectors.
 		vec3 pos1 = basis_x * epsilon + *position;
@@ -227,37 +221,6 @@ static float position_and_normal(height_map_func height, vec3 basis_x, vec3 basi
 		//Compute the normal.
 		*normal = vec3_normalize(vec3_cross(pos1 - *position, pos2 - *position));
 		return position->y;
-}
-
-void tri_tile_split(tri_tile *in, tri_tile **out[DEFAULT_NUM_TRI_TILE_DIVS])
-{
-	tri_tile *tmp[DEFAULT_NUM_TRI_TILE_DIVS];
-	for (int i = 0; i < DEFAULT_NUM_TRI_TILE_DIVS; i++) {
-		*out[i] = new_tri_tile();
-		tmp[i] = *out[i];
-	}
-	subdiv_tri_tile(in, tmp);
-}
-
-void subdiv_tri_tile(tri_tile *in, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS])
-{
-	vec3 new_tile_vertices[] = {
-		vec3_lerp(in->tile_vertices[0], in->tile_vertices[1], 0.5),
-		vec3_lerp(in->tile_vertices[0], in->tile_vertices[2], 0.5),
-		vec3_lerp(in->tile_vertices[1], in->tile_vertices[2], 0.5)
-	};
-
-	reproject_vertices_to_spherical(new_tile_vertices, 3, in->s_origin, in->s_radius);
-
-	init_tri_tile(out[0], (vec3[3]){in->tile_vertices[0], new_tile_vertices[0], new_tile_vertices[1]}, in->sector, DEFAULT_NUM_TRI_TILE_ROWS, in->finishing_touches, in->finishing_touches_context);
-	init_tri_tile(out[1], (vec3[3]){new_tile_vertices[0], in->tile_vertices[1], new_tile_vertices[2]}, in->sector, DEFAULT_NUM_TRI_TILE_ROWS, in->finishing_touches, in->finishing_touches_context);
-	init_tri_tile(out[2], (vec3[3]){new_tile_vertices[0], new_tile_vertices[2], new_tile_vertices[1]}, in->sector, DEFAULT_NUM_TRI_TILE_ROWS, in->finishing_touches, in->finishing_touches_context);
-	init_tri_tile(out[3], (vec3[3]){new_tile_vertices[1], new_tile_vertices[2], in->tile_vertices[2]}, in->sector, DEFAULT_NUM_TRI_TILE_ROWS, in->finishing_touches, in->finishing_touches_context);
-
-	for (int i = 0; i < DEFAULT_NUM_TRI_TILE_DIVS; i++)
-		gen_tri_tile_vertices_and_normals(out[i], in->height);
-
-	printf("Created 4 new terrains from terrain %p\n", in);
 }
 
 void buffer_tri_tile(tri_tile *t)

@@ -21,7 +21,6 @@ struct triangular_terrain_tile {
 	GLuint *indices;
 	int num_vertices;
 	int num_indices;
-	int num_rows;
 	//Not to be confused with render geometry,
 	//these are the three outermost vertices of the entire triangular tile (pre-deformation).
 	vec3 tile_vertices[3];

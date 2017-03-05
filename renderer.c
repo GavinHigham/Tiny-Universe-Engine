@@ -84,7 +84,7 @@ struct drawable_rec {
 	space_sector *sector;
 	int (*buffering_function)(struct buffer_group);
 } drawables[] = {
-	{&d_ship,         draw_forward,        &effects.forward, &ship.position, &ship.sector,   buffer_ship        },
+	{&d_ship,         draw_forward,        &effects.forward, &ship.position, &ship.sector,   buffer_teardropship},
 	{&d_newship,      draw_forward,        &effects.forward, &ship.position, &ship.sector,   buffer_newship     },
 	{&d_teardropship, draw_forward,        &effects.forward, &ship.position, &ship.sector,   buffer_teardropship},
 	{&d_room,         draw_forward,        &effects.forward, &room_frame,    &room_sector,   buffer_newroom     },
@@ -99,7 +99,7 @@ static void init_models()
 	for (int i = 0; i < LENGTH(drawables); i++)
 		init_heap_drawable(drawables[i].drawable, drawables[i].draw, drawables[i].effect, drawables[i].frame, drawables[i].sector, drawables[i].buffering_function);
 
-	test_planet = proc_planet_new(planet_center, planet_radius, tri_height_map);
+	test_planet = proc_planet_new(planet_center, (space_sector){0, 0, 0}, planet_radius, tri_height_map);
 }
 
 static void deinit_models()
@@ -230,7 +230,7 @@ static Drawable *pvs[] = {&d_ship};
 void render()
 {
 	terrain_tree_drawlist terrain_list = NULL;
-	proc_planet_drawlist(test_planet, &terrain_list, eye_frame.t);
+	proc_planet_drawlist(test_planet, &terrain_list, eye_frame.t, eye_sector);
 	//float h = vec3_dist(eye_frame.t, test_planet->pos) - test_planet->radius; //If negative, we're below sea level.
 	//printf("Height: %f\n", h);
 	static float hella_time = 0.0;
