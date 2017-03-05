@@ -42,9 +42,7 @@ amat4 ship_frame = {.a = MAT3_IDENT,         .t = {-2.5, 0, -8}};
 amat4 room_frame = {.a = MAT3_IDENT,         .t = {0, -4, -8}};
 amat4 grid_frame = {.a = MAT3_IDENT,         .t = {-50, -90, -550}};
 amat4 tri_frame  = {.a = MAT3_IDENT,         .t = {0, 0, 0}};
-space_sector tri_sector  = {0, 0, 0};
 space_sector room_sector = {0, 0, 0};
-amat4 tri_frame_eye_relative  = {.a = MAT3_IDENT, .t = {0, 0, 0}};
 amat4 big_asteroid_frame = {.a = MAT3_IDENT, .t = {0, -4, -20}};
 amat4 skybox_frame; //Set in init_render() and update()
 float skybox_scale;
@@ -57,12 +55,11 @@ struct ship_physics ship = {
 	.speed = 10,
 	.acceleration = (vec3){0, 0, 0},
 	.velocity     = AMAT4_IDENT,
-	.position      = {.a = MAT3_IDENT, .t = {0, 6000500, 0}},
+	.position      = {.a = MAT3_IDENT, .t = {0, 6000050, 0}},
 	.locked_camera = {.a = MAT3_IDENT, .t = {0, 4, 8}},
 	.eased_camera  = {.a = MAT3_IDENT, .t = {0, 4, 8}},
 	.locked_camera_target = (vec3){0, 0, -4},
 	.eased_camera_target  = (vec3){0, 0, -4},
-	.movable_camera       = (vec3){0, 4, 8},
 	.sector               = (space_sector){0, 0, 0}
 };
 
@@ -100,6 +97,7 @@ static void init_models()
 		init_heap_drawable(drawables[i].drawable, drawables[i].draw, drawables[i].effect, drawables[i].frame, drawables[i].sector, drawables[i].buffering_function);
 
 	test_planet = proc_planet_new(planet_center, (space_sector){0, 0, 0}, planet_radius, tri_height_map);
+	space_sector_canonicalize(&ship.position.t, &ship.sector);
 }
 
 static void deinit_models()
@@ -289,7 +287,8 @@ void render()
 			tri_tile *t = l->tile;
 			if (!t->buffered) //Last resort "BUFFER RIGHT NOW", will cause hiccups.
 				buffer_tri_tile(t);
-			draw_forward(&effects.forward, t->bg, tri_frame_eye_relative);
+			amat4 tile_frame = {tri_frame.a, space_sector_position_relative_to_sector(t->pos, t->sector, eye_sector)};
+			draw_forward(&effects.forward, t->bg, tile_frame);
 			checkErrors("After drawing a tri_tile");
 		}
 
@@ -366,7 +365,7 @@ void render()
 	glUniform3fv(effects.skybox.sun_direction, 1, (float *)&sun_direction);
 	glUniform3fv(effects.skybox.sun_color, 1, (float *)&sun_color);
 	skybox_frame.t = eye_frame.t;
-	draw_drawable(&d_skybox);
+	//draw_drawable(&d_skybox);
 	draw_stars();
 
 	terrain_tree_drawlist_free(terrain_list);
@@ -374,6 +373,7 @@ void render()
 	checkErrors("After forward junk");
 }
 
+//TODO: Move the update function out of the renderer module, come up with a good interface for things that need to be accessed in both.
 void update(float dt)
 {
 	if (renderer_should_reload) {
@@ -386,13 +386,13 @@ void update(float dt)
 	point_lights.position[0] = (vec3){10*cos(light_time), 4, 10*sin(light_time)-8};
 
 	if (key_state[SDL_SCANCODE_T]) {
-		printf("Ship is at {%f, %f, %f}<%lli, %lli, %lli>. Where would you like to teleport?\n",
-			ship.position.t.x, ship.position.t.y, ship.position.t.z,
-			ship.sector.x, ship.sector.y, ship.sector.z);
+		printf("Ship is at [%lli, %lli, %lli]{%f, %f, %f}. Where would you like to teleport?\n",
+			ship.sector.x, ship.sector.y, ship.sector.z,
+			ship.position.t.x, ship.position.t.y, ship.position.t.z);
 		float x, y, z;
-		scanf("%f %f %f %lli %lli %lli", &x, &y, &z, &ship.sector.x, &ship.sector.y, &ship.sector.z);
+		scanf("%lli %lli %lli %f %f %f", &ship.sector.x, &ship.sector.y, &ship.sector.z, &x, &y, &z);
 		ship.position.t = (vec3){x, y, z};
-		//space_sector_canonicalize(&ship.position.t, &ship.sector);
+		space_sector_canonicalize(&ship.position.t, &ship.sector);
 	}
 	if (key_state[SDL_SCANCODE_Y]) {
 		printf("Skybox scale is %f, what would you like the scale to be?\n", skybox_scale);
@@ -400,12 +400,14 @@ void update(float dt)
 		skybox_frame.a = mat3_scalemat(skybox_scale, skybox_scale, skybox_scale);
 	}
 
+	//Translate the camera using WASD.
 	float camera_speed = 20.0;
-	ship.movable_camera = ship.movable_camera +
-		mat3_multvec(eye_frame.a, (vec3){
-		(key_state[SDL_SCANCODE_D] - key_state[SDL_SCANCODE_A]) * dt * camera_speed,
-		(key_state[SDL_SCANCODE_Q] - key_state[SDL_SCANCODE_E]) * dt * camera_speed,
-		(key_state[SDL_SCANCODE_S] - key_state[SDL_SCANCODE_W]) * dt * camera_speed});
+	ship.locked_camera.t = ship.locked_camera.t + //Honestly I just tried things at random until it worked, but here's my guess:
+		mat3_multvec(mat3_transp(ship.position.a), // 2) Convert those coordinates from world-space to ship-space.
+			mat3_multvec(ship.locked_camera.a, (vec3){ // 1) Move relative to the frame pointed at the ship.
+			(key_state[SDL_SCANCODE_D] - key_state[SDL_SCANCODE_A]) * dt * camera_speed,
+			(key_state[SDL_SCANCODE_Q] - key_state[SDL_SCANCODE_E]) * dt * camera_speed,
+			(key_state[SDL_SCANCODE_S] - key_state[SDL_SCANCODE_W]) * dt * camera_speed}));
 
 	float controller_max = 32768.0;
 	ship = ship_control(dt, (struct controller_input){
@@ -415,15 +417,12 @@ void update(float dt)
 		axes[RIGHTY] / controller_max,
 		axes[TRIGGERLEFT]  / controller_max,
 		axes[TRIGGERRIGHT] / controller_max,
-	}, ship);
+	}, nes30_buttons, ship);
 	space_sector_canonicalize(&ship.position.t, &ship.sector);
 
-	//Translate the camera using WASD.
-	eye_frame = ship.locked_camera;
+	eye_frame = (amat4){ship.locked_camera.a, amat4_multpoint(ship.position, ship.locked_camera.t)};
 	eye_sector = ship.sector;
 	space_sector_canonicalize(&eye_frame.t, &eye_sector);
-	tri_frame_eye_relative.a = tri_frame.a;
-	tri_frame_eye_relative.t = space_sector_position_relative_to_sector(tri_frame.t, tri_sector, eye_sector);
 	point_lights.enabled_for_draw[2] = key_state[SDL_SCANCODE_6];
 	
 	static float sunscale = 50.0;

@@ -68,7 +68,7 @@ int engine_init(SDL_GLContext *context, SDL_Window *window)
 		}
 	}
 
-	init_keyboard();
+	input_event_init();
 
 	if (signal(SIGUSR1, reload_signal_handler) == SIG_ERR) {
 		printf("An error occurred while setting a signal handler.\n");

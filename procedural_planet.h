@@ -26,6 +26,7 @@ typedef struct procedural_planet {
 struct planet_terrain_context {
 	int subdivs_left;
 	vec3 cam_pos;
+	space_sector cam_sec;
 	proc_planet *planet;
 };
 

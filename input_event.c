@@ -4,12 +4,14 @@
 #include "init.h"
 #include "shader_utils.h"
 #include "renderer.h"
+#include "macros.h"
 
 extern SDL_Window *window;
 const Uint8 *key_state = NULL;
 extern int loop_iter_ave;
 extern void reload_effects_void_wrapper();
 Sint16 axes[NUM_HANDLED_AXES] = {0};
+bool nes30_buttons[16] = {false};
 
 //I may want to move this somewhere more accessible later, for quitting from a menu and such.
 void push_quit()
@@ -20,9 +22,11 @@ void push_quit()
     SDL_PushEvent(&event); //If it fails, the quit keypress was just eaten ¯\_(ツ)_/¯
 }
 
-void init_keyboard()
+void input_event_init()
 {
 	key_state = SDL_GetKeyboardState(NULL);
+	for (int i = 0; i < LENGTH(nes30_buttons); i++)
+		nes30_buttons[i] = false;
 }
 
 void keyevent(SDL_Keysym keysym, SDL_EventType type)
@@ -95,15 +99,26 @@ void jaxisevent(SDL_Event e)
 
 void jbuttonevent(SDL_Event e)
 {
-	if (e.jbutton.type == SDL_JOYBUTTONDOWN) {
-		switch (e.jbutton.button) {
-		case 8: axes[TRIGGERLEFT] = 32768; break;
-		case 9: axes[TRIGGERRIGHT] = 32768; break;
-		}
-	} else if (e.jbutton.type == SDL_JOYBUTTONUP) {
-		switch (e.jbutton.button) {
-		case 8: axes[TRIGGERLEFT] = 0; break;
-		case 9: axes[TRIGGERRIGHT] = 0; break;
-		}
+	// I can uncomment this if I want to interpret the triggers as analogue triggers.
+	// if (e.jbutton.type == SDL_JOYBUTTONDOWN) {
+	// 	switch (e.jbutton.button) {
+	// 	case 8: axes[TRIGGERLEFT] = 32768; break;
+	// 	case 9: axes[TRIGGERRIGHT] = 32768; break;
+	// 	}
+	// } else if (e.jbutton.type == SDL_JOYBUTTONUP) {
+	// 	switch (e.jbutton.button) {
+	// 	case 8: axes[TRIGGERLEFT] = 0; break;
+	// 	case 9: axes[TRIGGERRIGHT] = 0; break;
+	// 	}
+	// }
+
+	int button = e.jbutton.button;
+	if (0 <= button && button < LENGTH(nes30_buttons)) {
+		if (e.jbutton.type == SDL_JOYBUTTONDOWN)
+			nes30_buttons[button] = true;
+		else if (e.jbutton.type == SDL_JOYBUTTONUP)
+			nes30_buttons[button] = false;
+	} else {
+		printf("Button %d not supported.", button);
 	}
 }

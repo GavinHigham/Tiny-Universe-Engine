@@ -1,5 +1,6 @@
 #ifndef SHIP_CONTROL_H
 #define SHIP_CONTROL_H
+#include <stdbool.h>
 #include "glla.h"
 #include "math/space_sector.h"
 
@@ -23,10 +24,9 @@ struct ship_physics {
 	amat4 eased_camera;
 	vec3 locked_camera_target;
 	vec3 eased_camera_target;
-	vec3 movable_camera;
 	space_sector sector;
 };
 
-struct ship_physics ship_control(float dt, struct controller_input input, struct ship_physics ship);
+struct ship_physics ship_control(float dt, struct controller_input input, bool buttons[16], struct ship_physics ship);
 
 #endif

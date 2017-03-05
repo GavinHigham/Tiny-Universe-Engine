@@ -101,18 +101,20 @@ tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], space_sector sector, int
 	t->bg.ibo = get_shared_tri_tile_indices_buffer_object(num_rows);
 
 	//Calculate center point (centroid) and copy tile vertices.
-	t->pos = vertices[0] + vertices[1] + vertices[2] * 1.0/3.0;
+	//Make sure the tile sector is close to the centroid.
+	t->pos = (vertices[0] + vertices[1] + vertices[2]) / 3.0;
 	t->sector = sector;
 	space_sector_canonicalize(&t->pos, &t->sector);
+	//Recalculate vertex positions relative to (potentially) new sector.
 	for (int i = 0; i < 3; i++)
 		t->tile_vertices[i] = space_sector_position_relative_to_sector(vertices[i], sector, t->sector);
 
 	//Generate the initial vertex positions, coplanar points on the triangle formed by vertices[3].
-	//TODO: Needs to either handle sectors, or be passed the radius which noise should be computed at.
-	int numverts = tri_tile_vertices(t->positions, num_rows, vertices[0], vertices[1], vertices[2]);
+	int numverts = tri_tile_vertices(t->positions, num_rows, t->tile_vertices[0], t->tile_vertices[1], t->tile_vertices[2]);
 
 	assert(t->num_vertices == numverts);
 
+	//Run any finishing touches (such as curving the tile onto a planet).
 	t->finishing_touches = finishing_touches;
 	t->finishing_touches_context = finishing_touches_context;
 	t->finishing_touches(t, finishing_touches_context);
