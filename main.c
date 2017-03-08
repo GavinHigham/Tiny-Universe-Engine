@@ -34,10 +34,10 @@ Uint32 windowID = 0;
 //Callback for close button event.
 int SDLCALL quit_event(void *userdata, SDL_Event *e)
 {
-    if (e->type == SDL_QUIT)
-    	*((sig_atomic_t *)userdata) = true;
+	if (e->type == SDL_QUIT)
+		*((sig_atomic_t *)userdata) = true;
 
-    return 0;
+	return 0;
 }
 
 void drain_event_queue()
@@ -45,20 +45,22 @@ void drain_event_queue()
 	SDL_Event e;
 	while (SDL_PollEvent(&e)) { //Exhaust our event queue before updating and rendering
 		switch (e.type) {
-		case SDL_KEYDOWN:              keyevent(e.key.keysym, (SDL_EventType)e.type); break;
-		case SDL_KEYUP:                keyevent(e.key.keysym, (SDL_EventType)e.type); break;
-		case SDL_CONTROLLERAXISMOTION: caxisevent(e); break;
-		case SDL_JOYAXISMOTION:        jaxisevent(e); break;
-		case SDL_JOYBUTTONDOWN:        jbuttonevent(e); break;
-		case SDL_JOYBUTTONUP:          jbuttonevent(e); break;
+		case SDL_KEYDOWN:               keyevent(e.key.keysym, (SDL_EventType)e.type); break;
+		case SDL_KEYUP:                 keyevent(e.key.keysym, (SDL_EventType)e.type); break;
+		case SDL_CONTROLLERAXISMOTION:  caxisevent(e); break;
+		case SDL_JOYAXISMOTION:         jaxisevent(e); break;
+		case SDL_JOYBUTTONDOWN:         jbuttonevent(e); break;
+		case SDL_JOYBUTTONUP:           jbuttonevent(e); break;
+		case SDL_CONTROLLERDEVICEADDED: //Fall-through
+		case SDL_JOYDEVICEADDED:        input_event_device_arrival(e.jdevice.which); break;
 		case SDL_WINDOWEVENT:
 			if (e.window.windowID == windowID) {
-	    		switch (e.window.event)  {
+				switch (e.window.event)  {
 				case SDL_WINDOWEVENT_SIZE_CHANGED:
 					handle_resize(e.window.data1, e.window.data2);
-	                break;
-	            }
-	        }
+					break;
+				}
+			}
 		}
 	}
 }
@@ -79,7 +81,8 @@ int main()
 	luaL_openlibs(L);
 	char *screen_title = NULL;
 	lua_Number w = screen_width, h = screen_height;
-	load_lua_config(L, "conf.lua", &w, &h, &screen_title);
+	bool fullscreen = false;
+	load_lua_config(L, "conf.lua", &w, &h, &screen_title, &fullscreen);
 	screen_width = w;
 	screen_height = h;
 
@@ -107,6 +110,9 @@ int main()
 
 	SDL_AddEventWatch(quit_event, &quit);
 
+	if (fullscreen)
+		SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+
 	windowID = SDL_GetWindowID(window);
 	Uint32 last_swap_timestamp = SDL_GetTicks();
 	int loop_iter = 0;
@@ -132,25 +138,26 @@ int main()
 		}
 	}
 
-	Uint32 previous = SDL_GetTicks();
-	double lag = 0.0;
-	while (!quit)
-	{
-		Uint32 current = SDL_GetTicks();
-		Uint32 elapsed = current - previous;
-		previous = current;
-		lag += elapsed;
+	// From http://gameprogrammingpatterns.com/game-loop.html
+	// Uint32 previous = SDL_GetTicks();
+	// double lag = 0.0;
+	// while (!quit)
+	// {
+	// 	Uint32 current = SDL_GetTicks();
+	// 	Uint32 elapsed = current - previous;
+	// 	previous = current;
+	// 	lag += elapsed;
 
-		drain_event_queue();
+	// 	drain_event_queue();
 
-		while (lag >= MS_PER_UPDATE)
-		{
-			update(MS_PER_UPDATE/MS_PER_SECOND);
-			lag -= MS_PER_UPDATE;
-		}
-		render();
-		SDL_GL_SwapWindow(window);
-	}
+	// 	while (lag >= MS_PER_UPDATE)
+	// 	{
+	// 		update(MS_PER_UPDATE/MS_PER_SECOND);
+	// 		lag -= MS_PER_UPDATE;
+	// 	}
+	// 	render();
+	// 	SDL_GL_SwapWindow(window);
+	// }
 
 	renderer_deinit();
 	SDL_GL_DeleteContext(context);

@@ -22,13 +22,8 @@ struct ship_physics ship_control(float dt, struct controller_input input, bool b
 	else
 		ship.speed = 10;
 
-	float extra_speed = 1;
-	if (buttons[INPUT_BUTTON_B])
-		extra_speed = 100;
-
-
 	//Set the ship's acceleration using the controller axes.
-	ship.acceleration = mat3_multvec(ship.position.a, ship.speed * extra_speed * (vec3){
+	ship.acceleration = mat3_multvec(ship.position.a, ship.speed * (vec3){
 		 input.leftx,
 		-input.lefty,
 		buttons[INPUT_BUTTON_L2] - buttons[INPUT_BUTTON_R2]});//ship.speed * (input.rtrigger - input.ltrigger)});
@@ -51,7 +46,10 @@ struct ship_physics ship_control(float dt, struct controller_input input, bool b
 	ship.position.a = mat3_mult(ship.position.a, ship.velocity.a);
 
 	//Move the ship by applying the velocity to the position.
-	ship.position.t = ship.position.t + ship.velocity.t;
+	if (buttons[INPUT_BUTTON_B])
+		ship.position.t = ship.position.t + (10000 * ship.acceleration);
+	else
+		ship.position.t = ship.position.t + ship.velocity.t;
 
 	float camera_ease = 0.5; //Using dt on this gives a jittery camera.
 	float target_ease = 0.5;

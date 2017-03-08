@@ -35,6 +35,7 @@ extern Sint16 axes[NUM_HANDLED_AXES];
 extern bool nes30_buttons[16];
 
 void input_event_init();
+void input_event_device_arrival(int which);
 void caxisevent(SDL_Event e);
 void jaxisevent(SDL_Event e);
 void jbuttonevent(SDL_Event e);

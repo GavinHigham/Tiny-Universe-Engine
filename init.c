@@ -49,25 +49,6 @@ int engine_init(SDL_GLContext *context, SDL_Window *window)
 	open_simplex_noise(open_simplex_noise_seed, &osnctx);
 
 	SDL_GameControllerEventState(SDL_ENABLE);
-	/* Open the first available controller. */
-	SDL_GameController *controller = NULL;
-	SDL_Joystick *joystick = NULL;
-	for (int i = 0; i < SDL_NumJoysticks(); ++i) {
-		printf("Testing controller %i\n", i);
-		if (SDL_IsGameController(i)) {
-			controller = SDL_GameControllerOpen(i);
-			if (controller) {
-				printf("Successfully opened controller %i\n", i);
-				break;
-			} else {
-				printf("Could not open gamecontroller %i: %s\n", i, SDL_GetError());
-			}
-		} else {
-			joystick = SDL_JoystickOpen(i);
-			printf("Controller %i is not a controller?\n", i);
-		}
-	}
-
 	input_event_init();
 
 	if (signal(SIGUSR1, reload_signal_handler) == SIG_ERR) {

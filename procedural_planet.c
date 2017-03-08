@@ -14,15 +14,13 @@
 
 static const float x = 0.525731112119133606;
 static const float z = 0.850650808352039932;
-const vec3 proc_planet_up = {0, 1, 0};
-const vec3 proc_planet_right = {1, 0, 0};
 extern space_sector eye_sector;
 extern space_sector tri_sector;
  
-static vec3 ico_v[] = {    
-	{-x, 0.0, z}, {x, 0.0, z},   {-x, 0.0, -z}, {x, 0.0, -z} , 
-	{0.0, z, x},  {0.0, z, -x}, {0.0, -z, x},  {0.0, -z, -x}, 
-	{z, x, 0.0},  {-z, x, 0.0},  {z, -x, 0.0},  {-z, -x, 0.0}
+static const vec3 ico_v[] = {    
+	{-x, 0, z}, { x, 0,  z}, {-x,  0,-z}, { x,  0, -z},
+	{ 0, z, x}, { 0, z, -x}, { 0, -z, x}, { 0, -z, -x},
+	{ z, x, 0}, {-z, x,  0}, { z, -x, 0}, {-z, -x,  0}
 };
 
 static const GLuint ico_i[] = { 
@@ -31,6 +29,9 @@ static const GLuint ico_i[] = {
 	7,10,3,  7,6,10,  7,11,6,  11,0,6,  0,1,6, 
 	6,1,10,  9,0,11,  9,11,2,  9,2,5,   7,2,11
 };
+
+const vec3 proc_planet_up = (vec3){z/3, (z+z+x)/3, 0}; //Centroid of ico_i[3]
+const vec3 proc_planet_not_up = (vec3){-(z+z+x)/3, z/3, 0};
 
 // Static Functions //
 
@@ -135,6 +136,7 @@ void proc_planet_finishing_touches(tri_tile *t, void *finishing_touches_context)
 	proc_planet *p = (proc_planet *)finishing_touches_context;
 	vec3 planet_pos = planet_pos_relative_to_tile(t);
 	//Curve the tile around planet by normalizing each vertex's distance to the planet and scaling by planet radius.
+	//UNCOMMENT
 	reproject_vertices_to_spherical(t->positions, t->num_vertices, planet_pos, p->radius);
 	//Apply perturbations to the surface and calculate normals.
 	//Since noise doesn't compute well on huge planets, noise is calculated on a simulated smaller planet and scaled up.
@@ -143,6 +145,7 @@ void proc_planet_finishing_touches(tri_tile *t, void *finishing_touches_context)
 
 void subdiv_tri_tile(tri_tile *in, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS])
 {
+	assert(false);
 	vec3 new_tile_vertices[] = {
 		vec3_lerp(in->tile_vertices[0], in->tile_vertices[1], 0.5),
 		vec3_lerp(in->tile_vertices[0], in->tile_vertices[2], 0.5),
@@ -176,7 +179,6 @@ void tri_tile_split(tri_tile *in, tri_tile **out[DEFAULT_NUM_TRI_TILE_DIVS])
 proc_planet * proc_planet_new(vec3 pos, space_sector sector, float radius, height_map_func height)
 {
 	proc_planet *p = malloc(sizeof(proc_planet));
-	space_sector_canonicalize(&pos, &sector);
 	p->pos = pos;
 	p->sector = sector;
 	p->radius = radius;
@@ -184,16 +186,17 @@ proc_planet * proc_planet_new(vec3 pos, space_sector sector, float radius, heigh
 	p->amplitude = TERRAIN_AMPLITUDE; //TODO: Choose a good number, pass this through the chain of calls.
 	p->edge_len = radius / sin(2.0*M_PI/5.0);
 	p->height = height;
+	space_sector_canonicalize(&p->pos, &p->sector);
 	for (int i = 0; i < NUM_ICOSPHERE_FACES; i++) {
 		vec3 verts[] = {
-			ico_v[ico_i[3*i]]   * radius + pos,
-			ico_v[ico_i[3*i+1]] * radius + pos,
-			ico_v[ico_i[3*i+2]] * radius + pos
+			ico_v[ico_i[3*i]]   * radius + p->pos,
+			ico_v[ico_i[3*i+1]] * radius + p->pos,
+			ico_v[ico_i[3*i+2]] * radius + p->pos
 		};
 
 		p->tiles[i] = terrain_tree_new(new_tri_tile(), 0);
 		//Initialize tile with verts expressed relative to p->sector.
-		init_tri_tile(p->tiles[i]->tile, verts, p->sector, DEFAULT_NUM_TRI_TILE_ROWS, &proc_planet_finishing_touches, p);
+		init_tri_tile((tri_tile *)p->tiles[i]->tile, verts, p->sector, DEFAULT_NUM_TRI_TILE_ROWS, &proc_planet_finishing_touches, p);
 	}
 
 	return p;

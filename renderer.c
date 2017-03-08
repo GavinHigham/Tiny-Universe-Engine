@@ -51,11 +51,15 @@ vec3 sun_direction = {0.1, 0.8, 0.1};
 vec3 sun_color     = {0.1, 0.8, 0.1};
 struct point_light_attributes point_lights = {.num_lights = 0};
 
+proc_planet *test_planet = NULL;
+const float planet_radius = 60000;
+vec3 planet_center = {80000, 0, 0};;
+
 struct ship_physics ship = {
 	.speed = 10,
 	.acceleration = (vec3){0, 0, 0},
 	.velocity     = AMAT4_IDENT,
-	.position      = {.a = MAT3_IDENT, .t = {0, 6000050, 0}},
+	.position      = {.a = MAT3_IDENT, .t = {0, planet_radius + 20000, 0}},
 	.locked_camera = {.a = MAT3_IDENT, .t = {0, 4, 8}},
 	.eased_camera  = {.a = MAT3_IDENT, .t = {0, 4, 8}},
 	.locked_camera_target = (vec3){0, 0, -4},
@@ -67,10 +71,6 @@ GLfloat proj_mat[16];
 GLfloat proj_view_mat[16];
 
 Drawable d_ship, d_newship, d_teardropship, d_room, d_skybox;
-
-proc_planet *test_planet = NULL;
-float planet_radius = 6000000;
-vec3 planet_center = {0, 0, 0};;
 
 //Just a hacky record so that I allocate/free all these properly as I develop this.
 struct drawable_rec {
@@ -142,6 +142,11 @@ void renderer_init()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 	make_projection_matrix(FOV, screen_width/screen_height, -1, -far_distance, proj_mat, LENGTH(proj_mat));
+
+	space_sector_canonicalize(&ship.position.t, &ship.sector);
+	eye_frame = (amat4){ship.locked_camera.a, amat4_multpoint(ship.position, ship.locked_camera.t)};
+	eye_sector = ship.sector;
+	space_sector_canonicalize(&eye_frame.t, &eye_sector);
 
 	init_models();
 	init_lights();
@@ -271,16 +276,18 @@ void render()
 		glUseProgram(effects.forward.handle);
 		if (apass) {
 			glUniform1i(effects.forward.ambient_pass, 1);
-			glUniform3fv(effects.forward.uLight_col, 1, (float *)&sun_color);
-			glUniform3fv(effects.forward.uLight_pos, 1, (float *)&sun_direction);
+			glUniform3f(effects.forward.uLight_col, VEC3_COORDS(sun_color));
+			glUniform3f(effects.forward.uLight_pos, VEC3_COORDS(sun_direction));
 		} else {
 			glDrawBuffer(GL_NONE); //Disable drawing to the color buffer if no ambient pass, save on fillrate.
 		}
-		glUniform3fv(effects.forward.camera_position, 1, (float *)&eye_frame);
+		glUniform3f(effects.forward.camera_position, VEC3_COORDS(eye_frame.t));
 
 		//Draw entities
 		for (int i = 0; i < LENGTH(pvs); i++)
 			draw_drawable(pvs[i]);
+
+		glDisable(GL_CULL_FACE);
 
 		//Draw procedural planet
 		for (terrain_tree_drawlist l = terrain_list; l; l = l->next) {
@@ -318,7 +325,7 @@ void render()
 			}
 
 			glUseProgram(effects.shadow.handle);
-			glUniform3fv(effects.shadow.gLightPos, 1, (float *)&(point_lights.position[i]));
+			glUniform3f(effects.shadow.gLightPos, VEC3_COORDS(point_lights.position[i]));
 			glUniform1i(effects.shadow.zpass, zpass);
 
 			for (int i = 0; i < LENGTH(pvs); i++)
@@ -362,8 +369,8 @@ void render()
 	glDepthFunc(GL_LESS);
 
 	glUseProgram(effects.skybox.handle);
-	glUniform3fv(effects.skybox.sun_direction, 1, (float *)&sun_direction);
-	glUniform3fv(effects.skybox.sun_color, 1, (float *)&sun_color);
+	glUniform3f(effects.skybox.sun_direction, VEC3_COORDS(sun_direction));
+	glUniform3f(effects.skybox.sun_color, VEC3_COORDS(sun_color));
 	skybox_frame.t = eye_frame.t;
 	//draw_drawable(&d_skybox);
 	draw_stars();

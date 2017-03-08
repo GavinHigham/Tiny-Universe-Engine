@@ -1,6 +1,6 @@
 CC = gcc
 SDL = -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW
-MODULE_PATHS = -I./glla
+MODULE_PATHS = -Iglla
 CFLAGS = $(MODULE_PATHS) -Wall -c -std=c11 -g -pthread
 LDFLAGS = $(SDL) -llua
 SHADERS = shaders/*.vs shaders/*.fs shaders/*.gs

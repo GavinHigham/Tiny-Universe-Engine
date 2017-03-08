@@ -13,6 +13,39 @@ extern void reload_effects_void_wrapper();
 Sint16 axes[NUM_HANDLED_AXES] = {0};
 bool nes30_buttons[16] = {false};
 
+SDL_GameController *input_controller = NULL;
+SDL_Joystick *input_joystick = NULL;
+
+void controller_init()
+{
+	/* Open the first available controller. */
+	SDL_GameController *controller = NULL;
+	SDL_Joystick *joystick = NULL;
+	for (int i = 0; i < SDL_NumJoysticks(); ++i) {
+		printf("Testing controller %i\n", i);
+		if (SDL_IsGameController(i)) {
+			controller = SDL_GameControllerOpen(i);
+			if (controller) {
+				printf("Successfully opened controller %i\n", i);
+				break;
+			} else {
+				printf("Could not open gamecontroller %i: %s\n", i, SDL_GetError());
+			}
+		} else {
+			joystick = SDL_JoystickOpen(i);
+			printf("Controller %i is not a controller?\n", i);
+		}
+	}
+}
+
+void input_event_device_arrival(int which)
+{
+	if (SDL_IsGameController(which))
+		input_controller = input_controller ? input_controller : SDL_GameControllerOpen(which);
+	else
+		input_joystick = input_joystick ? input_joystick : SDL_JoystickOpen(which);
+}
+
 //I may want to move this somewhere more accessible later, for quitting from a menu and such.
 void push_quit()
 {
@@ -27,6 +60,7 @@ void input_event_init()
 	key_state = SDL_GetKeyboardState(NULL);
 	for (int i = 0; i < LENGTH(nes30_buttons); i++)
 		nes30_buttons[i] = false;
+	controller_init();
 }
 
 void keyevent(SDL_Keysym keysym, SDL_EventType type)

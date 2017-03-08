@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <lua.h>
 #include <lauxlib.h>
 #include "lua_configuration.h"
@@ -15,6 +16,15 @@ void engine_lua_error(lua_State *L, const char *fmt, ...)
 	va_end(argp);
 	//lua_close(L); //Maybe we don't want to brutally abort everything at the slightest sign of trouble...
 	//exit(EXIT_FAILURE);
+}
+
+bool getglobbool(lua_State *L, const char *var)
+{
+	int result;
+	lua_getglobal(L, var);
+	result = lua_toboolean(L, -1);
+	lua_pop(L, 1);
+	return result;
 }
 
 //Get a global int from the Lua runtime. Returns 0 on success, nonzero on failure.
@@ -61,7 +71,7 @@ char * getglobstr(lua_State *L, const char *var)
 }
 
 //Example config load function. I will probably want to replace this with something more general in the future.
-void load_lua_config(lua_State *L, const char *fname, lua_Number *w, lua_Number *h, char **title)
+void load_lua_config(lua_State *L, const char *fname, lua_Number *w, lua_Number *h, char **title, bool *fullscreen)
 {
 	if (luaL_loadfile(L, fname) || lua_pcall(L, 0, 0, 0)) {
 		engine_lua_error(L, "cannot run config. file: %s", lua_tostring(L, -1));
@@ -70,5 +80,6 @@ void load_lua_config(lua_State *L, const char *fname, lua_Number *w, lua_Number 
 	getglobnum(L, "screen_width", w);
 	getglobnum(L, "screen_height", h);
 	char *tmp = getglobstr(L, "screen_title");
-	*title = tmp ? tmp : *title; 
+	*title = tmp ? tmp : *title;
+	*fullscreen = getglobbool(L, "fullscreen");
 }

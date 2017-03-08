@@ -5,10 +5,10 @@
 #include "dynamic_terrain_tree.h"
 #include "math/space_sector.h"
 
-//Used to generate normals for most of the planet.
-extern const vec3 proc_planet_up;
-//Used to generate normals for the poles and any descendant tiles.
-extern const vec3 proc_planet_right;
+// //Used to generate normals for most of the planet.
+// extern const vec3 proc_planet_up;
+// //Used to generate normals for the poles and any descendant tiles.
+// extern const vec3 proc_planet_not_up;
 
 typedef struct procedural_planet {
 	vec3 pos;

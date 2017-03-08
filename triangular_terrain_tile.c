@@ -102,9 +102,15 @@ tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], space_sector sector, int
 
 	//Calculate center point (centroid) and copy tile vertices.
 	//Make sure the tile sector is close to the centroid.
-	t->pos = (vertices[0] + vertices[1] + vertices[2]) / 3.0;
+	vec3 centroid = (vertices[0] + vertices[1] + vertices[2]) / 3.0;
+	t->pos = centroid;
 	t->sector = sector;
 	space_sector_canonicalize(&t->pos, &t->sector);
+	//space_sector_print(sector);vec3_print(centroid);
+	//printf("\n");
+	//space_sector_print(t->sector);vec3_print(t->pos);
+	//printf("\n");
+
 	//Recalculate vertex positions relative to (potentially) new sector.
 	for (int i = 0; i < 3; i++)
 		t->tile_vertices[i] = space_sector_position_relative_to_sector(vertices[i], sector, t->sector);
@@ -118,6 +124,8 @@ tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], space_sector sector, int
 	t->finishing_touches = finishing_touches;
 	t->finishing_touches_context = finishing_touches_context;
 	t->finishing_touches(t, finishing_touches_context);
+
+	t->is_init = true;
 
 	return t;
 }
