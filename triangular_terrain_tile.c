@@ -13,6 +13,7 @@
 #include "macros.h"
 #include "renderer.h"
 #include "math/space_sector.h"
+#include "procedural_planet.h"
 
 //If I add margins to all my heightmaps later then I can avoid A LOT of work.
 extern int PRIMITIVE_RESTART_INDEX;
@@ -66,6 +67,7 @@ tri_tile * new_tri_tile()
 	//Could be replaced with a custom allocator in the future.
 	tri_tile *new = malloc(sizeof(tri_tile));
 	new->is_init = false;
+	new->depth = 0;
 
 	return new;
 }
@@ -100,20 +102,14 @@ tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], space_sector sector, int
 	//Get an appropriately expanded index buffer.
 	t->bg.ibo = get_shared_tri_tile_indices_buffer_object(num_rows);
 
-	//Calculate center point (centroid) and copy tile vertices.
-	//Make sure the tile sector is close to the centroid.
-	vec3 centroid = (vertices[0] + vertices[1] + vertices[2]) / 3.0;
-	t->pos = centroid;
+	//The new tile origin will be the centroid of the three tile vertices.
+	t->pos = (vertices[0] + vertices[1] + vertices[2]) / 3.0;
 	t->sector = sector;
 	space_sector_canonicalize(&t->pos, &t->sector);
-	//space_sector_print(sector);vec3_print(centroid);
-	//printf("\n");
-	//space_sector_print(t->sector);vec3_print(t->pos);
-	//printf("\n");
 
-	//Recalculate vertex positions relative to (potentially) new sector.
+	//Recalculate vertex positions relative to new sector and origin.
 	for (int i = 0; i < 3; i++)
-		t->tile_vertices[i] = space_sector_position_relative_to_sector(vertices[i], sector, t->sector);
+		t->tile_vertices[i] = space_sector_position_relative_to_sector(vertices[i], sector, t->sector) - t->pos;
 
 	//Generate the initial vertex positions, coplanar points on the triangle formed by vertices[3].
 	int numverts = tri_tile_vertices(t->positions, num_rows, t->tile_vertices[0], t->tile_vertices[1], t->tile_vertices[2]);

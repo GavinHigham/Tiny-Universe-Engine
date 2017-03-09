@@ -9,6 +9,7 @@
 #include "dynamic_terrain_tree.h"
 #include "terrain_constants.h"
 #include "math/space_sector.h"
+#include "macros.h"
 
 //Adapted from http://www.glprogramming.com/red/chapter02.html
 
@@ -55,12 +56,19 @@ static float split_tile_radius(int depth, float base_length)
 	return base_length / pow(2, depth);
 }
 
+float distance_to_horizon(planet_radius, altitude)
+{
+	return 2 * planet_radius * altitude + altitude * altitude;
+}
+
 static int subdivision_depth(terrain_tree_node *tree, vec3 cam_pos, proc_planet *planet)
 {
-	float h = vec3_dist(cam_pos, planet->pos) - planet->radius; //If negative, we're below sea level.
-	h = fmax(h, 0); //Don't handle "within the planet" case yet.
-	float d = sqrt(2*planet->radius*h + h*h); //This is the distance to the horizon on a spherical planet.
-	if (tree->dist > d + split_tile_radius(tree->depth, planet->edge_len)) //Node is beyond the horizon.
+	//If negative, we're below sea level.
+	float h = vec3_dist(cam_pos, planet->pos) - planet->radius;
+	//Don't handle "within the planet" case yet.
+	float d = distance_to_horizon(planet->radius, fmax(h, 0));
+	//Don't subdivide if the tile center is "tile radius" distance beyond the horizon.
+	if (tree->dist > d + split_tile_radius(tree->depth, planet->edge_len))
 		return 0;
 
 	float scale = (screen_width * planet->edge_len) / (2 * 40 * DEFAULT_NUM_TRI_TILE_ROWS);
@@ -69,10 +77,10 @@ static int subdivision_depth(terrain_tree_node *tree, vec3 cam_pos, proc_planet 
 
 int terrain_tree_example_subdiv(terrain_tree_node *tree, void *context)
 {
-	return 0;
 	struct planet_terrain_context *ctx = (struct planet_terrain_context *)context;
 	tri_tile *tile = (tri_tile *)tree->tile;
-	tree->dist = vec3_dist(space_sector_position_relative_to_sector(tile->pos, tile->sector, ctx->cam_sec), ctx->cam_pos);
+	vec3 cam_pos = space_sector_position_relative_to_sector(ctx->cam_pos, ctx->cam_sec, tile->sector);
+	tree->dist = vec3_dist(tile->pos, cam_pos);
 
 	//Cap the number of subdivisions per whole-tree traversal (per frame essentially)
 	if (tree->depth == 0)
@@ -80,6 +88,7 @@ int terrain_tree_example_subdiv(terrain_tree_node *tree, void *context)
 	if (ctx->subdivs_left <= 0)
 	 	return 0;
 
+	//Express the camera position relative to the planet sector.
 	int depth = subdivision_depth(tree, space_sector_position_relative_to_sector(ctx->cam_pos, ctx->cam_sec, ctx->planet->sector), ctx->planet);
 	if (tree->depth < depth)
 		ctx->subdivs_left--;
@@ -92,14 +101,24 @@ vec3 planet_pos_relative_to_tile(tri_tile *t)
 	return space_sector_position_relative_to_sector(planet->pos, planet->sector, t->sector);
 }
 
+vec3 primary_color_by_depth[] = {
+	{1.0, 0.0, 0.0}, //Red
+	{0.5, 0.5, 0.0}, //Yellow
+	{0.0, 1.0, 0.0}, //Green
+	{0.0, 0.5, 0.5}, //Cyan
+	{0.0, 0.0, 1.0}, //Blue
+	{0.5, 0.0, 0.5}, //Purple
+};
+
 tri_tile * proc_planet_vertices_and_normals(tri_tile *t, height_map_func height, vec3 planet_pos, float noise_radius, float amplitude)
 {
 	vec3 brownish = {0.30, .27, 0.21};
 	vec3 whiteish = {0.96, .94, 0.96};
+	vec3 primary_color = primary_color_by_depth[t->depth % LENGTH(primary_color_by_depth)];
 	float epsilon = noise_radius / 100000; //TODO: Check this value or make it empirical somehow.
 	for (int i = 0; i < t->num_vertices; i++) {
-		//Points towards vertex
-		vec3 pos = t->positions[i] - planet_pos;
+		//Points towards vertex from planet origin
+		vec3 pos = t->positions[i] - planet_pos + t->pos;
 		//Point at the surface of our simulated smaller planet.
 		vec3 noise_surface = vec3_scale(vec3_normalize(pos), noise_radius);
 		//This will be distorted by the heightmap function.
@@ -117,7 +136,7 @@ tri_tile * proc_planet_vertices_and_normals(tri_tile *t, height_map_func height,
 		//UNCOMMENT
 		t->positions[i] += displaced_surface - noise_surface;
 		//TODO: Create much more interesting colors.
-		t->colors[i] = vec3_lerp(brownish, whiteish, fmax((vec3_dist(noise_surface, (vec3){0,0,0}) - noise_radius) / amplitude, 0.0));
+		t->colors[i] = primary_color * vec3_lerp(brownish, whiteish, fmax((vec3_dist(noise_surface, (vec3){0,0,0}) - noise_radius) / amplitude, 0.0));
 	}
 	return t;
 }
@@ -137,7 +156,7 @@ void proc_planet_finishing_touches(tri_tile *t, void *finishing_touches_context)
 	vec3 planet_pos = planet_pos_relative_to_tile(t);
 	//Curve the tile around planet by normalizing each vertex's distance to the planet and scaling by planet radius.
 	//UNCOMMENT
-	reproject_vertices_to_spherical(t->positions, t->num_vertices, planet_pos, p->radius);
+	reproject_vertices_to_spherical(t->positions, t->num_vertices, planet_pos - t->pos, p->radius);
 	//Apply perturbations to the surface and calculate normals.
 	//Since noise doesn't compute well on huge planets, noise is calculated on a simulated smaller planet and scaled up.
 	proc_planet_vertices_and_normals(t, p->height, planet_pos, p->noise_radius, p->amplitude);
@@ -145,7 +164,6 @@ void proc_planet_finishing_touches(tri_tile *t, void *finishing_touches_context)
 
 void subdiv_tri_tile(tri_tile *in, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS])
 {
-	assert(false);
 	vec3 new_tile_vertices[] = {
 		vec3_lerp(in->tile_vertices[0], in->tile_vertices[1], 0.5),
 		vec3_lerp(in->tile_vertices[0], in->tile_vertices[2], 0.5),
@@ -154,7 +172,7 @@ void subdiv_tri_tile(tri_tile *in, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS])
 
 	proc_planet *planet = (proc_planet *)in->finishing_touches_context;
 	vec3 planet_pos = planet_pos_relative_to_tile(in);
-	reproject_vertices_to_spherical(new_tile_vertices, 3, planet_pos, planet->radius);
+	reproject_vertices_to_spherical(new_tile_vertices, 3, planet_pos - in->pos, planet->radius);
 
 	init_tri_tile(out[0], (vec3[3]){in->tile_vertices[0], new_tile_vertices[0], new_tile_vertices[1]}, in->sector, DEFAULT_NUM_TRI_TILE_ROWS, in->finishing_touches, in->finishing_touches_context);
 	init_tri_tile(out[1], (vec3[3]){new_tile_vertices[0], in->tile_vertices[1], new_tile_vertices[2]}, in->sector, DEFAULT_NUM_TRI_TILE_ROWS, in->finishing_touches, in->finishing_touches_context);
@@ -169,6 +187,7 @@ void tri_tile_split(tri_tile *in, tri_tile **out[DEFAULT_NUM_TRI_TILE_DIVS])
 	tri_tile *tmp[DEFAULT_NUM_TRI_TILE_DIVS];
 	for (int i = 0; i < DEFAULT_NUM_TRI_TILE_DIVS; i++) {
 		*out[i] = new_tri_tile();
+		(*out[i])->depth = in->depth + 1;
 		tmp[i] = *out[i];
 	}
 	subdiv_tri_tile(in, tmp);

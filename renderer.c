@@ -52,14 +52,14 @@ vec3 sun_color     = {0.1, 0.8, 0.1};
 struct point_light_attributes point_lights = {.num_lights = 0};
 
 proc_planet *test_planet = NULL;
-const float planet_radius = 60000;
-vec3 planet_center = {80000, 0, 0};;
+const float planet_radius = 6000000;
+vec3 planet_center = {0, 0, 0};;
 
 struct ship_physics ship = {
 	.speed = 10,
 	.acceleration = (vec3){0, 0, 0},
 	.velocity     = AMAT4_IDENT,
-	.position      = {.a = MAT3_IDENT, .t = {0, planet_radius + 20000, 0}},
+	.position      = {.a = MAT3_IDENT, .t = {0, 6000 + planet_radius, 0}},
 	.locked_camera = {.a = MAT3_IDENT, .t = {0, 4, 8}},
 	.eased_camera  = {.a = MAT3_IDENT, .t = {0, 4, 8}},
 	.locked_camera_target = (vec3){0, 0, -4},
@@ -286,8 +286,6 @@ void render()
 		//Draw entities
 		for (int i = 0; i < LENGTH(pvs); i++)
 			draw_drawable(pvs[i]);
-
-		glDisable(GL_CULL_FACE);
 
 		//Draw procedural planet
 		for (terrain_tree_drawlist l = terrain_list; l; l = l->next) {

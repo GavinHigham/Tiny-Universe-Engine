@@ -36,6 +36,7 @@ struct triangular_terrain_tile {
 	bool buffered;
 	//Has init_triangular_tile been called on this yet?
 	bool is_init;
+	int depth;
 };
 
 #endif
