@@ -8,7 +8,7 @@ const float SPACE_SECTOR_SIZE = 8192;
 
 void space_sector_canonicalize(vec3 *pos, space_sector *sec)
 {
-	for (int i = 0; i < 3; i ++) {
+	for (int i = 0; i < 3; i++) {
 		(*sec)[i] += truncf((*pos)[i] / SPACE_SECTOR_SIZE);
 		(*pos)[i] = fmod((*pos)[i], SPACE_SECTOR_SIZE);
 		int_fast64_t tmp = truncf((*pos)[i] / (SPACE_SECTOR_SIZE/2));

@@ -6,9 +6,6 @@
 
 //2^13 meters. Distance from the center of the sector to the edge along any axis.
 extern const float SPACE_SECTOR_SIZE;
-// typedef struct {
-// 	int_fast64_t x, y, z;
-// } space_sector;
 
 typedef int_fast64_t space_sector __attribute__((ext_vector_type(3)));
 
