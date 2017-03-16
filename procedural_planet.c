@@ -61,10 +61,18 @@ float distance_to_horizon(planet_radius, altitude)
 	return 2 * planet_radius * altitude + altitude * altitude;
 }
 
+void print_lowest(const char *tag, float *old, float *new)
+{
+	if (*new < *old) {
+		printf("%s %f\n", tag, *new);
+		*old = *new;
+	}
+}
+
 static int subdivision_depth(terrain_tree_node *tree, vec3 cam_pos, proc_planet *planet)
 {
 	//If negative, we're below sea level.
-	float h = vec3_dist(cam_pos, planet->pos) - planet->radius;
+	float h = vec3_mag(cam_pos) - planet->radius;
 	//Don't handle "within the planet" case yet.
 	float d = distance_to_horizon(planet->radius, fmax(h, 0));
 	//Don't subdivide if the tile center is "tile radius" distance beyond the horizon.
@@ -72,15 +80,23 @@ static int subdivision_depth(terrain_tree_node *tree, vec3 cam_pos, proc_planet 
 		return 0;
 
 	float scale = (screen_width * planet->edge_len) / (2 * 40 * DEFAULT_NUM_TRI_TILE_ROWS);
-	return subdivisions_per_distance(h, scale);
+	static float lowest_dist = INFINITY;
+	static float lowest_height = INFINITY;
+	print_lowest("Dist:", &lowest_dist, &tree->dist);
+	print_lowest("Height:", &lowest_height, &h);
+
+	return subdivisions_per_distance(tree->dist, scale);
 }
 
 int terrain_tree_example_subdiv(terrain_tree_node *tree, void *context)
 {
+    //return 0;
 	struct planet_terrain_context *ctx = (struct planet_terrain_context *)context;
 	tri_tile *tile = (tri_tile *)tree->tile;
-	vec3 cam_pos = space_sector_position_relative_to_sector(ctx->cam_pos, ctx->cam_sec, tile->sector);
-	tree->dist = vec3_dist(tile->pos, cam_pos);
+	//The camera position and sector were provided relative to the planet, like the tile centroid and sector.
+	//Convert the camera position to be relative to the tile, and store the distance from camera to tile in the tree node.
+	//printf("Cam: "); vec3_print(space_sector_position_relative_to_sector(ctx->cam_pos, ctx->cam_sec, tile->sector)); printf(", Centroid: "); vec3_print(tile->centroid); printf("\n");
+	tree->dist = vec3_dist(tile->centroid, space_sector_position_relative_to_sector(ctx->cam_pos, ctx->cam_sec, tile->sector));
 
 	//Cap the number of subdivisions per whole-tree traversal (per frame essentially)
 	if (tree->depth == 0)
@@ -88,17 +104,11 @@ int terrain_tree_example_subdiv(terrain_tree_node *tree, void *context)
 	if (ctx->subdivs_left <= 0)
 	 	return 0;
 
-	//Express the camera position relative to the planet sector.
-	int depth = subdivision_depth(tree, space_sector_position_relative_to_sector(ctx->cam_pos, ctx->cam_sec, ctx->planet->sector), ctx->planet);
+	int depth = subdivision_depth(tree, space_sector_position_relative_to_sector(ctx->cam_pos, ctx->cam_sec, (space_sector){0, 0, 0}), ctx->planet);
+
 	if (tree->depth < depth)
 		ctx->subdivs_left--;
 	return depth;
-}
-
-vec3 planet_pos_relative_to_tile(tri_tile *t)
-{
-	proc_planet *planet = (proc_planet *)t->finishing_touches_context;
-	return space_sector_position_relative_to_sector(planet->pos, planet->sector, t->sector);
 }
 
 vec3 primary_color_by_depth[] = {
@@ -114,13 +124,14 @@ tri_tile * proc_planet_vertices_and_normals(tri_tile *t, height_map_func height,
 {
 	vec3 brownish = {0.30, .27, 0.21};
 	vec3 whiteish = {0.96, .94, 0.96};
-	vec3 primary_color = primary_color_by_depth[t->depth % LENGTH(primary_color_by_depth)];
+	vec3 primary_color = {1, 1, 1}; //White //primary_color_by_depth[t->depth % LENGTH(primary_color_by_depth)];
 	float epsilon = noise_radius / 100000; //TODO: Check this value or make it empirical somehow.
 	for (int i = 0; i < t->num_vertices; i++) {
 		//Points towards vertex from planet origin
-		vec3 pos = t->positions[i] - planet_pos + t->pos;
+		vec3 pos = t->positions[i] - planet_pos;
+		float m = vec3_mag(pos);
 		//Point at the surface of our simulated smaller planet.
-		vec3 noise_surface = vec3_scale(vec3_normalize(pos), noise_radius);
+		vec3 noise_surface = vec3_scale(pos, noise_radius/m);
 		//This will be distorted by the heightmap function.
 		vec3 displaced_surface = noise_surface;
 
@@ -134,7 +145,7 @@ tri_tile * proc_planet_vertices_and_normals(tri_tile *t, height_map_func height,
 		tri_tile_vertex_position_and_normal(height, x, y, z, epsilon, &displaced_surface, &t->normals[i]);
 		//Scale back up to planet size.
 		//UNCOMMENT
-		t->positions[i] += displaced_surface - noise_surface;
+		t->positions[i] = vec3_scale(displaced_surface, m/noise_radius) + planet_pos;
 		//TODO: Create much more interesting colors.
 		t->colors[i] = primary_color * vec3_lerp(brownish, whiteish, fmax((vec3_dist(noise_surface, (vec3){0,0,0}) - noise_radius) / amplitude, 0.0));
 	}
@@ -153,33 +164,33 @@ void proc_planet_finishing_touches(tri_tile *t, void *finishing_touches_context)
 {
 	//Retrieve tile's planet from finishing_touches_context.
 	proc_planet *p = (proc_planet *)finishing_touches_context;
-	vec3 planet_pos = planet_pos_relative_to_tile(t);
+	vec3 planet_pos = space_sector_position_relative_to_sector((vec3){0, 0, 0}, (space_sector){0, 0, 0}, t->sector);
 	//Curve the tile around planet by normalizing each vertex's distance to the planet and scaling by planet radius.
 	//UNCOMMENT
-	reproject_vertices_to_spherical(t->positions, t->num_vertices, planet_pos - t->pos, p->radius);
+	reproject_vertices_to_spherical(t->positions, t->num_vertices, planet_pos, p->radius);
 	//Apply perturbations to the surface and calculate normals.
 	//Since noise doesn't compute well on huge planets, noise is calculated on a simulated smaller planet and scaled up.
 	proc_planet_vertices_and_normals(t, p->height, planet_pos, p->noise_radius, p->amplitude);
 }
 
-void subdiv_tri_tile(tri_tile *in, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS])
+void subdiv_tri_tile(tri_tile *t, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS])
 {
 	vec3 new_tile_vertices[] = {
-		vec3_lerp(in->tile_vertices[0], in->tile_vertices[1], 0.5),
-		vec3_lerp(in->tile_vertices[0], in->tile_vertices[2], 0.5),
-		vec3_lerp(in->tile_vertices[1], in->tile_vertices[2], 0.5)
+		vec3_lerp(t->tile_vertices[0], t->tile_vertices[1], 0.5),
+		vec3_lerp(t->tile_vertices[0], t->tile_vertices[2], 0.5),
+		vec3_lerp(t->tile_vertices[1], t->tile_vertices[2], 0.5)
 	};
 
-	proc_planet *planet = (proc_planet *)in->finishing_touches_context;
-	vec3 planet_pos = planet_pos_relative_to_tile(in);
-	reproject_vertices_to_spherical(new_tile_vertices, 3, planet_pos - in->pos, planet->radius);
+	proc_planet *planet = (proc_planet *)t->finishing_touches_context;
+	vec3 planet_pos = space_sector_position_relative_to_sector((vec3){0, 0, 0}, (space_sector){0, 0, 0}, t->sector);
+	reproject_vertices_to_spherical(new_tile_vertices, 3, planet_pos, planet->radius);
 
-	init_tri_tile(out[0], (vec3[3]){in->tile_vertices[0], new_tile_vertices[0], new_tile_vertices[1]}, in->sector, DEFAULT_NUM_TRI_TILE_ROWS, in->finishing_touches, in->finishing_touches_context);
-	init_tri_tile(out[1], (vec3[3]){new_tile_vertices[0], in->tile_vertices[1], new_tile_vertices[2]}, in->sector, DEFAULT_NUM_TRI_TILE_ROWS, in->finishing_touches, in->finishing_touches_context);
-	init_tri_tile(out[2], (vec3[3]){new_tile_vertices[0], new_tile_vertices[2], new_tile_vertices[1]}, in->sector, DEFAULT_NUM_TRI_TILE_ROWS, in->finishing_touches, in->finishing_touches_context);
-	init_tri_tile(out[3], (vec3[3]){new_tile_vertices[1], new_tile_vertices[2], in->tile_vertices[2]}, in->sector, DEFAULT_NUM_TRI_TILE_ROWS, in->finishing_touches, in->finishing_touches_context);
+	init_tri_tile(out[0], (vec3[3]){t->tile_vertices[0], new_tile_vertices[0], new_tile_vertices[1]}, t->sector, DEFAULT_NUM_TRI_TILE_ROWS, t->finishing_touches, t->finishing_touches_context);
+	init_tri_tile(out[1], (vec3[3]){new_tile_vertices[0], t->tile_vertices[1], new_tile_vertices[2]}, t->sector, DEFAULT_NUM_TRI_TILE_ROWS, t->finishing_touches, t->finishing_touches_context);
+	init_tri_tile(out[2], (vec3[3]){new_tile_vertices[0], new_tile_vertices[2], new_tile_vertices[1]}, t->sector, DEFAULT_NUM_TRI_TILE_ROWS, t->finishing_touches, t->finishing_touches_context);
+	init_tri_tile(out[3], (vec3[3]){new_tile_vertices[1], new_tile_vertices[2], t->tile_vertices[2]}, t->sector, DEFAULT_NUM_TRI_TILE_ROWS, t->finishing_touches, t->finishing_touches_context);
 
-	printf("Created 4 new terrains from terrain %p\n", in);
+	printf("Created 4 new terrains from terrain %p\n", t);
 }
 
 void tri_tile_split(tri_tile *in, tri_tile **out[DEFAULT_NUM_TRI_TILE_DIVS])
@@ -195,27 +206,25 @@ void tri_tile_split(tri_tile *in, tri_tile **out[DEFAULT_NUM_TRI_TILE_DIVS])
 
 // Public Functions //
 
-proc_planet * proc_planet_new(vec3 pos, space_sector sector, float radius, height_map_func height)
+proc_planet * proc_planet_new(float radius, height_map_func height)
 {
 	proc_planet *p = malloc(sizeof(proc_planet));
-	p->pos = pos;
-	p->sector = sector;
 	p->radius = radius;
 	p->noise_radius = 6000; //TODO: Determine the largest reasonable noise radius, map input radius to a good range.
 	p->amplitude = TERRAIN_AMPLITUDE; //TODO: Choose a good number, pass this through the chain of calls.
 	p->edge_len = radius / sin(2.0*M_PI/5.0);
+	printf("Edge len: %f\n", p->edge_len);
 	p->height = height;
-	space_sector_canonicalize(&p->pos, &p->sector);
 	for (int i = 0; i < NUM_ICOSPHERE_FACES; i++) {
 		vec3 verts[] = {
-			ico_v[ico_i[3*i]]   * radius + p->pos,
-			ico_v[ico_i[3*i+1]] * radius + p->pos,
-			ico_v[ico_i[3*i+2]] * radius + p->pos
+			ico_v[ico_i[3*i]]   * radius,
+			ico_v[ico_i[3*i+1]] * radius,
+			ico_v[ico_i[3*i+2]] * radius
 		};
 
 		p->tiles[i] = terrain_tree_new(new_tri_tile(), 0);
 		//Initialize tile with verts expressed relative to p->sector.
-		init_tri_tile((tri_tile *)p->tiles[i]->tile, verts, p->sector, DEFAULT_NUM_TRI_TILE_ROWS, &proc_planet_finishing_touches, p);
+		init_tri_tile((tri_tile *)p->tiles[i]->tile, verts, (space_sector){0, 0, 0}, DEFAULT_NUM_TRI_TILE_ROWS, &proc_planet_finishing_touches, p);
 	}
 
 	return p;
@@ -228,13 +237,13 @@ void proc_planet_free(proc_planet *p)
 	free(p);
 }
 
-void proc_planet_drawlist(proc_planet *p, terrain_tree_drawlist *list, vec3 camera_position, space_sector camera_sector)
+void proc_planet_drawlist(proc_planet *p, terrain_tree_drawlist *list, vec3 cam_pos_offset, space_sector cam_sector_offset)
 {
 	struct planet_terrain_context context = {
 		.subdivs_left = 0,
 		//TODO: Revisit the sectors used here. The planet, and each tile, have their own sectors now.
-		.cam_pos = camera_position,
-		.cam_sec = camera_sector,
+		.cam_pos = cam_pos_offset,
+		.cam_sec = cam_sector_offset,
 		.planet = p
 	};
 

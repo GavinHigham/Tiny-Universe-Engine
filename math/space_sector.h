@@ -6,9 +6,11 @@
 
 //2^13 meters. Distance from the center of the sector to the edge along any axis.
 extern const float SPACE_SECTOR_SIZE;
-typedef struct {
-	int_fast64_t x, y, z;
-} space_sector;
+// typedef struct {
+// 	int_fast64_t x, y, z;
+// } space_sector;
+
+typedef int_fast64_t space_sector __attribute__((ext_vector_type(3)));
 
 //If pos is outside the bounds of sec, sets sec to the correct sector enclosing pos, and makes pos relative to that origin.
 void space_sector_canonicalize(vec3 *pos, space_sector *sec);

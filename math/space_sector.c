@@ -8,43 +8,20 @@ const float SPACE_SECTOR_SIZE = 8192;
 
 void space_sector_canonicalize(vec3 *pos, space_sector *sec)
 {
-	vec3 pos_old = *pos;
-	space_sector sec_old = *sec;
-	space_sector new = *sec;
-
-	new.x += truncf(pos->x / SPACE_SECTOR_SIZE);
-	new.y += truncf(pos->y / SPACE_SECTOR_SIZE);
-	new.z += truncf(pos->z / SPACE_SECTOR_SIZE);
-
-	pos->x = fmod(pos->x, SPACE_SECTOR_SIZE);
-	pos->y = fmod(pos->y, SPACE_SECTOR_SIZE);
-	pos->z = fmod(pos->z, SPACE_SECTOR_SIZE);
-
-	int_fast64_t x = truncf(pos->x / (SPACE_SECTOR_SIZE/2));
-	int_fast64_t y = truncf(pos->y / (SPACE_SECTOR_SIZE/2));
-	int_fast64_t z = truncf(pos->z / (SPACE_SECTOR_SIZE/2));
-
-	pos->x -= x * SPACE_SECTOR_SIZE;
-	pos->y -= y * SPACE_SECTOR_SIZE;
-	pos->z -= z * SPACE_SECTOR_SIZE;
-
-	new.x += x;
-	new.y += y;
-	new.z += z;
-
-	//*pos = space_sector_position_relative_to_sector(*pos, *sec, new);
-	*sec = new;
+	for (int i = 0; i < 3; i ++) {
+		(*sec)[i] += truncf((*pos)[i] / SPACE_SECTOR_SIZE);
+		(*pos)[i] = fmod((*pos)[i], SPACE_SECTOR_SIZE);
+		int_fast64_t tmp = truncf((*pos)[i] / (SPACE_SECTOR_SIZE/2));
+		(*pos)[i] -= tmp * SPACE_SECTOR_SIZE;
+		(*sec)[i] += tmp;
+	}
 }
 
 //Also copied to stars.vs, so update there too if changed.
 vec3 space_sector_position_relative_to_sector(vec3 pos, space_sector sec, space_sector new_sec)
 {
-	//Local position + (sector displacement on each axis) * (size of a sector)
-	return SPACE_SECTOR_SIZE * (vec3){
-		sec.x - new_sec.x, //lol secx
-		sec.y - new_sec.y,
-		sec.z - new_sec.z
-		} + pos;
+	space_sector tmp = sec - new_sec;
+	return SPACE_SECTOR_SIZE * (vec3){tmp.x, tmp.y, tmp.z} + pos;
 }
 
 void space_sector_print(space_sector sec)

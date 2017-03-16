@@ -103,13 +103,13 @@ tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], space_sector sector, int
 	t->bg.ibo = get_shared_tri_tile_indices_buffer_object(num_rows);
 
 	//The new tile origin will be the centroid of the three tile vertices.
-	t->pos = (vertices[0] + vertices[1] + vertices[2]) / 3.0;
+	t->centroid = (vertices[0] + vertices[1] + vertices[2]) / 3.0;
 	t->sector = sector;
-	space_sector_canonicalize(&t->pos, &t->sector);
+	space_sector_canonicalize(&t->centroid, &t->sector);
 
-	//Recalculate vertex positions relative to new sector and origin.
+	//Recalculate vertex positions relative to new sector.
 	for (int i = 0; i < 3; i++)
-		t->tile_vertices[i] = space_sector_position_relative_to_sector(vertices[i], sector, t->sector) - t->pos;
+		t->tile_vertices[i] = space_sector_position_relative_to_sector(vertices[i], sector, t->sector);
 
 	//Generate the initial vertex positions, coplanar points on the triangle formed by vertices[3].
 	int numverts = tri_tile_vertices(t->positions, num_rows, t->tile_vertices[0], t->tile_vertices[1], t->tile_vertices[2]);

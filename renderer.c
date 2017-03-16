@@ -27,7 +27,7 @@ static bool renderer_is_init = false;
 static bool renderer_should_reload = false;
 float FOV = M_PI/3.0;
 float far_distance = 1000000000;
-float near_distance = 1;
+float near_distance = 0.1;
 int PRIMITIVE_RESTART_INDEX = 0xFFFFFFFF;
 
 float screen_width = SCREEN_WIDTH;
@@ -35,13 +35,13 @@ float screen_height = SCREEN_HEIGHT;
 
 GLuint gVAO = 0;
 amat4 inv_eye_frame;
-amat4 eye_frame = {.a = MAT3_IDENT,          .t = {6, 0, 0}};
+amat4 eye_frame = {.a = MAT3_IDENT,  .t = {6, 0, 0}};
 space_sector eye_sector = {0, 0, 0};
 //Object frames. Need a better system for this.
-amat4 ship_frame = {.a = MAT3_IDENT,         .t = {-2.5, 0, -8}};
-amat4 room_frame = {.a = MAT3_IDENT,         .t = {0, -4, -8}};
-amat4 grid_frame = {.a = MAT3_IDENT,         .t = {-50, -90, -550}};
-amat4 tri_frame  = {.a = MAT3_IDENT,         .t = {0, 0, 0}};
+amat4 ship_frame = {.a = MAT3_IDENT, .t = {-2.5, 0, -8}};
+amat4 room_frame = {.a = MAT3_IDENT, .t = {0, -4, -8}};
+amat4 grid_frame = {.a = MAT3_IDENT, .t = {-50, -90, -550}};
+amat4 tri_frame  = {.a = MAT3_IDENT, .t = {0, 0, 0}};
 space_sector room_sector = {0, 0, 0};
 amat4 big_asteroid_frame = {.a = MAT3_IDENT, .t = {0, -4, -20}};
 amat4 skybox_frame; //Set in init_render() and update()
@@ -51,9 +51,18 @@ vec3 sun_direction = {0.1, 0.8, 0.1};
 vec3 sun_color     = {0.1, 0.8, 0.1};
 struct point_light_attributes point_lights = {.num_lights = 0};
 
-proc_planet *test_planet = NULL;
+
 const float planet_radius = 6000000;
-vec3 planet_center = {0, 0, 0};;
+
+struct {
+	vec3 pos;
+	space_sector sector;
+	proc_planet *planet;
+} test_planet = {
+	{0, 0, 0},
+	{0, 0, 0},
+	NULL
+};
 
 struct ship_physics ship = {
 	.speed = 10,
@@ -96,7 +105,7 @@ static void init_models()
 	for (int i = 0; i < LENGTH(drawables); i++)
 		init_heap_drawable(drawables[i].drawable, drawables[i].draw, drawables[i].effect, drawables[i].frame, drawables[i].sector, drawables[i].buffering_function);
 
-	test_planet = proc_planet_new(planet_center, (space_sector){0, 0, 0}, planet_radius, tri_height_map);
+	test_planet.planet = proc_planet_new(planet_radius, tri_height_map);
 	space_sector_canonicalize(&ship.position.t, &ship.sector);
 }
 
@@ -105,7 +114,7 @@ static void deinit_models()
 	for (int i = 0; i < LENGTH(drawables); i++)
 		deinit_drawable(drawables[i].drawable);
 
-	proc_planet_free(test_planet);
+	proc_planet_free(test_planet.planet);
 }
 
 static void init_lights()
@@ -233,7 +242,7 @@ static Drawable *pvs[] = {&d_ship};
 void render()
 {
 	terrain_tree_drawlist terrain_list = NULL;
-	proc_planet_drawlist(test_planet, &terrain_list, eye_frame.t, eye_sector);
+	proc_planet_drawlist(test_planet.planet, &terrain_list, eye_frame.t - test_planet.pos, eye_sector - test_planet.sector);
 	//float h = vec3_dist(eye_frame.t, test_planet->pos) - test_planet->radius; //If negative, we're below sea level.
 	//printf("Height: %f\n", h);
 	static float hella_time = 0.0;
@@ -292,7 +301,7 @@ void render()
 			tri_tile *t = l->tile;
 			if (!t->buffered) //Last resort "BUFFER RIGHT NOW", will cause hiccups.
 				buffer_tri_tile(t);
-			amat4 tile_frame = {tri_frame.a, space_sector_position_relative_to_sector(t->pos, t->sector, eye_sector)};
+			amat4 tile_frame = {tri_frame.a, space_sector_position_relative_to_sector(test_planet.pos, test_planet.sector + t->sector, eye_sector)};
 			draw_forward(&effects.forward, t->bg, tile_frame);
 			checkErrors("After drawing a tri_tile");
 		}
@@ -395,8 +404,10 @@ void update(float dt)
 			ship.sector.x, ship.sector.y, ship.sector.z,
 			ship.position.t.x, ship.position.t.y, ship.position.t.z);
 		float x, y, z;
-		scanf("%lli %lli %lli %f %f %f", &ship.sector.x, &ship.sector.y, &ship.sector.z, &x, &y, &z);
+		int_fast64_t sx, sy, sz;
+		scanf("%lli %lli %lli %f %f %f", &sx, &sy, &sz, &x, &y, &z);
 		ship.position.t = (vec3){x, y, z};
+		ship.sector = (space_sector){sx, sy, sz};
 		space_sector_canonicalize(&ship.position.t, &ship.sector);
 	}
 	if (key_state[SDL_SCANCODE_Y]) {

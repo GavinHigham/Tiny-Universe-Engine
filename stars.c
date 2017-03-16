@@ -10,10 +10,7 @@
 #include "math/space_sector.h"
 
 const int NUM_STARS = 40000;
-const float STAR_SECTOR_RADIUS = 10000;
-const float STAR_RADIUS = 10000;
-//Bias the star distance out this much to move them away from the planet
-const float STAR_BIAS = STAR_RADIUS/2.0;
+const float STAR_SECTOR_RADIUS = 100000;
 
 GLuint stars_vbo;
 GLuint stars_vao;
@@ -44,7 +41,7 @@ void init_stars()
 		//Choose a random sector to put the star in.
 		vec3 s = rand_box_point3d(c1, c2);
 		//If the star is in the sphere, keep it.
-		if (vec3_mag(s) < STAR_RADIUS * STAR_RADIUS) {
+		if (vec3_mag(s) < STAR_SECTOR_RADIUS * STAR_SECTOR_RADIUS) {
 			star_buffer[i] = (space_sector){s.x, s.y, s.z};
 		}
 		else {

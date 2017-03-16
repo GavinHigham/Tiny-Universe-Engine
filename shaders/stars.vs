@@ -19,7 +19,7 @@ out vec3 fcol;
 vec3 star_in_eye_space(ivec3 eye_sector, ivec3 sector, vec3 pos)
 {
 	//Local position + (sector displacement on each axis) * (size of a sector)
-	return pos + (sector - eye_sector) * sector_size;	
+	return sector_size * (sector - eye_sector) + pos;	
 }
 
 void main()

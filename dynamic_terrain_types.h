@@ -25,7 +25,7 @@ struct triangular_terrain_tile {
 	//these are the three outermost vertices of the entire triangular tile (pre-deformation).
 	vec3 tile_vertices[3];
 	//Position of the triangular tile's centroid, arithmetic mean of tile_vertices.
-	vec3 pos;
+	vec3 centroid;
 	space_sector sector;
 	//Called at the end of init, passing the new tile and the provided context.
 	void (*finishing_touches)(tri_tile *, void *);
