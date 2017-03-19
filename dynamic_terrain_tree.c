@@ -4,7 +4,6 @@
 #include "glla.h"
 #include "renderer.h"
 #include "dynamic_terrain_tree.h"
-#include "dynamic_terrain_types.h"
 
 enum { NCHILDREN = TERRAIN_TREE_NUM_CHILDREN };
 
@@ -48,7 +47,7 @@ terrain_tree_node * terrain_tree_new(void *tile, int depth)
 	return new;
 }
 
-void terrain_tree_gen(terrain_tree_node *tree, terrain_tree_depth_fn subdiv, void *context, terrain_tree_split_fn split)
+void terrain_tree_gen(terrain_tree_node *tree, terrain_tree_depth_fn subdiv, terrain_tree_split_fn split, void *context)
 {
 	assert(tree);
 
@@ -57,20 +56,18 @@ void terrain_tree_gen(terrain_tree_node *tree, terrain_tree_depth_fn subdiv, voi
 
 	//Create children and subdivide if they don't yet exist.
 	if (!tree_has_children(tree)) {
-		//This next line should go in the "split" function when I make one.
-		//printf("Subdiving node at <%f, %f, %f>, depth %i\n", tree->t.pos.x, tree->t.pos.y, tree->t.pos.z, tree->depth);
-		void ** new_tiles[NCHILDREN];
+		void **new_tiles[NCHILDREN];
 		for (int i = 0; i < NCHILDREN; i++) {
 			tree->children[i] = terrain_tree_new(NULL, tree->depth + 1);
 			new_tiles[i] = &(tree->children[i]->tile);
 		}
 
-		split(tree->tile, new_tiles);
+		split(tree->tile, new_tiles, context);
 	}
 
 	//Visit children
 	for (int i = 0; i < NCHILDREN; i++)
-		terrain_tree_gen(tree->children[i], subdiv, context, split);
+		terrain_tree_gen(tree->children[i], subdiv, split, context);
 }
 
 void terrain_tree_prune(terrain_tree_node *tree, terrain_tree_depth_fn subdiv, void *context, void (*free_data)(void *))

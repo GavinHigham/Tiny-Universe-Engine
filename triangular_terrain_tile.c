@@ -104,6 +104,7 @@ tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], space_sector sector, int
 
 	//The new tile origin will be the centroid of the three tile vertices.
 	t->centroid = (vertices[0] + vertices[1] + vertices[2]) / 3.0;
+	t->normal = vec3_normalize(t->centroid);
 	t->sector = sector;
 	space_sector_canonicalize(&t->centroid, &t->sector);
 

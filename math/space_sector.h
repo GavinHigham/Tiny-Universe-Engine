@@ -13,6 +13,8 @@ typedef int_fast64_t space_sector __attribute__((ext_vector_type(3)));
 void space_sector_canonicalize(vec3 *pos, space_sector *sec);
 //If pos is expressed relative to sec, returns pos relative to new_sec.
 vec3 space_sector_position_relative_to_sector(vec3 pos, space_sector sec, space_sector new_sec);
+//If pos is expressed relative to sec, returns pos relative to new_sec. Version for when double-precision is needed.
+dvec3 space_sector_dposition_relative_to_sector(dvec3 pos, space_sector sec, space_sector new_sec);
 
 //Prints a space_sector like so: "[x, y, z]" (no newline).
 void space_sector_print(space_sector sec);

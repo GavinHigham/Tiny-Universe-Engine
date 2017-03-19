@@ -27,7 +27,7 @@ static bool renderer_is_init = false;
 static bool renderer_should_reload = false;
 float FOV = M_PI/3.0;
 float far_distance = 1000000000;
-float near_distance = 0.1;
+float near_distance = 1;
 int PRIMITIVE_RESTART_INDEX = 0xFFFFFFFF;
 
 float screen_width = SCREEN_WIDTH;
@@ -295,6 +295,8 @@ void render()
 		//Draw entities
 		for (int i = 0; i < LENGTH(pvs); i++)
 			draw_drawable(pvs[i]);
+
+		glDisable(GL_CULL_FACE);
 
 		//Draw procedural planet
 		for (terrain_tree_drawlist l = terrain_list; l; l = l->next) {

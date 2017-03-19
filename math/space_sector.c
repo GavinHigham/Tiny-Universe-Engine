@@ -24,6 +24,14 @@ vec3 space_sector_position_relative_to_sector(vec3 pos, space_sector sec, space_
 	return SPACE_SECTOR_SIZE * (vec3){tmp.x, tmp.y, tmp.z} + pos;
 }
 
+//Also copied to stars.vs, so update there too if changed.
+dvec3 space_sector_dposition_relative_to_sector(dvec3 pos, space_sector sec, space_sector new_sec)
+{
+	space_sector tmp = sec - new_sec;
+	return SPACE_SECTOR_SIZE * (dvec3){tmp.x, tmp.y, tmp.z} + pos;
+}
+
+
 void space_sector_print(space_sector sec)
 {
 	printf("[%lli, %lli, %lli]", sec.x, sec.y, sec.z);

@@ -3,7 +3,40 @@
 #include <stdbool.h>
 #include "glla.h"
 #include "buffer_group.h"
-#include "dynamic_terrain_types.h"
+#include "math/space_sector.h"
+
+//Heightmap function pointers.
+typedef float (*height_map_func)(vec3);
+typedef vec3 (*position_map_func)(vec3);
+typedef struct triangular_terrain_tile tri_tile;
+
+//Triangular terrain tile.
+struct triangular_terrain_tile {
+	//Cached computed positions, colors, and normals.
+	vec3 *positions;
+	vec3 *colors;
+	vec3 *normals;
+	GLuint *indices;
+	int num_vertices;
+	int num_indices;
+	//Not to be confused with render geometry,
+	//these are the three outermost vertices of the entire triangular tile (pre-deformation).
+	vec3 tile_vertices[3];
+	//Position of the triangular tile's centroid, arithmetic mean of tile_vertices.
+	vec3 centroid;
+	vec3 normal;
+	space_sector sector;
+	//Called at the end of init, passing the new tile and the provided context.
+	void (*finishing_touches)(tri_tile *, void *);
+	void  *finishing_touches_context;
+	//Information needed for rendering.
+	struct buffer_group bg;
+	//Is this tile buffered to the GPU yet?
+	bool buffered;
+	//Has init_triangular_tile been called on this yet?
+	bool is_init;
+	int depth;
+};
 
 tri_tile * new_tri_tile();
 tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], space_sector sector, int num_rows, void (finishing_touches)(tri_tile *, void *), void *finishing_touches_context);

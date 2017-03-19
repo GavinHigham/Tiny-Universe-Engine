@@ -1,7 +1,7 @@
 CC = gcc
 SDL = -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW
 MODULE_PATHS = -Iglla
-CFLAGS = $(MODULE_PATHS) -Wall -c -std=c11 -g -pthread
+CFLAGS = $(MODULE_PATHS) -Wall -c -std=c11 -g -pthread -Iglla
 LDFLAGS = $(SDL) -llua
 SHADERS = shaders/*.vs shaders/*.fs shaders/*.gs
 EXE = sock
@@ -46,7 +46,7 @@ include models/Makefile
 #include entity_component.mk #include when I get around to making this
 
 .depend:
-	gcc -M $(**/.c) *.c > .depend #Generate dependencies from all .c files, searching recursively.
+	gcc -M -Iglla $(**/.c) *.c > .depend #Generate dependencies from all .c files, searching recursively.
 
 effects.c: ceffectpp $(SHADERS) effects.h
 	ceffectpp/ceffectpp -c $(SHADERS) > effects.c

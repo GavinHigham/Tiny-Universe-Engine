@@ -1,8 +1,9 @@
 #ifndef PROCEDURAL_PLANET_H
 #define PROCEDURAL_PLANET_H
 #include "glla.h"
-#include "dynamic_terrain_types.h"
 #include "dynamic_terrain_tree.h"
+#include "triangular_terrain_tile.h"
+#include "terrain_constants.h"
 #include "math/space_sector.h"
 
 // //Used to generate normals for most of the planet.
@@ -22,10 +23,11 @@ typedef struct procedural_planet {
 } proc_planet;
 
 struct planet_terrain_context {
-	int subdivs_left;
+	int splits_left;
 	vec3 cam_pos;
 	space_sector cam_sec;
 	proc_planet *planet;
+	int visited;
 };
 
 proc_planet * proc_planet_new(float radius, height_map_func height);
