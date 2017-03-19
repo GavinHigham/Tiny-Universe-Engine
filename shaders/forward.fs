@@ -6,6 +6,8 @@ uniform vec4 uLight_attr; //Light attributes. Falloff factors, then intensity.
 uniform vec3 camera_position; //Camera position in world space.
 uniform int ambient_pass;
 
+uniform vec3 override_col = vec3(1.0, 1.0, 1.0);
+
 #define CONSTANT    0
 #define LINEAR      1
 #define EXPONENTIAL 2
@@ -84,8 +86,10 @@ vec3 sky_color(vec3 v, vec3 s, vec3 c)
 
 
 void main() {
-	//roughnessValue = pow(0.2*length(fColor), 8);
 	float gamma = 2.2;
+	vec3 color = fColor;
+	//roughnessValue = pow(0.2*length(color), 8);
+	color *= override_col;
 	vec3 normal = normalize(fNormal);
 	vec3 final_color = vec3(0.0);
 	float specular, diffuse;
@@ -94,17 +98,17 @@ void main() {
 	vec3 v = normalize(camera_position - fPos); //View vector.
 	if (ambient_pass == 1) {
 		point_light_fragment2(uLight_pos, v, normal, specular, diffuse);
-		//diffuse_frag = fColor*diffuse*sky_color(normal, normalize(vec3(0.1, 0.8, 0.1)), uLight_col);
-		//specular_frag = fColor*specular*sky_color(reflect(v, normal), normalize(vec3(0.1, 0.8, 0.1)), uLight_col);
-		diffuse_frag = fColor*diffuse*uLight_col;
-		specular_frag = fColor*specular*uLight_col;
+		//diffuse_frag = color*diffuse*sky_color(normal, normalize(vec3(0.1, 0.8, 0.1)), uLight_col);
+		//specular_frag = color*specular*sky_color(reflect(v, normal), normalize(vec3(0.1, 0.8, 0.1)), uLight_col);
+		diffuse_frag = color*diffuse*uLight_col;
+		specular_frag = color*specular*uLight_col;
 	} else {
 		float dist = distance(fPos, uLight_pos);
 		float attenuation = uLight_attr[CONSTANT] + uLight_attr[LINEAR]*dist + uLight_attr[EXPONENTIAL]*dist*dist;
 		vec3 l = normalize(uLight_pos-fPos); //Light vector.
 		point_light_fragment2(l, v, normal, specular, diffuse);
-		diffuse_frag = fColor*uLight_col*uLight_attr[INTENSITY]*diffuse/attenuation;
-		specular_frag = fColor*uLight_col*uLight_attr[INTENSITY]*specular/attenuation;
+		diffuse_frag = color*uLight_col*uLight_attr[INTENSITY]*diffuse/attenuation;
+		specular_frag = color*uLight_col*uLight_attr[INTENSITY]*specular/attenuation;
 	}
 
 	final_color += (diffuse_frag + specular_frag);

@@ -16,6 +16,7 @@ struct triangular_terrain_tile {
 	vec3 *positions;
 	vec3 *colors;
 	vec3 *normals;
+	vec3 override_col;
 	GLuint *indices;
 	int num_vertices;
 	int num_indices;

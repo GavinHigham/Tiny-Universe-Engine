@@ -36,6 +36,10 @@ const vec3 proc_planet_not_up = (vec3){-(z+z+x)/3, z/3, 0};
 
 // Static Functions //
 
+tri_tile * tree_tile(terrain_tree_node *tree)
+{
+	return (tri_tile *)tree->tile;
+}
 
 extern float screen_width;
 //I can remove some arguments to this and replace them with a single scale factor.
@@ -56,9 +60,10 @@ static float split_tile_radius(int depth, float base_length)
 	return base_length / pow(2, depth);
 }
 
-float distance_to_horizon(float planet_radius, float altitude)
+//Distance to the horizon with a planet radius R and elevation above sea level h, from Wikipedia.
+float distance_to_horizon(float R, float h)
 {
-	return 2 * planet_radius * altitude + altitude * altitude;
+	return sqrt(h * (2 * R + h));
 }
 
 static int subdivision_depth(terrain_tree_node *tree, dvec3 cam_pos, proc_planet *planet)
@@ -69,8 +74,13 @@ static int subdivision_depth(terrain_tree_node *tree, dvec3 cam_pos, proc_planet
 	float d = distance_to_horizon(planet->radius, fmax(h, 0));
 	//Don't subdivide if the tile center is "tile radius" distance beyond the horizon.
 	float tile_radius = split_tile_radius(tree->depth, planet->edge_len);
-	if (tree->dist - tile_radius > d)
+	//printf("Tile dist, horizon dist, depth: %10f, %10f, %i\n", tree->dist - tile_radius, d, tree->depth);
+	if (tree->dist - tile_radius > d) {
+		tree_tile(tree)->override_col = (vec3){0.0, 1.0, 0.0};
 		return 0;
+	} else {
+		tree_tile(tree)->override_col = (vec3){1.0, 1.0, 1.0};
+	}
 
 	float scale = (screen_width * planet->edge_len) / (2 * 40 * DEFAULT_NUM_TRI_TILE_ROWS);
 
@@ -93,7 +103,7 @@ int terrain_tree_example_subdiv(terrain_tree_node *tree, void *context)
 	if (ctx->visited > 200)
 		return 0;
 
-	tri_tile *tile = (tri_tile *)tree->tile;
+	tri_tile *tile = tree_tile(tree);
 	//The camera position and sector were provided relative to the planet, like the tile centroid and sector.
 	//Convert the camera position to be relative to the tile, and store the distance from camera to tile in the tree node.
 	//printf("Cam: "); vec3_print(space_sector_position_relative_to_sector(ctx->cam_pos, ctx->cam_sec, tile->sector)); printf(", Centroid: "); vec3_print(tile->centroid); printf("\n");
@@ -239,7 +249,7 @@ void proc_planet_drawlist(proc_planet *p, terrain_tree_drawlist *list, vec3 cam_
 	//TODO: Check the distance here and draw an imposter instead of the whole planet if it's far enough.
 
 	for (int i = 0; i < NUM_ICOSPHERE_FACES; i++) {
-		tri_tile *t = (tri_tile *)p->tiles[i]->tile;
+		tri_tile *t = tree_tile(p->tiles[i]);
 		//Ignore tiles that are facing away from the camera. Can remove when my horizon check is working right.
 		if (vec3_dot(t->normal, vec3_normalize(cam_pos)) > -0.1) {
 			terrain_tree_gen(p->tiles[i], terrain_tree_example_subdiv, (terrain_tree_split_fn)tri_tile_split, &context);

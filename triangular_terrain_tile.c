@@ -67,7 +67,7 @@ tri_tile * new_tri_tile()
 	//Could be replaced with a custom allocator in the future.
 	tri_tile *new = malloc(sizeof(tri_tile));
 	new->is_init = false;
-	new->depth = 0;
+	new->depth = 0; //TODO: Figure out why I put this here, and if I need it here.
 
 	return new;
 }
@@ -101,6 +101,8 @@ tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], space_sector sector, int
 
 	//Get an appropriately expanded index buffer.
 	t->bg.ibo = get_shared_tri_tile_indices_buffer_object(num_rows);
+
+	t->override_col = (vec3){1.0, 1.0, 1.0};
 
 	//The new tile origin will be the centroid of the three tile vertices.
 	t->centroid = (vertices[0] + vertices[1] + vertices[2]) / 3.0;

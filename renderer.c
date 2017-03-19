@@ -304,9 +304,11 @@ void render()
 			if (!t->buffered) //Last resort "BUFFER RIGHT NOW", will cause hiccups.
 				buffer_tri_tile(t);
 			amat4 tile_frame = {tri_frame.a, space_sector_position_relative_to_sector(test_planet.pos, test_planet.sector + t->sector, eye_sector)};
+			glUniform3fv(effects.forward.override_col, 1, (float *)&t->override_col);
 			draw_forward(&effects.forward, t->bg, tile_frame);
 			checkErrors("After drawing a tri_tile");
 		}
+		glUniform3f(effects.forward.override_col, 1.0, 1.0, 1.0);
 
 		checkErrors("After drawing into depth");
 		glUniform1i(effects.forward.ambient_pass, 0);
