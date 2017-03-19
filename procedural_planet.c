@@ -10,6 +10,7 @@
 #include "terrain_constants.h"
 #include "math/space_sector.h"
 #include "macros.h"
+#include "input_event.h" //For controller hotkeys
 
 //Adapted from http://www.glprogramming.com/red/chapter02.html
 
@@ -31,6 +32,15 @@ static const GLuint ico_i[] = {
 	6,1,10,  9,0,11,  9,11,2,  9,2,5,   7,2,11
 };
 
+vec3 primary_color_by_depth[] = {
+	{1.0, 0.0, 0.0}, //Red
+	{0.5, 0.5, 0.0}, //Yellow
+	{0.0, 1.0, 0.0}, //Green
+	{0.0, 0.5, 0.5}, //Cyan
+	{0.0, 0.0, 1.0}, //Blue
+	{0.5, 0.0, 0.5}, //Purple
+};
+
 const vec3 proc_planet_up = (vec3){z/3, (z+z+x)/3, 0}; //Centroid of ico_i[3]
 const vec3 proc_planet_not_up = (vec3){-(z+z+x)/3, z/3, 0};
 
@@ -44,47 +54,20 @@ tri_tile * tree_tile(terrain_tree_node *tree)
 extern float screen_width;
 //I can remove some arguments to this and replace them with a single scale factor.
 //This argument could be easily adjusted if I want some empirical pixel size per tri.
-static int subdivisions_per_distance(float distance, float scale)
+static int subdivisions_per_distance(double distance, double scale)
 {
-	return fmin(log2(scale/distance), MAX_SUBDIVISIONS);
+	return fmax(fmin(log2(scale/distance), MAX_SUBDIVISIONS), 0);
 }
 
-// static int dot_div_depth(vec3 tile_pos, vec3 planet_center, vec3 cam_pos)
-// {
-// 	float d = fmax(0, pow(vec3_dot(vec3_normalize(tile_pos - planet_center), vec3_normalize(cam_pos - planet_center)), 16));
-// 	return pow(MAX_SUBDIVISIONS, d);
-// }
-
-static float split_tile_radius(int depth, float base_length)
+static double split_tile_radius(int depth, double base_length)
 {
 	return base_length / pow(2, depth);
 }
 
 //Distance to the horizon with a planet radius R and elevation above sea level h, from Wikipedia.
-float distance_to_horizon(float R, float h)
+double distance_to_horizon(double R, double h)
 {
-	return sqrt(h * (2 * R + h));
-}
-
-static int subdivision_depth(terrain_tree_node *tree, dvec3 cam_pos, proc_planet *planet)
-{
-	//If negative, we're below sea level.
-	float h = dvec3_mag(cam_pos) - planet->radius;
-	//Don't handle "within the planet" case yet.
-	float d = distance_to_horizon(planet->radius, fmax(h, 0));
-	//Don't subdivide if the tile center is "tile radius" distance beyond the horizon.
-	float tile_radius = split_tile_radius(tree->depth, planet->edge_len);
-	//printf("Tile dist, horizon dist, depth: %10f, %10f, %i\n", tree->dist - tile_radius, d, tree->depth);
-	if (tree->dist - tile_radius > d) {
-		tree_tile(tree)->override_col = (vec3){0.0, 1.0, 0.0};
-		return 0;
-	} else {
-		tree_tile(tree)->override_col = (vec3){1.0, 1.0, 1.0};
-	}
-
-	float scale = (screen_width * planet->edge_len) / (2 * 40 * DEFAULT_NUM_TRI_TILE_ROWS);
-
-	return subdivisions_per_distance(fmax(h, 0), scale);
+	return sqrt(2*R*h + h*h);
 }
 
 int terrain_tree_example_subdiv(terrain_tree_node *tree, void *context)
@@ -100,30 +83,49 @@ int terrain_tree_example_subdiv(terrain_tree_node *tree, void *context)
 	 	return 0;
 
 	ctx->visited++;
-	if (ctx->visited > 200)
-		return 0;
+	// if (ctx->visited > 200)
+	// 	return 0;
 
 	tri_tile *tile = tree_tile(tree);
 	//The camera position and sector were provided relative to the planet, like the tile centroid and sector.
 	//Convert the camera position to be relative to the tile, and store the distance from camera to tile in the tree node.
 	//printf("Cam: "); vec3_print(space_sector_position_relative_to_sector(ctx->cam_pos, ctx->cam_sec, tile->sector)); printf(", Centroid: "); vec3_print(tile->centroid); printf("\n");
-	dvec3 dcent = {tile->centroid.x, tile->centroid.y, tile->centroid.z};
+	dvec3 dtile = {tile->centroid.x, tile->centroid.y, tile->centroid.z};
+	dtile = space_sector_dposition_relative_to_sector(dtile, tile->sector, (space_sector){0, 0, 0});
 	dvec3 dcam = {ctx->cam_pos.x, ctx->cam_pos.y, ctx->cam_pos.z};
-	tree->dist = dvec3_dist(dcent, space_sector_dposition_relative_to_sector(dcam, ctx->cam_sec, tile->sector));
 
 	//This calculation might be hitting the limits of floating-point precision; the center of the planet is simply too far from the camera.
 	dcam = space_sector_dposition_relative_to_sector(dcam, ctx->cam_sec, (space_sector){0, 0, 0});
-	return subdivision_depth(tree, dcam, ctx->planet);
-}
+	dvec3 surface = dcam * ctx->planet->radius/dvec3_mag(dcam);
+	double tile_dist = dvec3_dist(surface, dtile) - split_tile_radius(tree->depth, ctx->planet->edge_len);
 
-vec3 primary_color_by_depth[] = {
-	{1.0, 0.0, 0.0}, //Red
-	{0.5, 0.5, 0.0}, //Yellow
-	{0.0, 1.0, 0.0}, //Green
-	{0.0, 0.5, 0.5}, //Cyan
-	{0.0, 0.0, 1.0}, //Blue
-	{0.5, 0.0, 0.5}, //Purple
-};
+	//If negative, we're below sea level.
+	double h = dvec3_mag(dcam) - ctx->planet->radius;
+	//Don't handle "within the planet" case yet.
+	double d = distance_to_horizon(ctx->planet->radius, fmax(h, 0));
+	//Don't subdivide if the tile center is "tile radius" distance beyond the horizon.
+	//printf("Tile dist, horizon dist, depth: %10f, %10f, %i\n", tree->dist - tile_radius, d, tree->depth);
+
+	double scale = (screen_width * ctx->planet->edge_len) / (2 * PIXELS_PER_TRI * DEFAULT_NUM_TRI_TILE_ROWS);
+	double distance_used = INFINITY;
+	if (h > tile_dist) {
+		distance_used = h;
+		tree_tile(tree)->override_col = (vec3){0.2, 0.2, 1.0}; //Color the tile blue for debug.
+	} else {
+		distance_used = tile_dist;
+		tree_tile(tree)->override_col = (vec3){1.0, 0.2, 0.2}; //Color the tile red for debug.
+	}
+
+	if (tile_dist > d) {
+		tree_tile(tree)->override_col = (vec3){0.2, 1.0, 0.2}; //Color the tile green for debug.
+		return 0;
+	}
+
+	if (nes30_buttons[INPUT_BUTTON_START])
+		tree_tile(tree)->override_col = primary_color_by_depth[tree_tile(tree)->depth % LENGTH(primary_color_by_depth)];
+
+	return subdivisions_per_distance(distance_used, scale);
+}
 
 tri_tile * proc_planet_vertices_and_normals(tri_tile *t, height_map_func height, vec3 planet_pos, float noise_radius, float amplitude)
 {

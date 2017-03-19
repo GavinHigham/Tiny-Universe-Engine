@@ -22,7 +22,7 @@ called on the void * tile member to generate split tiles for each child.
 
 typedef struct dynamic_terrain_tree_node {
 	int depth;
-	double dist; //Just keep around while I adapt the code, remove later.
+	//double dist; //Just keep around while I adapt the code, remove later. //TODO: Completely remove this.
 	void *tile;
 	struct dynamic_terrain_tree_node *children[TERRAIN_TREE_NUM_CHILDREN];
 } terrain_tree_node;
