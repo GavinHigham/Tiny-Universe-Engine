@@ -226,9 +226,9 @@ float tri_tile_vertex_position_and_normal(height_map_func height, vec3 basis_x, 
 		vec3 discard;
 
 		//Find procedural heights, and add them.
-		pos1      = basis_y * height(pos1, &discard) + pos1;
-		pos2      = basis_y * height(pos2, &discard) + pos2;
-		*position = basis_y * height(*position, &discard) + *position;
+		pos1      = basis_y * height(osnctx, pos1, &discard) + pos1;
+		pos2      = basis_y * height(osnctx, pos2, &discard) + pos2;
+		*position = basis_y * height(osnctx, *position, &discard) + *position;
 		//Compute the normal.
 		*normal = vec3_normalize(vec3_cross(pos1 - *position, pos2 - *position));
 		return position->y;

@@ -18,9 +18,12 @@ typedef struct procedural_planet {
 	float noise_radius;
 	float amplitude;
 	float edge_len;
+	//TODO: Consolidate these.
 	vec3 colors[3];
+	vec3 color_family;
 	terrain_tree_node *tiles[NUM_ICOSPHERE_FACES];
 	height_map_func height;
+	struct osn_context *osnctx;
 } proc_planet;
 
 struct planet_terrain_context {
@@ -31,9 +34,9 @@ struct planet_terrain_context {
 	int visited;
 };
 
-proc_planet * proc_planet_new(float radius, height_map_func height);
+proc_planet * proc_planet_new(float radius, height_map_func height, vec3 color_family);
 void proc_planet_free(proc_planet *p);
 void proc_planet_drawlist(proc_planet *p, terrain_tree_drawlist *list, vec3 camera_position, space_sector camera_sector);
-float proc_planet_height(vec3 pos, vec3 *variety);
+float proc_planet_height(struct osn_context *ctx, vec3 pos, vec3 *variety);
 
 #endif

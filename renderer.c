@@ -25,7 +25,7 @@
 
 static bool renderer_is_init = false;
 static bool renderer_should_reload = false;
-float FOV = M_PI/3.0;
+float FOV = M_PI/2.7;
 float far_distance = 1000000000;
 float near_distance = 1;
 int PRIMITIVE_RESTART_INDEX = 0xFFFFFFFF;
@@ -54,14 +54,25 @@ struct point_light_attributes point_lights = {.num_lights = 0};
 
 const float planet_radius = 6000000;
 
+//This is awful and I should change it.
 struct {
 	vec3 pos;
 	space_sector sector;
 	proc_planet *planet;
-} test_planet = {
-	{0, 0, 0},
-	{0, 0, 0},
-	NULL
+	vec3 col;
+} test_planets[] = {
+	{
+		{0, 0, 0},
+		{0, 0, 0},
+		NULL,
+		{1.0, 0.7, 0.7},
+	},
+	{
+		{0, 0, 0},
+		{-350, 88, -13800},
+		NULL,
+		{0.5, 0.7, 0.9},
+	},
 };
 
 struct ship_physics ship = {
@@ -73,7 +84,7 @@ struct ship_physics ship = {
 	.eased_camera  = {.a = MAT3_IDENT, .t = {0, 4, 8}},
 	.locked_camera_target = (vec3){0, 0, -4},
 	.eased_camera_target  = (vec3){0, 0, -4},
-	.sector               = (space_sector){0, 0, 0}
+	.sector               = (space_sector){0, 400, 0}
 };
 
 GLfloat proj_mat[16];
@@ -105,7 +116,9 @@ static void init_models()
 	for (int i = 0; i < LENGTH(drawables); i++)
 		init_heap_drawable(drawables[i].drawable, drawables[i].draw, drawables[i].effect, drawables[i].frame, drawables[i].sector, drawables[i].buffering_function);
 
-	test_planet.planet = proc_planet_new(planet_radius, proc_planet_height);
+	test_planets[0].planet = proc_planet_new(planet_radius, proc_planet_height, test_planets[0].col);
+	test_planets[1].planet = proc_planet_new(planet_radius * 1.7, proc_planet_height, test_planets[1].col);
+
 	space_sector_canonicalize(&ship.position.t, &ship.sector);
 }
 
@@ -114,7 +127,8 @@ static void deinit_models()
 	for (int i = 0; i < LENGTH(drawables); i++)
 		deinit_drawable(drawables[i].drawable);
 
-	proc_planet_free(test_planet.planet);
+	for (int i = 0; i < LENGTH(test_planets); i++)
+		proc_planet_free(test_planets[i].planet);
 }
 
 static void init_lights()
@@ -242,7 +256,10 @@ static Drawable *pvs[] = {};//{&d_ship};
 void render()
 {
 	terrain_tree_drawlist terrain_list = NULL;
-	proc_planet_drawlist(test_planet.planet, &terrain_list, eye_frame.t - test_planet.pos, eye_sector - test_planet.sector);
+	terrain_tree_drawlist terrain_list2 = NULL;
+	proc_planet_drawlist(test_planets[0].planet, &terrain_list, eye_frame.t - test_planets[0].pos, eye_sector - test_planets[0].sector);
+	proc_planet_drawlist(test_planets[1].planet, &terrain_list2, eye_frame.t - test_planets[1].pos, eye_sector - test_planets[1].sector);
+
 	//float h = vec3_dist(eye_frame.t, test_planet->pos) - test_planet->radius; //If negative, we're below sea level.
 	//printf("Height: %f\n", h);
 	static float hella_time = 0.0;
@@ -298,16 +315,26 @@ void render()
 
 		//glDisable(GL_CULL_FACE);
 
-		//Draw procedural planet
+		//Draw procedural planets
 		for (terrain_tree_drawlist l = terrain_list; l; l = l->next) {
 			tri_tile *t = l->tile;
 			if (!t->buffered) //Last resort "BUFFER RIGHT NOW", will cause hiccups.
 				buffer_tri_tile(t);
-			amat4 tile_frame = {tri_frame.a, space_sector_position_relative_to_sector(test_planet.pos, test_planet.sector + t->sector, eye_sector)};
+			amat4 tile_frame = {tri_frame.a, space_sector_position_relative_to_sector(test_planets[0].pos, test_planets[0].sector + t->sector, eye_sector)};
 			glUniform3fv(effects.forward.override_col, 1, (float *)&t->override_col);
 			draw_forward(&effects.forward, t->bg, tile_frame);
 			checkErrors("After drawing a tri_tile");
 		}
+		for (terrain_tree_drawlist l = terrain_list2; l; l = l->next) {
+			tri_tile *t = l->tile;
+			if (!t->buffered) //Last resort "BUFFER RIGHT NOW", will cause hiccups.
+				buffer_tri_tile(t);
+			amat4 tile_frame = {tri_frame.a, space_sector_position_relative_to_sector(test_planets[1].pos, test_planets[1].sector + t->sector, eye_sector)};
+			glUniform3fv(effects.forward.override_col, 1, (float *)&t->override_col);
+			draw_forward(&effects.forward, t->bg, tile_frame);
+			checkErrors("After drawing a tri_tile");
+		}
+
 		glUniform3f(effects.forward.override_col, 1.0, 1.0, 1.0);
 
 		checkErrors("After drawing into depth");
@@ -387,6 +414,7 @@ void render()
 	draw_stars();
 
 	terrain_tree_drawlist_free(terrain_list);
+	terrain_tree_drawlist_free(terrain_list2);
 
 	checkErrors("After forward junk");
 }

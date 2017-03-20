@@ -46,6 +46,7 @@ const vec3 proc_planet_up = (vec3){z/3, (z+z+x)/3, 0}; //Centroid of ico_i[3]
 const vec3 proc_planet_not_up = (vec3){-(z+z+x)/3, z/3, 0};
 extern float screen_width;
 extern struct osn_context *osnctx;
+static int64_t planet_seed = 1;
 
 // Static Functions //
 
@@ -127,8 +128,9 @@ int proc_planet_split_depth(terrain_tree_node *tree, void *context)
 //position: In/Out, the starting and ending position of the vertex.
 //normal: Output for the normal of the vertex.
 //Returns the "height", or displacement along basis_y.
-float position_normal_color(height_map_func height, vec3 basis_x, vec3 basis_y, vec3 basis_z, float epsilon, vec3 *position, vec3 *normal, vec3 *color)
+float position_normal_color(struct osn_context *ctx, height_map_func height, vec3 basis_x, vec3 basis_y, vec3 basis_z, float epsilon, vec3 *position, vec3 *normal, vec3 *color)
 {
+	//TODO: Move these into the planet struct.
 	vec3 orangy = (vec3){203, 123, 78} / 255;
 	vec3 greyish = (vec3){77, 110, 159} / 255;
 	vec3 blueish = (vec3){96, 106, 87} / 255;
@@ -139,9 +141,9 @@ float position_normal_color(height_map_func height, vec3 basis_x, vec3 basis_y, 
 
 	vec3 color1, color2, c;
 	//Find procedural heights, and add them.
-	pos1      = basis_y * height(pos1, &color1) + pos1;
-	pos2      = basis_y * height(pos2, &color2) + pos2;
-	*position = basis_y * height(*position, &c) + *position;
+	pos1      = basis_y * height(ctx, pos1, &color1) + pos1;
+	pos2      = basis_y * height(ctx, pos2, &color2) + pos2;
+	*position = basis_y * height(ctx, *position, &c) + *position;
 	//Compute the normal.
 	*normal = vec3_normalize(vec3_cross(pos1 - *position, pos2 - *position));
 	c = (c + 1) / 2;
@@ -149,12 +151,11 @@ float position_normal_color(height_map_func height, vec3 basis_x, vec3 basis_y, 
 	return position->y;
 }
 
-tri_tile * proc_planet_vertices_and_normals(tri_tile *t, height_map_func height, vec3 planet_pos, float noise_radius, float amplitude)
+tri_tile * proc_planet_vertices_and_normals(struct osn_context *ctx, vec3 primary_color, tri_tile *t, height_map_func height, vec3 planet_pos, float noise_radius, float amplitude)
 {
 	vec3 brownish = {0.30, .27, 0.21};
 	//vec3 whiteish = {0.96, .94, 0.96};
 	vec3 orangeish = (vec3){255, 181, 112} / 255;
-	vec3 primary_color = {1, 1, 1}; //White //primary_color_by_depth[t->depth % LENGTH(primary_color_by_depth)];
 	float epsilon = noise_radius / 100000; //TODO: Check this value or make it empirical somehow.
 	for (int i = 0; i < t->num_vertices; i++) {
 		//Points towards vertex from planet origin
@@ -170,7 +171,7 @@ tri_tile * proc_planet_vertices_and_normals(tri_tile *t, height_map_func height,
 		vec3 y = vec3_normalize(pos);
 
 		//Calculate position and normal on a sphere of noise_radius radius.
-		position_normal_color(height, x, y, z, epsilon, &noise_surface, &t->normals[i], &t->colors[i]);
+		position_normal_color(ctx, height, x, y, z, epsilon, &noise_surface, &t->normals[i], &t->colors[i]);
 		//Scale back up to planet size.
 		t->positions[i] = noise_surface * (m/noise_radius) + planet_pos;
 		//TODO: Create much more interesting colors.
@@ -196,7 +197,7 @@ void proc_planet_finishing_touches(tri_tile *t, void *finishing_touches_context)
 	reproject_vertices_to_spherical(t->positions, t->num_vertices, planet_pos, p->radius);
 	//Apply perturbations to the surface and calculate normals.
 	//Since noise doesn't compute well on huge planets, noise is calculated on a simulated smaller planet and scaled up.
-	proc_planet_vertices_and_normals(t, p->height, planet_pos, p->noise_radius, p->amplitude);
+	proc_planet_vertices_and_normals(p->osnctx, p->color_family, t, p->height, planet_pos, p->noise_radius, p->amplitude);
 }
 
 void tri_tile_split(tri_tile *t, tri_tile **out[DEFAULT_NUM_TRI_TILE_DIVS], void *context)
@@ -226,38 +227,38 @@ void tri_tile_split(tri_tile *t, tri_tile **out[DEFAULT_NUM_TRI_TILE_DIVS], void
 	printf("Dividing %p, depth %i into %d new tiles.\n", t, t->depth, DEFAULT_NUM_TRI_TILE_DIVS);
 }
 
-float fbm(vec3 p)
+float fbm(struct osn_context *ctx, vec3 p)
 {
 	return open_simplex_noise3(osnctx, p.x, p.y, p.z);
 }
 
-float distorted_height(vec3 pos, vec3 *variety)
+float distorted_height(struct osn_context *ctx, vec3 pos, vec3 *variety)
 {
 	vec3 a = {5.4, 2.08, 1.3};
 	vec3 b = {13.8, 7.9, 2.1};
 
 	vec3 h1 = {
-		fbm(pos),
-		fbm(pos + a),
-		fbm(pos + b)
+		fbm(ctx, pos),
+		fbm(ctx, pos + a),
+		fbm(ctx, pos + b)
 	};
 	vec3 h2 = {
-		fbm(pos + 3*h1),
-		fbm(pos + 2*h1 + a),
-		fbm(pos + 1*h1 + b)
+		fbm(ctx, pos + 3*h1),
+		fbm(ctx, pos + 2*h1 + a),
+		fbm(ctx, pos + 1*h1 + b)
 	};
 
 	*variety = h1 + h2 / 2;
-	return fbm(pos + 0.7*h2);
+	return fbm(ctx, pos + 0.7*h2);
 }
 
-float proc_planet_height(vec3 pos, vec3 *variety)
+float proc_planet_height(struct osn_context *ctx, vec3 pos, vec3 *variety)
 {
 	pos = pos * 0.001;
 	vec3 v1, v2;
 	float height = (
-		distorted_height(pos, &v1) +
-		distorted_height(pos * 2, &v2)
+		distorted_height(ctx, pos, &v1) +
+		distorted_height(ctx, pos * 2, &v2)
 		) / 2;
 	*variety = (v1 + v2) / 2;
 	return TERRAIN_AMPLITUDE * height;
@@ -265,11 +266,12 @@ float proc_planet_height(vec3 pos, vec3 *variety)
 
 // Public Functions //
 
-proc_planet * proc_planet_new(float radius, height_map_func height)
+proc_planet * proc_planet_new(float radius, height_map_func height, vec3 color_family)
 {
 	proc_planet *p = malloc(sizeof(proc_planet));
 	p->radius = radius;
-	p->noise_radius = 6000; //TODO: Determine the largest reasonable noise radius, map input radius to a good range.
+	p->color_family = color_family; //TODO: Will eventually choose from a palette of good color combos.
+	p->noise_radius = radius/1000; //TODO: Determine the largest reasonable noise radius, map input radius to a good range.
 	p->amplitude = TERRAIN_AMPLITUDE; //TODO: Choose a good number, pass this through the chain of calls.
 	p->edge_len = radius / sin(2.0*M_PI/5.0);
 	printf("Edge len: %f\n", p->edge_len);
@@ -286,11 +288,15 @@ proc_planet * proc_planet_new(float radius, height_map_func height)
 		init_tri_tile((tri_tile *)p->tiles[i]->tile, verts, (space_sector){0, 0, 0}, DEFAULT_NUM_TRI_TILE_ROWS, &proc_planet_finishing_touches, p);
 	}
 
+	//TODO: Make this based on the position of the planet or something.
+	open_simplex_noise(planet_seed++, &p->osnctx);
+
 	return p;
 }
 
 void proc_planet_free(proc_planet *p)
 {
+	open_simplex_noise_free(p->osnctx);
 	for (int i = 0; i < NUM_ICOSPHERE_FACES; i++)
 		terrain_tree_free(p->tiles[i], (terrain_tree_free_fn)free_tri_tile);
 	free(p);

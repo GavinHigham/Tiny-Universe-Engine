@@ -4,9 +4,10 @@
 #include "glla.h"
 #include "buffer_group.h"
 #include "math/space_sector.h"
+#include "open-simplex-noise-in-c/open-simplex-noise.h"
 
 //Heightmap function pointers.
-typedef float (*height_map_func)(vec3, vec3 *);
+typedef float (*height_map_func)(struct osn_context *ctx, vec3, vec3 *);
 typedef vec3 (*position_map_func)(vec3);
 typedef struct triangular_terrain_tile tri_tile;
 
