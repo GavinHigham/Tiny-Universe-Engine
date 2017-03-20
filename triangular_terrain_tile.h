@@ -6,7 +6,7 @@
 #include "math/space_sector.h"
 
 //Heightmap function pointers.
-typedef float (*height_map_func)(vec3);
+typedef float (*height_map_func)(vec3, vec3 *);
 typedef vec3 (*position_map_func)(vec3);
 typedef struct triangular_terrain_tile tri_tile;
 

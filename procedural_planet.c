@@ -11,6 +11,7 @@
 #include "math/space_sector.h"
 #include "macros.h"
 #include "input_event.h" //For controller hotkeys
+#include "open-simplex-noise-in-c/open-simplex-noise.h"
 
 //Adapted from http://www.glprogramming.com/red/chapter02.html
 
@@ -43,6 +44,8 @@ vec3 primary_color_by_depth[] = {
 
 const vec3 proc_planet_up = (vec3){z/3, (z+z+x)/3, 0}; //Centroid of ico_i[3]
 const vec3 proc_planet_not_up = (vec3){-(z+z+x)/3, z/3, 0};
+extern float screen_width;
+extern struct osn_context *osnctx;
 
 // Static Functions //
 
@@ -51,86 +54,106 @@ tri_tile * tree_tile(terrain_tree_node *tree)
 	return (tri_tile *)tree->tile;
 }
 
-extern float screen_width;
-//I can remove some arguments to this and replace them with a single scale factor.
-//This argument could be easily adjusted if I want some empirical pixel size per tri.
-static int subdivisions_per_distance(double distance, double scale)
+static int splits_per_distance(float distance, float scale)
 {
 	return fmax(fmin(log2(scale/distance), MAX_SUBDIVISIONS), 0);
 }
 
-static double split_tile_radius(int depth, double base_length)
+static float split_tile_radius(int depth, float base_length)
 {
 	return base_length / pow(2, depth);
 }
 
 //Distance to the horizon with a planet radius R and elevation above sea level h, from Wikipedia.
-double distance_to_horizon(double R, double h)
+float distance_to_horizon(float R, float h)
 {
 	return sqrt(2*R*h + h*h);
 }
 
-int terrain_tree_example_subdiv(terrain_tree_node *tree, void *context)
+int proc_planet_split_depth(terrain_tree_node *tree, void *context)
 {
-    //return 0;
 	struct planet_terrain_context *ctx = (struct planet_terrain_context *)context;
+	tri_tile *tile = tree_tile(tree);
+	vec3 *debug_col = &tile->override_col;
+	ctx->visited++;
 
     //Cap the number of subdivisions per whole-tree traversal (per frame essentially)
-	//TODO: Check this expression, make sure it can't cause a whole-tree traversal by mistake.
 	if (tree->depth == 0)
 		ctx->splits_left = YIELD_AFTER_DIVS;
 	if (ctx->splits_left <= 0)
 	 	return 0;
 
-	ctx->visited++;
-	// if (ctx->visited > 200)
-	// 	return 0;
+	//Convert camera and tile position to planet-coordinates.
+	//These calculations might hit the limits of floating-point precision if the planet is really large.
+	vec3 tile_pos = space_sector_position_relative_to_sector(tile->centroid, tile->sector, (space_sector){0, 0, 0});
+	vec3 cam_pos = space_sector_position_relative_to_sector(ctx->cam_pos, ctx->cam_sec, (space_sector){0, 0, 0});;
+	vec3 surface_pos = cam_pos * ctx->planet->radius/vec3_mag(cam_pos);
 
-	tri_tile *tile = tree_tile(tree);
-	//The camera position and sector were provided relative to the planet, like the tile centroid and sector.
-	//Convert the camera position to be relative to the tile, and store the distance from camera to tile in the tree node.
-	//printf("Cam: "); vec3_print(space_sector_position_relative_to_sector(ctx->cam_pos, ctx->cam_sec, tile->sector)); printf(", Centroid: "); vec3_print(tile->centroid); printf("\n");
-	dvec3 dtile = {tile->centroid.x, tile->centroid.y, tile->centroid.z};
-	dtile = space_sector_dposition_relative_to_sector(dtile, tile->sector, (space_sector){0, 0, 0});
-	dvec3 dcam = {ctx->cam_pos.x, ctx->cam_pos.y, ctx->cam_pos.z};
+	float altitude = vec3_mag(cam_pos) - ctx->planet->radius;
+	float tile_dist = vec3_dist(surface_pos, tile_pos) - split_tile_radius(tree->depth, ctx->planet->edge_len);
+	float horizon_dist = distance_to_horizon(ctx->planet->radius, fmax(altitude, 0));
 
-	//This calculation might be hitting the limits of floating-point precision; the center of the planet is simply too far from the camera.
-	dcam = space_sector_dposition_relative_to_sector(dcam, ctx->cam_sec, (space_sector){0, 0, 0});
-	dvec3 surface = dcam * ctx->planet->radius/dvec3_mag(dcam);
-	double tile_dist = dvec3_dist(surface, dtile) - split_tile_radius(tree->depth, ctx->planet->edge_len);
-
-	//If negative, we're below sea level.
-	double h = dvec3_mag(dcam) - ctx->planet->radius;
-	//Don't handle "within the planet" case yet.
-	double d = distance_to_horizon(ctx->planet->radius, fmax(h, 0));
-	//Don't subdivide if the tile center is "tile radius" distance beyond the horizon.
-	//printf("Tile dist, horizon dist, depth: %10f, %10f, %i\n", tree->dist - tile_radius, d, tree->depth);
-
-	double scale = (screen_width * ctx->planet->edge_len) / (2 * PIXELS_PER_TRI * DEFAULT_NUM_TRI_TILE_ROWS);
-	double distance_used = INFINITY;
-	if (h > tile_dist) {
-		distance_used = h;
-		tree_tile(tree)->override_col = (vec3){0.2, 0.2, 1.0}; //Color the tile blue for debug.
-	} else {
-		distance_used = tile_dist;
-		tree_tile(tree)->override_col = (vec3){1.0, 0.2, 0.2}; //Color the tile red for debug.
-	}
-
-	if (tile_dist > d) {
-		tree_tile(tree)->override_col = (vec3){0.2, 1.0, 0.2}; //Color the tile green for debug.
+	if (tile_dist > horizon_dist) {
+		if (nes30_buttons[INPUT_BUTTON_SELECT])
+			*debug_col = (vec3){0.2, 1.0, 0.2}; //Color the tile green for debug.
+		else
+			*debug_col = (vec3){1.0, 1.0, 1.0};
 		return 0;
 	}
 
-	if (nes30_buttons[INPUT_BUTTON_START])
-		tree_tile(tree)->override_col = primary_color_by_depth[tree_tile(tree)->depth % LENGTH(primary_color_by_depth)];
+	float subdiv_dist = INFINITY;
+	if (altitude > tile_dist) {
+		subdiv_dist = altitude;
+		*debug_col = (vec3){0.2, 0.2, 1.0}; //Color the tile blue for debug.
+	} else {
+		subdiv_dist = tile_dist;
+		*debug_col = (vec3){1.0, 0.2, 0.2}; //Color the tile red for debug.
+	}
 
-	return subdivisions_per_distance(distance_used, scale);
+	float scale_factor = (screen_width * ctx->planet->edge_len) / (2 * PIXELS_PER_TRI * DEFAULT_NUM_TRI_TILE_ROWS);
+	int depth = splits_per_distance(subdiv_dist, scale_factor);
+
+	if (nes30_buttons[INPUT_BUTTON_START])
+		*debug_col = primary_color_by_depth[depth % LENGTH(primary_color_by_depth)];
+	else
+		*debug_col = (vec3){1.0, 1.0, 1.0};
+
+	return depth;
+}
+
+//Using height, take position and distort it along the basis vectors, and compute its normal.
+//height: A heightmap function which will affect the final position of the vertex along the basis_y vector.
+//basis x, basis_y, basis_z: Basis vectors for the vertex.
+//position: In/Out, the starting and ending position of the vertex.
+//normal: Output for the normal of the vertex.
+//Returns the "height", or displacement along basis_y.
+float position_normal_color(height_map_func height, vec3 basis_x, vec3 basis_y, vec3 basis_z, float epsilon, vec3 *position, vec3 *normal, vec3 *color)
+{
+	vec3 orangy = (vec3){203, 123, 78} / 255;
+	vec3 greyish = (vec3){77, 110, 159} / 255;
+	vec3 blueish = (vec3){96, 106, 87} / 255;
+
+	//Create two points, scootched out along the basis vectors.
+	vec3 pos1 = basis_x * epsilon + *position;
+	vec3 pos2 = basis_z * epsilon + *position;
+
+	vec3 color1, color2, c;
+	//Find procedural heights, and add them.
+	pos1      = basis_y * height(pos1, &color1) + pos1;
+	pos2      = basis_y * height(pos2, &color2) + pos2;
+	*position = basis_y * height(*position, &c) + *position;
+	//Compute the normal.
+	*normal = vec3_normalize(vec3_cross(pos1 - *position, pos2 - *position));
+	c = (c + 1) / 2;
+	*color = c.x * blueish + c.y * orangy * 3 + c.z * greyish;
+	return position->y;
 }
 
 tri_tile * proc_planet_vertices_and_normals(tri_tile *t, height_map_func height, vec3 planet_pos, float noise_radius, float amplitude)
 {
 	vec3 brownish = {0.30, .27, 0.21};
-	vec3 whiteish = {0.96, .94, 0.96};
+	//vec3 whiteish = {0.96, .94, 0.96};
+	vec3 orangeish = (vec3){255, 181, 112} / 255;
 	vec3 primary_color = {1, 1, 1}; //White //primary_color_by_depth[t->depth % LENGTH(primary_color_by_depth)];
 	float epsilon = noise_radius / 100000; //TODO: Check this value or make it empirical somehow.
 	for (int i = 0; i < t->num_vertices; i++) {
@@ -147,11 +170,11 @@ tri_tile * proc_planet_vertices_and_normals(tri_tile *t, height_map_func height,
 		vec3 y = vec3_normalize(pos);
 
 		//Calculate position and normal on a sphere of noise_radius radius.
-		tri_tile_vertex_position_and_normal(height, x, y, z, epsilon, &noise_surface, &t->normals[i]);
+		position_normal_color(height, x, y, z, epsilon, &noise_surface, &t->normals[i], &t->colors[i]);
 		//Scale back up to planet size.
 		t->positions[i] = noise_surface * (m/noise_radius) + planet_pos;
 		//TODO: Create much more interesting colors.
-		t->colors[i] = primary_color * vec3_lerp(brownish, whiteish, fmax((vec3_dist(noise_surface, (vec3){0,0,0}) - noise_radius) / amplitude, 0.0));
+		t->colors[i] *= primary_color * vec3_lerp(brownish, orangeish, fmax((vec3_dist(noise_surface, (vec3){0,0,0}) - noise_radius) / amplitude, 0.0));
 	}
 	return t;
 }
@@ -203,6 +226,43 @@ void tri_tile_split(tri_tile *t, tri_tile **out[DEFAULT_NUM_TRI_TILE_DIVS], void
 	printf("Dividing %p, depth %i into %d new tiles.\n", t, t->depth, DEFAULT_NUM_TRI_TILE_DIVS);
 }
 
+float fbm(vec3 p)
+{
+	return open_simplex_noise3(osnctx, p.x, p.y, p.z);
+}
+
+float distorted_height(vec3 pos, vec3 *variety)
+{
+	vec3 a = {5.4, 2.08, 1.3};
+	vec3 b = {13.8, 7.9, 2.1};
+
+	vec3 h1 = {
+		fbm(pos),
+		fbm(pos + a),
+		fbm(pos + b)
+	};
+	vec3 h2 = {
+		fbm(pos + 3*h1),
+		fbm(pos + 2*h1 + a),
+		fbm(pos + 1*h1 + b)
+	};
+
+	*variety = h1 + h2 / 2;
+	return fbm(pos + 0.7*h2);
+}
+
+float proc_planet_height(vec3 pos, vec3 *variety)
+{
+	pos = pos * 0.001;
+	vec3 v1, v2;
+	float height = (
+		distorted_height(pos, &v1) +
+		distorted_height(pos * 2, &v2)
+		) / 2;
+	*variety = (v1 + v2) / 2;
+	return TERRAIN_AMPLITUDE * height;
+}
+
 // Public Functions //
 
 proc_planet * proc_planet_new(float radius, height_map_func height)
@@ -245,20 +305,13 @@ void proc_planet_drawlist(proc_planet *p, terrain_tree_drawlist *list, vec3 cam_
 		.planet = p,
 		.visited = 0
 	};
-
-	vec3 cam_pos = space_sector_position_relative_to_sector(cam_pos_offset, cam_sector_offset, (space_sector){0, 0, 0});
-
 	//TODO: Check the distance here and draw an imposter instead of the whole planet if it's far enough.
 
 	for (int i = 0; i < NUM_ICOSPHERE_FACES; i++) {
-		tri_tile *t = tree_tile(p->tiles[i]);
-		//Ignore tiles that are facing away from the camera. Can remove when my horizon check is working right.
-		if (vec3_dot(t->normal, vec3_normalize(cam_pos)) > -0.1) {
-			terrain_tree_gen(p->tiles[i], terrain_tree_example_subdiv, (terrain_tree_split_fn)tri_tile_split, &context);
-			terrain_tree_drawlist_new(p->tiles[i], terrain_tree_example_subdiv, &context, list);
-			//terrain_tree_prune(p->tiles[i], terrain_tree_example_subdiv, &context, (terrain_tree_free_fn)free_tri_tile);
-		}
+		terrain_tree_gen(p->tiles[i], proc_planet_split_depth, (terrain_tree_split_fn)tri_tile_split, &context);
+		terrain_tree_drawlist_new(p->tiles[i], proc_planet_split_depth, &context, list);
+		terrain_tree_prune(p->tiles[i], proc_planet_split_depth, &context, (terrain_tree_free_fn)free_tri_tile);
 	}
 
-	printf("%d\n", context.visited);
+	//printf("%d\n", context.visited);
 }

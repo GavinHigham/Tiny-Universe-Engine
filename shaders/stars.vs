@@ -34,6 +34,13 @@ void main()
 	//gl_PointSize = 10;//(1-(star_dist / (0.7*stars_radius))) + 2;
 	float index = (gl_VertexID / 40000);
 	gl_PointSize = 5;
-	fcol = vec3(1.0);
+	vec3 teal = vec3(0, 0.9, 0.7);
+	vec3 blue = vec3(0, 0.1, 0.98);
+	vec3 white = vec3(1.0);
+	fcol = (
+		0.5*(1 + sin(sector_coords.x)) * teal + 
+		0.5*(1 + sin(sector_coords.y)) * blue +
+		0.5*(1 + sin(sector_coords.z)) * white) / 2.1;
+
 	fpos = vpos;
 }

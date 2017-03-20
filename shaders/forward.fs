@@ -25,6 +25,10 @@ in vec3 fNormal;
 
 out vec4 LFragment;
 
+float rand(vec2 co){
+    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+}
+
 void point_light_fragment(in vec3 l, in vec3 v, in vec3 normal, out float specular, out float diffuse)
 {
 	vec3 h = normalize(l + v); //Halfway vector.

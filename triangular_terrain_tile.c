@@ -223,10 +223,12 @@ float tri_tile_vertex_position_and_normal(height_map_func height, vec3 basis_x, 
 		//Create two points, scootched out along the basis vectors.
 		vec3 pos1 = basis_x * epsilon + *position;
 		vec3 pos2 = basis_z * epsilon + *position;
+		vec3 discard;
+
 		//Find procedural heights, and add them.
-		pos1      = basis_y * height(pos1) + pos1;
-		pos2      = basis_y * height(pos2) + pos2;
-		*position = basis_y * height(*position) + *position;
+		pos1      = basis_y * height(pos1, &discard) + pos1;
+		pos2      = basis_y * height(pos2, &discard) + pos2;
+		*position = basis_y * height(*position, &discard) + *position;
 		//Compute the normal.
 		*normal = vec3_normalize(vec3_cross(pos1 - *position, pos2 - *position));
 		return position->y;

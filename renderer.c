@@ -105,7 +105,7 @@ static void init_models()
 	for (int i = 0; i < LENGTH(drawables); i++)
 		init_heap_drawable(drawables[i].drawable, drawables[i].draw, drawables[i].effect, drawables[i].frame, drawables[i].sector, drawables[i].buffering_function);
 
-	test_planet.planet = proc_planet_new(planet_radius, tri_height_map);
+	test_planet.planet = proc_planet_new(planet_radius, proc_planet_height);
 	space_sector_canonicalize(&ship.position.t, &ship.sector);
 }
 
@@ -237,7 +237,7 @@ static void forward_update_point_light(EFFECT *effect, struct point_light_attrib
 
 //Eventually I'll have an algorithm to calculate potential visible set, etc.
 //static Drawable *pvs[] = {&d_newship, &d_room};
-static Drawable *pvs[] = {&d_ship};
+static Drawable *pvs[] = {};//{&d_ship};
 
 void render()
 {
@@ -296,7 +296,7 @@ void render()
 		for (int i = 0; i < LENGTH(pvs); i++)
 			draw_drawable(pvs[i]);
 
-		glDisable(GL_CULL_FACE);
+		//glDisable(GL_CULL_FACE);
 
 		//Draw procedural planet
 		for (terrain_tree_drawlist l = terrain_list; l; l = l->next) {
