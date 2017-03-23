@@ -78,7 +78,7 @@ int proc_planet_split_depth(terrain_tree_node *tree, void *context)
 	vec3 *debug_col = &tile->override_col;
 	ctx->visited++;
 
-    //Cap the number of subdivisions per whole-tree traversal (per frame essentially)
+	//Cap the number of subdivisions per whole-tree traversal (per frame essentially)
 	if (tree->depth == 0)
 		ctx->splits_left = YIELD_AFTER_DIVS;
 	if (ctx->splits_left <= 0)

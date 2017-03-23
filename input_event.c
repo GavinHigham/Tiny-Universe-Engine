@@ -50,7 +50,7 @@ void input_event_device_arrival(int which)
 void push_quit()
 {
 	SDL_Event event;
-    event.type = SDL_QUIT;
+	event.type = SDL_QUIT;
 
     SDL_PushEvent(&event); //If it fails, the quit keypress was just eaten ¯\_(ツ)_/¯
 }
