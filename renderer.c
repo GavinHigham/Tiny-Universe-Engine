@@ -2,7 +2,6 @@
 #include <math.h>
 #include <assert.h>
 #include <string.h>
-#include <GL/glew.h>
 #include "glla.h"
 #include "renderer.h"
 #include "models/models.h"
@@ -22,12 +21,14 @@
 #include "triangular_terrain_tile.h"
 #include "ship_control.h"
 #include "math/space_sector.h"
+#include "debug_graphics.h"
 
 static bool renderer_is_init = false;
 static bool renderer_should_reload = false;
 float FOV = M_PI/2.7;
-float far_distance = 1000000000;
+float far_distance = 10000000;
 float near_distance = 1;
+float log_depth_intermediate_factor = NAN; //Needs to be set in init.
 int PRIMITIVE_RESTART_INDEX = 0xFFFFFFFF;
 
 float screen_width = SCREEN_WIDTH;
@@ -38,7 +39,6 @@ amat4 inv_eye_frame;
 amat4 eye_frame = {.a = MAT3_IDENT,  .t = {6, 0, 0}};
 space_sector eye_sector = {0, 0, 0};
 //Object frames. Need a better system for this.
-amat4 ship_frame = {.a = MAT3_IDENT, .t = {-2.5, 0, -8}};
 amat4 room_frame = {.a = MAT3_IDENT, .t = {0, -4, -8}};
 amat4 grid_frame = {.a = MAT3_IDENT, .t = {-50, -90, -550}};
 amat4 tri_frame  = {.a = MAT3_IDENT, .t = {0, 0, 0}};
@@ -157,6 +157,7 @@ void renderer_init()
 {
 	if (renderer_is_init)
 		return;
+
 	glUseProgram(0);
 	glClearDepth(1);
 	//glEnable(GL_DEPTH_TEST);
@@ -165,6 +166,7 @@ void renderer_init()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 	make_projection_matrix(FOV, screen_width/screen_height, -1, -far_distance, proj_mat, LENGTH(proj_mat));
+	log_depth_intermediate_factor = 2.0/log2(far_distance + 1.0);
 
 	space_sector_canonicalize(&ship.position.t, &ship.sector);
 	eye_frame = (amat4){ship.locked_camera.a, amat4_multpoint(ship.position, ship.locked_camera.t)};
@@ -173,15 +175,14 @@ void renderer_init()
 
 	init_models();
 	init_lights();
-	init_stars();
+	stars_init();
+	debug_graphics_init();
 
 	glUseProgram(effects.forward.handle);
-	glUniform1f(effects.forward.log_depth_intermediate_factor, 2.0/log(far_distance/near_distance));
-	glUniform1f(effects.forward.near_plane_dist, near_distance);
+	glUniform1f(effects.forward.log_depth_intermediate_factor, log_depth_intermediate_factor);
 
 	glUseProgram(effects.skybox.handle);
-	glUniform1f(effects.skybox.log_depth_intermediate_factor, 2.0/log(far_distance/near_distance));
-	glUniform1f(effects.skybox.near_plane_dist, near_distance);
+	glUniform1f(effects.skybox.log_depth_intermediate_factor, log_depth_intermediate_factor);
 
 	skybox_scale = 2*far_distance / sqrt(3);
 	skybox_frame.a = mat3_scalemat(skybox_scale, skybox_scale, skybox_scale);
@@ -200,7 +201,7 @@ void renderer_deinit()
 	if (!renderer_is_init)
 		return;
 	deinit_models();
-	deinit_stars();
+	stars_deinit();
 	point_lights.num_lights = 0;
 	renderer_is_init = false;
 }
@@ -260,6 +261,9 @@ void render()
 	proc_planet_drawlist(test_planets[0].planet, &terrain_list, eye_frame.t - test_planets[0].pos, eye_sector - test_planets[0].sector);
 	proc_planet_drawlist(test_planets[1].planet, &terrain_list2, eye_frame.t - test_planets[1].pos, eye_sector - test_planets[1].sector);
 
+	float ship_altitude = proc_planet_altitude(test_planets[0].planet, ship.position.t - test_planets[0].pos, ship.sector - test_planets[0].sector);
+	printf("Current ship altitude to planet 0: %f\n", ship_altitude);
+
 	//float h = vec3_dist(eye_frame.t, test_planet->pos) - test_planet->radius; //If negative, we're below sea level.
 	//printf("Height: %f\n", h);
 	static float hella_time = 0.0;
@@ -270,9 +274,10 @@ void render()
 	glUniform1f(effects.forward.hella_time, hella_time);
 
 	bool wireframe = false;
-	//This is really the wrong place to put all this.
+
+	//Computer inverse eye frame.
 	{
-		inv_eye_frame = amat4_inverse(eye_frame); //Only need to do this once per frame.
+		inv_eye_frame = amat4_inverse(eye_frame);
 		float tmp[16];
 		amat4_to_array(inv_eye_frame, tmp);
 		amat4_buf_mult(proj_mat, tmp, proj_view_mat);
@@ -410,8 +415,13 @@ void render()
 	glUniform3f(effects.skybox.sun_direction, VEC3_COORDS(sun_direction));
 	glUniform3f(effects.skybox.sun_color, VEC3_COORDS(sun_color));
 	skybox_frame.t = eye_frame.t;
-	//draw_drawable(&d_skybox);
-	draw_stars();
+	draw_drawable(&d_skybox);
+	stars_draw();
+
+	debug_graphics.lines.ship_to_planet.start = space_sector_position_relative_to_sector(ship.position.t, ship.sector, eye_sector);
+	debug_graphics.lines.ship_to_planet.end   = space_sector_position_relative_to_sector(test_planets[0].pos, test_planets[0].sector, eye_sector);
+	debug_graphics.lines.ship_to_planet.enabled = true;
+	debug_graphics_draw();
 
 	terrain_tree_drawlist_free(terrain_list);
 	terrain_tree_drawlist_free(terrain_list2);
@@ -471,6 +481,7 @@ void update(float dt)
 	eye_frame = (amat4){ship.locked_camera.a, amat4_multpoint(ship.position, ship.locked_camera.t)};
 	eye_sector = ship.sector;
 	space_sector_canonicalize(&eye_frame.t, &eye_sector);
+
 	point_lights.enabled_for_draw[2] = key_state[SDL_SCANCODE_6];
 	
 	static float sunscale = 50.0;

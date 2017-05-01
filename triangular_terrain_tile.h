@@ -7,7 +7,7 @@
 #include "open-simplex-noise-in-c/open-simplex-noise.h"
 
 //Heightmap function pointers.
-typedef float (*height_map_func)(struct osn_context *ctx, vec3, vec3 *);
+typedef float (*height_map_func)(vec3, vec3 *);
 typedef vec3 (*position_map_func)(vec3);
 typedef struct triangular_terrain_tile tri_tile;
 
@@ -20,7 +20,8 @@ struct triangular_terrain_tile {
 	vec3 override_col;
 	GLuint *indices;
 	int num_vertices;
-	int num_indices;
+	//int num_indices;
+	int num_rows;
 	//Not to be confused with render geometry,
 	//these are the three outermost vertices of the entire triangular tile (pre-deformation).
 	vec3 tile_vertices[3];
@@ -38,7 +39,10 @@ struct triangular_terrain_tile {
 	//Has init_triangular_tile been called on this yet?
 	bool is_init;
 	int depth;
+	int tile_index;
 };
+
+void tri_tile_raycast_test();
 
 tri_tile * new_tri_tile();
 tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], space_sector sector, int num_rows, void (finishing_touches)(tri_tile *, void *), void *finishing_touches_context);
@@ -59,6 +63,9 @@ int tri_tile_indices(GLuint indices[], int num_rows, int start_row);
 
 //For n rows of triangle strips, the array of vertices must be of length (n+2)(n+1)/2
 int tri_tile_vertices(vec3 vertices[], int num_rows, vec3 a, vec3 b, vec3 c);
+
+//Returns the depth of a ray cast into the tile t, or infinity if there is no intersection.
+float tri_tile_raycast_depth(tri_tile *t, vec3 start, vec3 dir);
 
 //Buffers the position, normal and color buffers of a terrain struct onto the GPU.
 void buffer_tri_tile(tri_tile *t);

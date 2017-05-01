@@ -30,14 +30,16 @@ OBJECTS = \
 	ship_control.o \
 	dynamic_terrain_tree.o \
 	open-simplex-noise-in-c/open-simplex-noise.o \
-	glla/glla.o
+	glla/glla.o \
+	debug_graphics.o \
+	quadtree.o
 
 #Module includes append to OBJECTS and define other custom rules.
 include configuration/configuration.mk
 include math/math.mk
 include models/models.mk
 
-all: $(OBJECTS) open-simplex-noise
+all: $(OBJECTS) open-simplex-noise ceffectpp/ceffectpp effects.c
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(EXE)
 
 #I want "all" to be the default rule, so any module-specific build rules should be specified in a separate makefile.
@@ -48,13 +50,13 @@ include models/Makefile
 .depend:
 	gcc -M -Iglla $(**/.c) *.c > .depend #Generate dependencies from all .c files, searching recursively.
 
-effects.c: ceffectpp $(SHADERS) effects.h
+effects.c: ceffectpp/ceffectpp $(SHADERS) effects.h
 	ceffectpp/ceffectpp -c $(SHADERS) > effects.c
 
-effects.h: ceffectpp $(SHADERS)
+effects.h: ceffectpp/ceffectpp $(SHADERS)
 	ceffectpp/ceffectpp -h $(SHADERS) > effects.h
 
-ceffectpp:
+ceffectpp/ceffectpp:
 	cd ceffectpp; make
 
 open-simplex-noise:
@@ -64,5 +66,7 @@ renderer.o: effects.o procedural_terrain.h
 
 clean:
 	rm $(OBJECTS) && rm $(EXE) && rm .depend
+	cd ceffectpp; make clean
+	cd open-simplex-noise-in-c; make clean
 
 include .depend

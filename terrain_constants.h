@@ -5,7 +5,7 @@ enum {
 	//The more rows, the fewer draw calls, and the fewer primitive restart indices hurting memory locality.
 	//The fewer rows, the fewer overall vertices, and the better overall culling efficiency.
 	//If I keep it as a power-of-two, I can avoid using spherical linear interpolation, and it will be faster.
-	DEFAULT_NUM_TRI_TILE_ROWS = 128,
+	DEFAULT_NUM_TRI_TILE_ROWS = 8,
 	//A triangular tile is divided in "triforce" fashion, that is,
 	//by dividing along the edges of a triangle whose vertices are the bisection of each original tile edge.
 	DEFAULT_NUM_TRI_TILE_DIVS = 4, //Number of tiles a triangle is split into.

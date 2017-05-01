@@ -1,19 +1,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 #include <math.h>
 #include <assert.h>
 #include <GL/glew.h>
-#include "glla.h"
 #include "triangular_terrain_tile.h"
-#include "open-simplex-noise-in-c/open-simplex-noise.h"
-#include "math/utility.h"
-#include "buffer_group.h"
-#include "macros.h"
 #include "renderer.h"
-#include "math/space_sector.h"
+#include "macros.h"
+#include "math/utility.h"
+#include "math/geometry.h"
 #include "procedural_planet.h"
+
+//Suppress prints
+// #define printf(...) while(0) {}
+// #define vec3_print(...) while(0) {}
+// #define vec3_println(...) while(0) {}
 
 //If I add margins to all my heightmaps later then I can avoid A LOT of work.
 extern int PRIMITIVE_RESTART_INDEX;
@@ -64,10 +65,12 @@ static GLuint get_shared_tri_tile_indices_buffer_object(int num_rows)
 //Creates a terrain struct.
 tri_tile * new_tri_tile()
 {
+	static int tile_index = 0;
 	//Could be replaced with a custom allocator in the future.
 	tri_tile *new = malloc(sizeof(tri_tile));
 	new->is_init = false;
 	new->depth = 0; //TODO: Figure out why I put this here, and if I need it here.
+	new->tile_index = tile_index++;
 
 	return new;
 }
@@ -82,6 +85,7 @@ tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], space_sector sector, int
 	//Get counts.
 	t->bg.index_count = num_tri_tile_indices(num_rows);
 	t->num_vertices   = num_tri_tile_vertices(num_rows);
+	t->num_rows = num_rows;
 	//Generate storage.
 	t->positions = (vec3 *)malloc(sizeof(vec3) * t->num_vertices);
 	t->normals   = (vec3 *)malloc(sizeof(vec3) * t->num_vertices);
@@ -106,7 +110,7 @@ tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], space_sector sector, int
 
 	//The new tile origin will be the centroid of the three tile vertices.
 	t->centroid = (vertices[0] + vertices[1] + vertices[2]) / 3.0;
-	t->normal = vec3_normalize(t->centroid);
+	t->normal = vec3_normalize(t->centroid); //This is a sphere normal, TODO: Handle non-sphere case.
 	t->sector = sector;
 	space_sector_canonicalize(&t->centroid, &t->sector);
 
@@ -226,12 +230,97 @@ float tri_tile_vertex_position_and_normal(height_map_func height, vec3 basis_x, 
 		vec3 discard;
 
 		//Find procedural heights, and add them.
-		pos1      = basis_y * height(osnctx, pos1, &discard) + pos1;
-		pos2      = basis_y * height(osnctx, pos2, &discard) + pos2;
-		*position = basis_y * height(osnctx, *position, &discard) + *position;
+		pos1      = basis_y * height(pos1, &discard) + pos1;
+		pos2      = basis_y * height(pos2, &discard) + pos2;
+		*position = basis_y * height(*position, &discard) + *position;
 		//Compute the normal.
 		*normal = vec3_normalize(vec3_cross(pos1 - *position, pos2 - *position));
 		return position->y;
+}
+
+//Given a particular tri tile row, and point coordinates (x, y),
+//Return the vertex indices of the triangle containing the specified point.
+//(0, 0) represents the bottom-left, and (1,1) represents top-right of the triangle strip.
+void tri_tile_strip_face_at(int row, float x, float y, int *i0, int *i1, int *i2)
+{
+	int i = (int)(x + y) + (int)(x) + num_tri_tile_indices(row);
+	i = (i + 2) < (num_tri_tile_indices(row+1) - 1) ? i : i - 1; //Hacky way to make the indices inclusive with the end of the strip.
+	printf("x: %f, y: %f, row: %i, row start: %i\n", x, y, row, num_tri_tile_indices(row));
+	*i0 = i;
+	*i1 = i + 1;
+	*i2 = i + 2;
+}
+
+//Find the vertex indices of the triangle intersecting a ray cast into t.
+int tri_tile_raycast(vec3 tri_vertices[3], int num_tile_rows, vec3 start, vec3 dir, vec3 *intersection, int indices[3])
+{
+	float par_s, par_t; //Parametric coordinates of the point of intersection on the tile.
+	int result = ray_tri_intersect_with_parametric(start, dir, tri_vertices, intersection, &par_s, &par_t);
+	if (result == 1) {
+		par_t = 1 - par_t; //TODO: Handle literal edge cases.
+		float x = par_s * num_tile_rows; //x goes from 0 to row_base along the bottom of the triangle strip.
+		float y = ceil(num_tile_rows * par_t) - (num_tile_rows * par_t); //y goes from 0 to 1 from the bottom to the top of the triangle strip.
+		//It's possible to be exactly at the base of the bottom strip, in which case our index math betrays us. Death to the traitor.
+		int strip_row = num_tile_rows * par_t;
+		strip_row = strip_row < num_tile_rows ? strip_row : num_tile_rows - 1;
+		tri_tile_strip_face_at(strip_row, x, y, &indices[0], &indices[1], &indices[2]);
+	}
+
+	return result;
+}
+
+//Returns the depth of a ray cast into the tile t, or infinity if there is no intersection.
+float tri_tile_raycast_depth(tri_tile *t, vec3 start, vec3 dir)
+{
+	int indices[3];
+	vec3 positions[3];
+	vec3 intersection = {0, 0, 0};
+	vec3 tile_intersection = {0, 0, 0};
+
+	int result = tri_tile_raycast(t->tile_vertices, t->num_rows, start, dir, &tile_intersection, indices);
+	printf("Intersection indices: %i, %i, %i\n", indices[0], indices[1], indices[2]);
+	printf("Num indices on this tile: %i\n", t->bg.index_count);
+
+	assert(result == 1);
+	assert(indices[0] >= 0);
+	assert(indices[2] < t->bg.index_count);
+
+	printf("Vertices: ");
+	for (int i = 0; i < 3; i++) {
+		positions[i] = t->positions[indices[i]];
+		vec3_print(positions[i]);
+	}
+	printf("\n");
+
+	result = ray_tri_intersect(start, tile_intersection, positions, &intersection);
+
+	if (result == 1) {
+		return vec3_dist(start, intersection);
+	} else {
+		printf("ANOTHER FINE MESS WE'VE GOTTEN INTO\n");
+		printf("THIS WILL HELP YOU IN YOUR JOURNEY:\n");
+		printf("start: "); vec3_println(start);
+		printf("dir:   "); vec3_println(dir);
+		printf("tile intersection: "); vec3_println(tile_intersection);
+		printf("tile index: %i\n",t->tile_index);
+	}
+	
+	return INFINITY;
+}
+
+void tri_tile_raycast_test()
+{
+	int indices[3] = {0, 0, 0};
+	vec3 vertices[] = {{0, 0, -10}, {-5, 0, 0}, {5, 0, 0}};
+	vec3 ray_start = (vec3){0,  10, -2};
+	vec3 ray_end   = (vec3){0, -10, -2};
+	vec3 intersection = {0, 0, 0};
+	int result = ray_tri_intersect(ray_start, ray_end, vertices, &intersection);
+	assert(result == 1);
+
+	result = tri_tile_raycast(vertices, 2, ray_start, ray_end, &intersection, indices);
+	printf("tri_tile_raycast_test->%i, expect (5, 6, 7): (%i, %i, %i)\n", result, indices[0], indices[1], indices[2]);
+	assert(result == 1);
 }
 
 void buffer_tri_tile(tri_tile *t)

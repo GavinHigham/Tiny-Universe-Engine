@@ -18,7 +18,6 @@ typedef struct effect_data {
 			GLint model_matrix;
 			GLint model_view_normal_matrix;
 			GLint model_view_projection_matrix;
-			GLint near_plane_dist;
 			GLint override_col;
 			GLint projection_view_matrix;
 			GLint sector_size;
@@ -30,7 +29,7 @@ typedef struct effect_data {
 			GLint uOrigin;
 			GLint zpass;
 		};
-		GLint unif[21];
+		GLint unif[20];
 	};
 	union {
 		struct {
@@ -45,19 +44,20 @@ typedef struct effect_data {
 
 union effect_list {
 	struct {
+		EFFECT debug_graphics;
 		EFFECT forward;
 		EFFECT outline;
 		EFFECT shadow;
 		EFFECT skybox;
 		EFFECT stars;
 	};
-	EFFECT all[5];
+	EFFECT all[6];
 };
 
 union effect_list effects;
 
-const char *uniform_strings[21];
+const char *uniform_strings[20];
 const char *attribute_strings[4];
-const char *shader_file_paths[15];
+const char *shader_file_paths[18];
 
 #endif

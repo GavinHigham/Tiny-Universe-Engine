@@ -4,14 +4,13 @@
 #include <assert.h>
 #include <math.h>
 #include "procedural_planet.h"
-#include "triangular_terrain_tile.h"
-//#include "dynamic_terrain.h"
-#include "dynamic_terrain_tree.h"
-#include "terrain_constants.h"
-#include "math/space_sector.h"
+#include "math/geometry.h"
 #include "macros.h"
 #include "input_event.h" //For controller hotkeys
 #include "open-simplex-noise-in-c/open-simplex-noise.h"
+
+//Suppress prints
+#define printf(...) while(0) {}
 
 //Adapted from http://www.glprogramming.com/red/chapter02.html
 
@@ -75,14 +74,15 @@ int proc_planet_split_depth(terrain_tree_node *tree, void *context)
 {
 	struct planet_terrain_context *ctx = (struct planet_terrain_context *)context;
 	tri_tile *tile = tree_tile(tree);
-	vec3 *debug_col = &tile->override_col;
+	vec3 debug_col = (vec3){1.0, 1.0, 1.0};
+	int depth = 0;
 	ctx->visited++;
 
 	//Cap the number of subdivisions per whole-tree traversal (per frame essentially)
 	if (tree->depth == 0)
 		ctx->splits_left = YIELD_AFTER_DIVS;
 	if (ctx->splits_left <= 0)
-	 	return 0;
+	 	goto exit; //Return 0
 
 	//Convert camera and tile position to planet-coordinates.
 	//These calculations might hit the limits of floating-point precision if the planet is really large.
@@ -96,29 +96,26 @@ int proc_planet_split_depth(terrain_tree_node *tree, void *context)
 
 	if (tile_dist > horizon_dist) {
 		if (nes30_buttons[INPUT_BUTTON_SELECT])
-			*debug_col = (vec3){0.2, 1.0, 0.2}; //Color the tile green for debug.
-		else
-			*debug_col = (vec3){1.0, 1.0, 1.0};
-		return 0;
+			debug_col *= (vec3){0.2, 1.0, 0.2}; //Color the tile green for debug.
+		goto exit; //Return 0
 	}
 
 	float subdiv_dist = INFINITY;
 	if (altitude > tile_dist) {
 		subdiv_dist = altitude;
-		*debug_col = (vec3){0.2, 0.2, 1.0}; //Color the tile blue for debug.
+		//debug_col *= (vec3){0.2, 0.2, 1.0}; //Color the tile blue for debug.
 	} else {
 		subdiv_dist = tile_dist;
-		*debug_col = (vec3){1.0, 0.2, 0.2}; //Color the tile red for debug.
+		//debug_col *= (vec3){1.0, 0.2, 0.2}; //Color the tile red for debug.
 	}
 
 	float scale_factor = (screen_width * ctx->planet->edge_len) / (2 * PIXELS_PER_TRI * DEFAULT_NUM_TRI_TILE_ROWS);
-	int depth = splits_per_distance(subdiv_dist, scale_factor);
+	depth = splits_per_distance(subdiv_dist, scale_factor);
 
 	if (nes30_buttons[INPUT_BUTTON_START])
-		*debug_col = primary_color_by_depth[depth % LENGTH(primary_color_by_depth)];
-	else
-		*debug_col = (vec3){1.0, 1.0, 1.0};
-
+		debug_col *= primary_color_by_depth[depth % LENGTH(primary_color_by_depth)];
+exit:
+	tile->override_col = debug_col;
 	return depth;
 }
 
@@ -128,7 +125,7 @@ int proc_planet_split_depth(terrain_tree_node *tree, void *context)
 //position: In/Out, the starting and ending position of the vertex.
 //normal: Output for the normal of the vertex.
 //Returns the "height", or displacement along basis_y.
-float position_normal_color(struct osn_context *ctx, height_map_func height, vec3 basis_x, vec3 basis_y, vec3 basis_z, float epsilon, vec3 *position, vec3 *normal, vec3 *color)
+float position_normal_color(height_map_func height, vec3 basis_x, vec3 basis_y, vec3 basis_z, float epsilon, vec3 *position, vec3 *normal, vec3 *color)
 {
 	//TODO: Move these into the planet struct.
 	vec3 orangy = (vec3){203, 123, 78} / 255;
@@ -141,9 +138,9 @@ float position_normal_color(struct osn_context *ctx, height_map_func height, vec
 
 	vec3 color1, color2, c;
 	//Find procedural heights, and add them.
-	pos1      = basis_y * height(ctx, pos1, &color1) + pos1;
-	pos2      = basis_y * height(ctx, pos2, &color2) + pos2;
-	*position = basis_y * height(ctx, *position, &c) + *position;
+	pos1      = basis_y * height(pos1, &color1) + pos1;
+	pos2      = basis_y * height(pos2, &color2) + pos2;
+	*position = basis_y * height(*position, &c) + *position;
 	//Compute the normal.
 	*normal = vec3_normalize(vec3_cross(pos1 - *position, pos2 - *position));
 	c = (c + 1) / 2;
@@ -151,7 +148,7 @@ float position_normal_color(struct osn_context *ctx, height_map_func height, vec
 	return position->y;
 }
 
-tri_tile * proc_planet_vertices_and_normals(struct osn_context *ctx, vec3 primary_color, tri_tile *t, height_map_func height, vec3 planet_pos, float noise_radius, float amplitude)
+tri_tile * proc_planet_vertices_and_normals(vec3 primary_color, tri_tile *t, height_map_func height, vec3 planet_pos, float noise_radius, float amplitude)
 {
 	vec3 brownish = {0.30, .27, 0.21};
 	//vec3 whiteish = {0.96, .94, 0.96};
@@ -171,7 +168,7 @@ tri_tile * proc_planet_vertices_and_normals(struct osn_context *ctx, vec3 primar
 		vec3 y = vec3_normalize(pos);
 
 		//Calculate position and normal on a sphere of noise_radius radius.
-		position_normal_color(ctx, height, x, y, z, epsilon, &noise_surface, &t->normals[i], &t->colors[i]);
+		position_normal_color(height, x, y, z, epsilon, &noise_surface, &t->normals[i], &t->colors[i]);
 		//Scale back up to planet size.
 		t->positions[i] = noise_surface * (m/noise_radius) + planet_pos;
 		//TODO: Create much more interesting colors.
@@ -197,7 +194,7 @@ void proc_planet_finishing_touches(tri_tile *t, void *finishing_touches_context)
 	reproject_vertices_to_spherical(t->positions, t->num_vertices, planet_pos, p->radius);
 	//Apply perturbations to the surface and calculate normals.
 	//Since noise doesn't compute well on huge planets, noise is calculated on a simulated smaller planet and scaled up.
-	proc_planet_vertices_and_normals(p->osnctx, p->color_family, t, p->height, planet_pos, p->noise_radius, p->amplitude);
+	proc_planet_vertices_and_normals(p->color_family, t, p->height, planet_pos, p->noise_radius, p->amplitude);
 }
 
 void tri_tile_split(tri_tile *t, tri_tile **out[DEFAULT_NUM_TRI_TILE_DIVS], void *context)
@@ -227,38 +224,38 @@ void tri_tile_split(tri_tile *t, tri_tile **out[DEFAULT_NUM_TRI_TILE_DIVS], void
 	printf("Dividing %p, depth %i into %d new tiles.\n", t, t->depth, DEFAULT_NUM_TRI_TILE_DIVS);
 }
 
-float fbm(struct osn_context *ctx, vec3 p)
+float fbm(vec3 p)
 {
 	return open_simplex_noise3(osnctx, p.x, p.y, p.z);
 }
 
-float distorted_height(struct osn_context *ctx, vec3 pos, vec3 *variety)
+float distorted_height(vec3 pos, vec3 *variety)
 {
-	vec3 a = {5.4, 2.08, 1.3};
+	vec3 a = {1.4, 2.08, 1.3};
 	vec3 b = {13.8, 7.9, 2.1};
 
 	vec3 h1 = {
-		fbm(ctx, pos),
-		fbm(ctx, pos + a),
-		fbm(ctx, pos + b)
+		fbm(pos),
+		fbm(pos + a),
+		fbm(pos + b)
 	};
 	vec3 h2 = {
-		fbm(ctx, pos + 3*h1),
-		fbm(ctx, pos + 2*h1 + a),
-		fbm(ctx, pos + 1*h1 + b)
+		fbm(pos + 2.4*h1),
+		fbm(pos + 2*h1 + a),
+		fbm(pos + 1*h1 + b)
 	};
 
 	*variety = h1 + h2 / 2;
-	return fbm(ctx, pos + 0.7*h2);
+	return fbm(pos + 0.65*h2);
 }
 
-float proc_planet_height(struct osn_context *ctx, vec3 pos, vec3 *variety)
+float proc_planet_height(vec3 pos, vec3 *variety)
 {
-	pos = pos * 0.001;
+	pos = pos * 0.0015;
 	vec3 v1, v2;
 	float height = (
-		distorted_height(ctx, pos, &v1) +
-		distorted_height(ctx, pos * 2, &v2)
+		distorted_height(pos, &v1) +
+		distorted_height(pos * 2, &v2)
 		) / 2;
 	*variety = (v1 + v2) / 2;
 	return TERRAIN_AMPLITUDE * height;
@@ -321,3 +318,45 @@ void proc_planet_drawlist(proc_planet *p, terrain_tree_drawlist *list, vec3 cam_
 
 	//printf("%d\n", context.visited);
 }
+
+struct proc_planet_tile_raycast_context {
+	vec3 pos;
+	space_sector sec;
+};
+
+bool proc_planet_tile_raycast(terrain_tree_node *tree, void *context)
+{
+	struct proc_planet_tile_raycast_context *ctx = (struct proc_planet_tile_raycast_context *)context;
+	tri_tile *t = tree_tile(tree);
+	vec3 intersection;
+	vec3 local_start = space_sector_position_relative_to_sector(ctx->pos, ctx->sec, t->sector);
+	vec3 local_end = space_sector_position_relative_to_sector((vec3){0, 0, 0}, (space_sector){0, 0, 0}, t->sector);
+	//Flip start and end so we don't find tiles from the back of the planet.
+	int result = ray_tri_intersect(local_start, local_end, tree_tile(tree)->tile_vertices, &intersection);
+	if (result == 1) {
+		t->override_col *= (vec3){0.1, 1.0, 1.0};
+		printf("Tile intersection found! Tile: %i\n", t->tile_index);
+	}
+	return result == 1;
+}
+
+//Raycast towards the planet center and find the altitude on the deepest terrain tile. O(log(n)) complexity in the number of planet tiles.
+float proc_planet_altitude(proc_planet *p, vec3 pos, space_sector sec)
+{
+	//TODO: Don't loop through everything to find this.
+	float smallest_distance = INFINITY;
+	struct proc_planet_tile_raycast_context context = {pos, sec};
+	for (int i = 0; i < NUM_ICOSPHERE_FACES; i++) {
+		tri_tile *t = terrain_tree_find(p->tiles[i], proc_planet_tile_raycast, &context);
+		if (t) {
+			vec3 local_start = space_sector_position_relative_to_sector(pos, sec, t->sector);
+			vec3 local_end = space_sector_position_relative_to_sector((vec3){0, 0, 0}, (space_sector){0, 0, 0}, t->sector);
+			float distance = tri_tile_raycast_depth(t, local_start, local_end);
+			if (distance < smallest_distance)
+				smallest_distance = distance;
+		}
+	}
+	return smallest_distance;
+}
+
+

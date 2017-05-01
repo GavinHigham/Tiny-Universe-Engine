@@ -1,4 +1,4 @@
 
-void init_stars();
-void deinit_stars();
-void draw_stars();
+void stars_init();
+void stars_deinit();
+void stars_draw();

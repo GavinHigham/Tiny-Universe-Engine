@@ -1,5 +1,4 @@
 #include <math.h>
-#include "glla.h"
 #include "ship_control.h"
 #include "input_event.h"
 

@@ -3,9 +3,7 @@
 //in vec3 sector_pos; //Position relative to sector origin.
 in ivec3 sector_coords;
 
-uniform float log_depth_intermediate_factor; //2.0/log(far_plane_dist/near_plane_dist)
-uniform float near_plane_dist;
-
+uniform float log_depth_intermediate_factor;
 uniform vec3 eye_pos;
 uniform ivec3 eye_sector_coords;
 
@@ -29,8 +27,7 @@ void main()
 	//float star_dist = distance(eye_pos, vpos);
 	
 	gl_Position = model_view_projection_matrix * vec4(vpos, 1);
-	gl_Position.z = log(gl_Position.w/near_plane_dist) * log_depth_intermediate_factor - 1; 
-	gl_Position.z *= gl_Position.w;
+	gl_Position.z = log2(max(1e-6, 1.0 + gl_Position.w)) * log_depth_intermediate_factor - 2.0; //I'm not sure why, but -2.0 works better for me.
 	//gl_PointSize = 10;//(1-(star_dist / (0.7*stars_radius))) + 2;
 	float index = (gl_VertexID / 40000);
 	gl_PointSize = 5;

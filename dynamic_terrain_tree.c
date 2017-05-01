@@ -1,9 +1,8 @@
 #include <math.h>
 #include <assert.h>
 #include <stdio.h>
-#include "glla.h"
-#include "renderer.h"
 #include "dynamic_terrain_tree.h"
+#include "renderer.h"
 
 enum { NCHILDREN = TERRAIN_TREE_NUM_CHILDREN };
 
@@ -68,6 +67,25 @@ void terrain_tree_gen(terrain_tree_node *tree, terrain_tree_depth_fn subdiv, ter
 	//Visit children
 	for (int i = 0; i < NCHILDREN; i++)
 		terrain_tree_gen(tree->children[i], subdiv, split, context);
+}
+
+void * terrain_tree_find(terrain_tree_node *tree, terrain_tree_find_fn find, void *context)
+{
+	if (!tree || !find(tree, context)) //Didn't fulfill the find condition - return.
+		return NULL;
+
+	if (!tree_has_children(tree)) {//Fulfilled the condition, no children, this is the deepest finding.
+		//printf("Thing found at depth: %i\n", tree->depth);
+		return tree->tile;
+	}
+
+	for (int i = 0; i < NCHILDREN; i++) { //Fulfilled the condition, recursively find which children also fulfill the condition.
+		void *tile = terrain_tree_find(tree->children[i], find, context);
+		if (tile) //Some leaf node fulfilled the condition, return its tile.
+			return tile;
+	}
+
+	return tree->tile; //Somehow this node fulfilled the condition but the children did not, return this node's tile.
 }
 
 void terrain_tree_prune(terrain_tree_node *tree, terrain_tree_depth_fn subdiv, void *context, void (*free_data)(void *))

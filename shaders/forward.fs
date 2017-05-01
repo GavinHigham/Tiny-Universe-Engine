@@ -15,7 +15,7 @@ uniform vec3 override_col = vec3(1.0, 1.0, 1.0);
 #define M_PI 3.1415926535897932384626433832795
 
 // set important material values
-float roughnessValue = 0.15; // 0 : smooth, 1: rough
+float roughnessValue = 0.8; // 0 : smooth, 1: rough
 float F0 = 0.2; // fresnel reflectance at normal incidence
 float k = 0.2; // fraction of diffuse reflection (specular reflection = 1 - k)
 

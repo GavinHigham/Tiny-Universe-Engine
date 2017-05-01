@@ -34,11 +34,13 @@ struct terrain_tree_drawlist_node {
 };
 
 typedef int (*terrain_tree_depth_fn)(terrain_tree_node *, void *);
+typedef bool (*terrain_tree_find_fn)(terrain_tree_node *, void *);
 typedef void (*terrain_tree_split_fn)(void *parent, void **children[TERRAIN_TREE_NUM_CHILDREN], void *context);
 typedef void (*terrain_tree_free_fn)(void *data);
 
 terrain_tree_node * terrain_tree_new(void *tile, int depth);
 void terrain_tree_gen(terrain_tree_node *tree, terrain_tree_depth_fn subdiv, terrain_tree_split_fn split, void *context);
+void * terrain_tree_find(terrain_tree_node *tree, terrain_tree_find_fn find, void *context);
 void terrain_tree_prune(terrain_tree_node *tree, terrain_tree_depth_fn subdiv, void *context, void (*free_data)(void *));
 void terrain_tree_free(terrain_tree_node *tree, void (*free_data)(void *data));
 

@@ -22,7 +22,7 @@ extern float screen_height;
 
 static const int MS_PER_SECOND = 1000;
 static const int FRAMES_PER_SECOND = 60; //Frames per second.
-static const int MS_PER_UPDATE = MS_PER_SECOND / FRAMES_PER_SECOND;
+//static const int MS_PER_UPDATE = MS_PER_SECOND / FRAMES_PER_SECOND;
 static int wake_early_ms = 2; //How many ms early should the main loop wake from sleep to avoid oversleeping.
 
 //Average number of tight loop iterations. Global so it can be accessed from handle_event.c

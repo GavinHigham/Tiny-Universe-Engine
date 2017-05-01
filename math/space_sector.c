@@ -2,7 +2,6 @@
 #include <math.h>
 #include <string.h>
 #include "space_sector.h"
-#include "glla.h"
 
 const float SPACE_SECTOR_SIZE = 8192;
 
