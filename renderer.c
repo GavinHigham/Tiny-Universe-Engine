@@ -408,7 +408,7 @@ void render()
 	glUniform3f(effects.skybox.sun_direction, VEC3_COORDS(sun_direction));
 	glUniform3f(effects.skybox.sun_color, VEC3_COORDS(sun_color));
 	skybox_frame.t = eye_frame.t;
-	draw_drawable(&d_skybox);
+	//draw_drawable(&d_skybox);
 	stars_draw();
 
 	debug_graphics.lines.ship_to_planet.start = space_sector_position_relative_to_sector(ship.position.t, ship.sector, eye_sector);

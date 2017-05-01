@@ -76,8 +76,8 @@ int proc_planet_subdiv_depth(proc_planet *planet, tri_tile *tile, int depth, vec
 {
 	//Convert camera and tile position to planet-coordinates.
 	//These calculations might hit the limits of floating-point precision if the planet is really large.
-	vec3 tile_pos = space_sector_position_relative_to_sector(tile->centroid, tile->sector, (space_sector){0, 0, 0});
 	cam_pos = space_sector_position_relative_to_sector(cam_pos, cam_sec, (space_sector){0, 0, 0});
+	vec3 tile_pos = space_sector_position_relative_to_sector(tile->centroid, tile->sector, (space_sector){0, 0, 0});
 	vec3 surface_pos = cam_pos * planet->radius/vec3_mag(cam_pos);
 
 	float altitude = vec3_mag(cam_pos) - planet->radius;
@@ -86,8 +86,8 @@ int proc_planet_subdiv_depth(proc_planet *planet, tri_tile *tile, int depth, vec
 	float subdiv_dist = fmax(altitude, tile_dist);
 	float scale_factor = (screen_width * planet->edge_len) / (2 * PIXELS_PER_TRI * DEFAULT_NUM_TRI_TILE_ROWS);
 
-	//Maybe I can handle this when preparing the drawlist, instead?
-	if (distance_to_horizon(planet->radius, fmax(altitude, 0) < (vec3_dist(cam_pos, tile_pos) - tile_radius)))
+	// //Maybe I can handle this when preparing the drawlist, instead?
+	if (distance_to_horizon(planet->radius, fmax(altitude, 0)) < (vec3_dist(cam_pos, tile_pos) - tile_radius))
 		return 0; //Tiles beyond the horizon should not be split.
 
 	return splits_per_distance(subdiv_dist, scale_factor);
