@@ -3,17 +3,8 @@
 #include <stdlib.h>
 #include "quadtree.h"
 
-enum { NCHILDREN = QUADTREE_NUM_CHILDREN };
-
-static bool node_has_children(quadtree_node *tree)
-{
-	return tree->children[0] != NULL;
-}
-
-static void node_set_childless(quadtree_node *tree)
-{
-	tree->children[0] = NULL;
-}
+//Just make this a little shorter for code clarity.
+#define NCHILDREN QUADTREE_NUM_CHILDREN
 
 quadtree_node * quadtree_new(void *data, int depth)
 {
@@ -21,7 +12,7 @@ quadtree_node * quadtree_new(void *data, int depth)
 	//Fix notes: before, each tree node contained the struct directly. Now that it's a pointer, I need to allocate tiles dynamically.
 	new->data = data;
 	new->depth = depth;
-	node_set_childless(new);
+	quadtree_node_set_childless(new);
 	return new;
 }
 
@@ -33,7 +24,7 @@ void quadtree_node_add_children(quadtree_node *node, void *child_data[NCHILDREN]
 
 void quadtree_preorder_visit(quadtree_node *tree, quadtree_visit_fn visit, void *context)
 {
-	if (!tree || !visit(tree, context) || !node_has_children(tree))
+	if (!tree || !visit(tree, context) || !quadtree_node_has_children(tree))
 		return; //Node is divided enough, done.
 
 	//Visit children
@@ -46,7 +37,7 @@ void quadtree_postorder_visit(quadtree_node *tree, quadtree_visit_fn visit, void
 	if (!tree)
 		return;
 
-	if (node_has_children(tree))
+	if (quadtree_node_has_children(tree))
 		for (int i = 0; i < NCHILDREN; i++)
 			quadtree_postorder_visit(tree->children[i], visit, context);
 
@@ -69,8 +60,18 @@ void quadtree_free(quadtree_node *tree, void (*free_data)(void *data), bool chil
 	if (children_only)
 		return quadtree_postorder_visit(tree, quadtree_node_free, free_data);
 
-	if (tree && node_has_children(tree))
+	if (tree && quadtree_node_has_children(tree))
 		for (int i = 0; i < NCHILDREN; i++)
 			quadtree_free(tree->children[i], free_data, false);
-	node_set_childless(tree);
+	quadtree_node_set_childless(tree);
+}
+
+bool quadtree_node_has_children(quadtree_node *tree)
+{
+	return tree->children[0] != NULL;
+}
+
+void quadtree_node_set_childless(quadtree_node *tree)
+{
+	tree->children[0] = NULL;
 }

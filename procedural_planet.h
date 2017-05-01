@@ -1,7 +1,7 @@
 #ifndef PROCEDURAL_PLANET_H
 #define PROCEDURAL_PLANET_H
 #include "glla.h"
-#include "dynamic_terrain_tree.h"
+//#include "dynamic_terrain_tree.h"
 #include "quadtree.h"
 #include "triangular_terrain_tile.h"
 #include "terrain_constants.h"
@@ -38,9 +38,8 @@ typedef struct procedural_planet {
 	//TODO: Consolidate these.
 	vec3 colors[3];
 	vec3 color_family;
-	terrain_tree_node *tiles[NUM_ICOSPHERE_FACES];
+	quadtree_node *tiles[NUM_ICOSPHERE_FACES];
 	height_map_func height;
-	struct osn_context *osnctx;
 } proc_planet;
 
 struct planet_terrain_context {
@@ -49,11 +48,15 @@ struct planet_terrain_context {
 	space_sector cam_sec;
 	proc_planet *planet;
 	int visited;
+	tri_tile **tiles;
+	int num_tiles;
+	int max_tiles;
 };
 
 proc_planet * proc_planet_new(float radius, height_map_func height, vec3 color_family);
 void proc_planet_free(proc_planet *p);
-void proc_planet_drawlist(proc_planet *p, terrain_tree_drawlist *list, vec3 camera_position, space_sector camera_sector);
+//void proc_planet_drawlist(proc_planet *p, terrain_tree_drawlist *list, vec3 camera_position, space_sector camera_sector);
+int proc_planet_drawlist(proc_planet *p, tri_tile **tiles, int max_tiles, vec3 cam_pos, space_sector cam_sec);
 float proc_planet_height(vec3 pos, vec3 *variety);
 
 //Raycast towards the planet center and find the altitude on the deepest terrain tile. O(log(n)) complexity in the number of planet tiles.

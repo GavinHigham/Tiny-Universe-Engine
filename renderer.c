@@ -256,13 +256,13 @@ static Drawable *pvs[] = {};//{&d_ship};
 
 void render()
 {
-	terrain_tree_drawlist terrain_list = NULL;
-	terrain_tree_drawlist terrain_list2 = NULL;
-	proc_planet_drawlist(test_planets[0].planet, &terrain_list, eye_frame.t - test_planets[0].pos, eye_sector - test_planets[0].sector);
-	proc_planet_drawlist(test_planets[1].planet, &terrain_list2, eye_frame.t - test_planets[1].pos, eye_sector - test_planets[1].sector);
+	tri_tile *drawlist[LENGTH(test_planets)][3000];
+	int drawlist_count[LENGTH(test_planets)];
+	for (int i = 0; i < LENGTH(test_planets); i++)
+		drawlist_count[i] = proc_planet_drawlist(test_planets[i].planet, drawlist[i], LENGTH(drawlist[i]), eye_frame.t - test_planets[i].pos, eye_sector - test_planets[i].sector);
 
-	float ship_altitude = proc_planet_altitude(test_planets[0].planet, ship.position.t - test_planets[0].pos, ship.sector - test_planets[0].sector);
-	printf("Current ship altitude to planet 0: %f\n", ship_altitude);
+	//float ship_altitude = proc_planet_altitude(test_planets[0].planet, ship.position.t - test_planets[0].pos, ship.sector - test_planets[0].sector);
+	//printf("Current ship altitude to planet 0: %f\n", ship_altitude);
 
 	//float h = vec3_dist(eye_frame.t, test_planet->pos) - test_planet->radius; //If negative, we're below sea level.
 	//printf("Height: %f\n", h);
@@ -321,23 +321,16 @@ void render()
 		//glDisable(GL_CULL_FACE);
 
 		//Draw procedural planets
-		for (terrain_tree_drawlist l = terrain_list; l; l = l->next) {
-			tri_tile *t = l->tile;
-			if (!t->buffered) //Last resort "BUFFER RIGHT NOW", will cause hiccups.
-				buffer_tri_tile(t);
-			amat4 tile_frame = {tri_frame.a, space_sector_position_relative_to_sector(test_planets[0].pos, test_planets[0].sector + t->sector, eye_sector)};
-			glUniform3fv(effects.forward.override_col, 1, (float *)&t->override_col);
-			draw_forward(&effects.forward, t->bg, tile_frame);
-			checkErrors("After drawing a tri_tile");
-		}
-		for (terrain_tree_drawlist l = terrain_list2; l; l = l->next) {
-			tri_tile *t = l->tile;
-			if (!t->buffered) //Last resort "BUFFER RIGHT NOW", will cause hiccups.
-				buffer_tri_tile(t);
-			amat4 tile_frame = {tri_frame.a, space_sector_position_relative_to_sector(test_planets[1].pos, test_planets[1].sector + t->sector, eye_sector)};
-			glUniform3fv(effects.forward.override_col, 1, (float *)&t->override_col);
-			draw_forward(&effects.forward, t->bg, tile_frame);
-			checkErrors("After drawing a tri_tile");
+		for (int i = 0; i < LENGTH(test_planets); i++) {
+			for (int j = 0; j < drawlist_count[i]; j++) {
+				tri_tile *t = drawlist[i][j];
+				if (!t->buffered) //Last resort "BUFFER RIGHT NOW", will cause hiccups.
+					buffer_tri_tile(t);
+				amat4 tile_frame = {tri_frame.a, space_sector_position_relative_to_sector(test_planets[i].pos, test_planets[i].sector + t->sector, eye_sector)};
+				glUniform3fv(effects.forward.override_col, 1, (float *)&t->override_col);
+				draw_forward(&effects.forward, t->bg, tile_frame);
+				checkErrors("After drawing a tri_tile");
+			}
 		}
 
 		glUniform3f(effects.forward.override_col, 1.0, 1.0, 1.0);
@@ -422,9 +415,6 @@ void render()
 	debug_graphics.lines.ship_to_planet.end   = space_sector_position_relative_to_sector(test_planets[0].pos, test_planets[0].sector, eye_sector);
 	debug_graphics.lines.ship_to_planet.enabled = true;
 	debug_graphics_draw();
-
-	terrain_tree_drawlist_free(terrain_list);
-	terrain_tree_drawlist_free(terrain_list2);
 
 	checkErrors("After forward junk");
 }
