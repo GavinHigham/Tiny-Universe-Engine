@@ -1,4 +1,4 @@
 OBJECTS += \
 	math/geometry.o \
-	math/space_sector.o \
+	math/bpos.o \
 	math/utility.o

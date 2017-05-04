@@ -2,7 +2,7 @@
 #define SHIP_CONTROL_H
 #include <stdbool.h>
 #include "glla.h"
-#include "math/space_sector.h"
+#include "math/bpos.h"
 
 struct controller_input {
 	float leftx;
@@ -24,7 +24,7 @@ struct ship_physics {
 	amat4 eased_camera;
 	vec3 locked_camera_target;
 	vec3 eased_camera_target;
-	space_sector sector;
+	bpos_origin sector;
 };
 
 struct ship_physics ship_control(float dt, struct controller_input input, bool buttons[16], struct ship_physics ship);

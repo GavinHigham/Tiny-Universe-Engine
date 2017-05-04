@@ -77,7 +77,7 @@ tri_tile * new_tri_tile()
 
 //Creates storage for the positions, normals, and colors, as well as OpenGL handles.
 //Should be freed by the caller, using free_tri_tile.
-tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], space_sector sector, int num_rows, void (finishing_touches)(tri_tile *, void *), void *finishing_touches_context)
+tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], bpos_origin sector, int num_rows, void (finishing_touches)(tri_tile *, void *), void *finishing_touches_context)
 {
 	assert(!t->is_init);
 	if (t->is_init) return t;
@@ -112,11 +112,11 @@ tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], space_sector sector, int
 	t->centroid = (vertices[0] + vertices[1] + vertices[2]) / 3.0;
 	t->normal = vec3_normalize(t->centroid); //This is a sphere normal, TODO: Handle non-sphere case.
 	t->sector = sector;
-	space_sector_canonicalize(&t->centroid, &t->sector);
+	bpos_split_fix(&t->centroid, &t->sector);
 
 	//Recalculate vertex positions relative to new sector.
 	for (int i = 0; i < 3; i++)
-		t->tile_vertices[i] = space_sector_position_relative_to_sector(vertices[i], sector, t->sector);
+		t->tile_vertices[i] = bpos_remap(vertices[i], sector, t->sector);
 
 	//Generate the initial vertex positions, coplanar points on the triangle formed by vertices[3].
 	int numverts = tri_tile_vertices(t->positions, num_rows, t->tile_vertices[0], t->tile_vertices[1], t->tile_vertices[2]);

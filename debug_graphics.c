@@ -6,7 +6,7 @@
 #include "macros.h"
 #include "effects.h"
 #include "math/utility.h"
-#include "math/space_sector.h"
+#include "math/bpos.h"
 
 //Externs that could be useful.
 extern amat4 inv_eye_frame;
@@ -15,7 +15,7 @@ extern amat4 ship_frame;
 extern GLfloat proj_view_mat[16];
 extern float far_distance;
 extern float near_distance;
-extern space_sector eye_sector;
+extern bpos_origin eye_sector;
 extern float log_depth_intermediate_factor;
 
 //Global state data I might want to access outside.

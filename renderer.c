@@ -20,7 +20,7 @@
 #include "procedural_planet.h"
 #include "triangular_terrain_tile.h"
 #include "ship_control.h"
-#include "math/space_sector.h"
+#include "math/bpos.h"
 #include "debug_graphics.h"
 
 static bool renderer_is_init = false;
@@ -37,12 +37,12 @@ float screen_height = SCREEN_HEIGHT;
 GLuint gVAO = 0;
 amat4 inv_eye_frame;
 amat4 eye_frame = {.a = MAT3_IDENT,  .t = {6, 0, 0}};
-space_sector eye_sector = {0, 0, 0};
+bpos_origin eye_sector = {0, 0, 0};
 //Object frames. Need a better system for this.
 amat4 room_frame = {.a = MAT3_IDENT, .t = {0, -4, -8}};
 amat4 grid_frame = {.a = MAT3_IDENT, .t = {-50, -90, -550}};
 amat4 tri_frame  = {.a = MAT3_IDENT, .t = {0, 0, 0}};
-space_sector room_sector = {0, 0, 0};
+bpos_origin room_sector = {0, 0, 0};
 amat4 big_asteroid_frame = {.a = MAT3_IDENT, .t = {0, -4, -20}};
 amat4 skybox_frame; //Set in init_render() and update()
 float skybox_scale;
@@ -57,7 +57,7 @@ const float planet_radius = 6000000;
 //This is awful and I should change it.
 struct {
 	vec3 pos;
-	space_sector sector;
+	bpos_origin sector;
 	proc_planet *planet;
 	vec3 col;
 } test_planets[] = {
@@ -84,7 +84,7 @@ struct ship_physics ship = {
 	.eased_camera  = {.a = MAT3_IDENT, .t = {0, 4, 8}},
 	.locked_camera_target = (vec3){0, 0, -4},
 	.eased_camera_target  = (vec3){0, 0, -4},
-	.sector               = (space_sector){0, 400, 0}
+	.sector               = (bpos_origin){0, 400, 0}
 };
 
 GLfloat proj_mat[16];
@@ -98,7 +98,7 @@ struct drawable_rec {
 	Draw_func draw;
 	EFFECT *effect;
 	amat4 *frame;
-	space_sector *sector;
+	bpos_origin *sector;
 	int (*buffering_function)(struct buffer_group);
 } drawables[] = {
 	{&d_ship,         draw_forward,        &effects.forward, &ship.position, &ship.sector,   buffer_teardropship},
@@ -119,7 +119,7 @@ static void init_models()
 	test_planets[0].planet = proc_planet_new(planet_radius, proc_planet_height, test_planets[0].col);
 	test_planets[1].planet = proc_planet_new(planet_radius * 1.7, proc_planet_height, test_planets[1].col);
 
-	space_sector_canonicalize(&ship.position.t, &ship.sector);
+	bpos_split_fix(&ship.position.t, &ship.sector);
 }
 
 static void deinit_models()
@@ -168,10 +168,10 @@ void renderer_init()
 	make_projection_matrix(FOV, screen_width/screen_height, -1, -far_distance, proj_mat, LENGTH(proj_mat));
 	log_depth_intermediate_factor = 2.0/log2(far_distance + 1.0);
 
-	space_sector_canonicalize(&ship.position.t, &ship.sector);
+	bpos_split_fix(&ship.position.t, &ship.sector);
 	eye_frame = (amat4){ship.locked_camera.a, amat4_multpoint(ship.position, ship.locked_camera.t)};
 	eye_sector = ship.sector;
-	space_sector_canonicalize(&eye_frame.t, &eye_sector);
+	bpos_split_fix(&eye_frame.t, &eye_sector);
 
 	init_models();
 	init_lights();
@@ -188,7 +188,7 @@ void renderer_init()
 	skybox_frame.a = mat3_scalemat(skybox_scale, skybox_scale, skybox_scale);
 	skybox_frame.t = eye_frame.t;
 
-	glPointSize(3);
+	glPointSize(5);
 	glEnable(GL_PROGRAM_POINT_SIZE);
 
 	glUseProgram(0);
@@ -261,8 +261,11 @@ void render()
 	for (int i = 0; i < LENGTH(test_planets); i++)
 		drawlist_count[i] = proc_planet_drawlist(test_planets[i].planet, drawlist[i], LENGTH(drawlist[i]), eye_frame.t - test_planets[i].pos, eye_sector - test_planets[i].sector);
 
-	//float ship_altitude = proc_planet_altitude(test_planets[0].planet, ship.position.t - test_planets[0].pos, ship.sector - test_planets[0].sector);
-	//printf("Current ship altitude to planet 0: %f\n", ship_altitude);
+	//Note: This is here so it can set the intersecting tile's override color before the draw.
+	vec3 intersection = {0, 0, 0};
+	bpos_origin intersection_sector = {0, 0, 0};
+	float ship_altitude = proc_planet_altitude(test_planets[0].planet, ship.position.t - test_planets[0].pos, ship.sector - test_planets[0].sector, &intersection, &intersection_sector);
+	printf("Current ship altitude to planet 0: %f\n", ship_altitude);
 
 	//float h = vec3_dist(eye_frame.t, test_planet->pos) - test_planet->radius; //If negative, we're below sea level.
 	//printf("Height: %f\n", h);
@@ -326,7 +329,7 @@ void render()
 				tri_tile *t = drawlist[i][j];
 				if (!t->buffered) //Last resort "BUFFER RIGHT NOW", will cause hiccups.
 					buffer_tri_tile(t);
-				amat4 tile_frame = {tri_frame.a, space_sector_position_relative_to_sector(test_planets[i].pos, test_planets[i].sector + t->sector, eye_sector)};
+				amat4 tile_frame = {tri_frame.a, bpos_remap(test_planets[i].pos, test_planets[i].sector + t->sector, eye_sector)};
 				glUniform3fv(effects.forward.override_col, 1, (float *)&t->override_col);
 				draw_forward(&effects.forward, t->bg, tile_frame);
 				checkErrors("After drawing a tri_tile");
@@ -411,9 +414,11 @@ void render()
 	//draw_drawable(&d_skybox);
 	stars_draw();
 
-	debug_graphics.lines.ship_to_planet.start = space_sector_position_relative_to_sector(ship.position.t, ship.sector, eye_sector);
-	debug_graphics.lines.ship_to_planet.end   = space_sector_position_relative_to_sector(test_planets[0].pos, test_planets[0].sector, eye_sector);
+	debug_graphics.lines.ship_to_planet.start = bpos_remap(ship.position.t, ship.sector, eye_sector);
+	debug_graphics.lines.ship_to_planet.end   = bpos_remap(test_planets[0].pos, test_planets[0].sector, eye_sector);
 	debug_graphics.lines.ship_to_planet.enabled = true;
+	debug_graphics.points.ship_to_planet_intersection.pos = bpos_remap(intersection, intersection_sector, eye_sector);
+	debug_graphics.points.ship_to_planet_intersection.enabled = true;
 	debug_graphics_draw();
 
 	checkErrors("After forward junk");
@@ -439,8 +444,8 @@ void update(float dt)
 		int_fast64_t sx, sy, sz;
 		scanf("%lli %lli %lli %f %f %f", &sx, &sy, &sz, &x, &y, &z);
 		ship.position.t = (vec3){x, y, z};
-		ship.sector = (space_sector){sx, sy, sz};
-		space_sector_canonicalize(&ship.position.t, &ship.sector);
+		ship.sector = (bpos_origin){sx, sy, sz};
+		bpos_split_fix(&ship.position.t, &ship.sector);
 	}
 	if (key_state[SDL_SCANCODE_Y]) {
 		printf("Skybox scale is %f, what would you like the scale to be?\n", skybox_scale);
@@ -466,11 +471,11 @@ void update(float dt)
 		axes[TRIGGERLEFT]  / controller_max,
 		axes[TRIGGERRIGHT] / controller_max,
 	}, nes30_buttons, ship);
-	space_sector_canonicalize(&ship.position.t, &ship.sector);
+	bpos_split_fix(&ship.position.t, &ship.sector);
 
 	eye_frame = (amat4){ship.locked_camera.a, amat4_multpoint(ship.position, ship.locked_camera.t)};
 	eye_sector = ship.sector;
-	space_sector_canonicalize(&eye_frame.t, &eye_sector);
+	bpos_split_fix(&eye_frame.t, &eye_sector);
 
 	point_lights.enabled_for_draw[2] = key_state[SDL_SCANCODE_6];
 	

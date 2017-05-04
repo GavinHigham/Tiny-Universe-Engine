@@ -7,7 +7,7 @@
 #include <stdbool.h>
 #include <gl/glew.h>
 #include "glla.h"
-#include "math/space_sector.h"
+#include "math/bpos.h"
 #include "buffer_group.h"
 
 enum { TERRAIN_TREE_NUM_CHILDREN = 4 };

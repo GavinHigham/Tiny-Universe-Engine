@@ -5,7 +5,7 @@
 #include "quadtree.h"
 #include "triangular_terrain_tile.h"
 #include "terrain_constants.h"
-#include "math/space_sector.h"
+#include "math/bpos.h"
 
 /*
 MEGA TODO:
@@ -45,7 +45,7 @@ typedef struct procedural_planet {
 struct planet_terrain_context {
 	int splits_left;
 	vec3 cam_pos;
-	space_sector cam_sec;
+	bpos_origin cam_sec;
 	proc_planet *planet;
 	int visited;
 	tri_tile **tiles;
@@ -55,11 +55,10 @@ struct planet_terrain_context {
 
 proc_planet * proc_planet_new(float radius, height_map_func height, vec3 color_family);
 void proc_planet_free(proc_planet *p);
-//void proc_planet_drawlist(proc_planet *p, terrain_tree_drawlist *list, vec3 camera_position, space_sector camera_sector);
-int proc_planet_drawlist(proc_planet *p, tri_tile **tiles, int max_tiles, vec3 cam_pos, space_sector cam_sec);
+int proc_planet_drawlist(proc_planet *p, tri_tile **tiles, int max_tiles, vec3 cam_pos, bpos_origin cam_sec);
 float proc_planet_height(vec3 pos, vec3 *variety);
 
 //Raycast towards the planet center and find the altitude on the deepest terrain tile. O(log(n)) complexity in the number of planet tiles.
-float proc_planet_altitude(proc_planet *p, vec3 cam_pos_offset, space_sector cam_sector_offset);
+float proc_planet_altitude(proc_planet *p, vec3 pos, bpos_origin sec, vec3 *intersection, bpos_origin *intersection_sector);
 
 #endif

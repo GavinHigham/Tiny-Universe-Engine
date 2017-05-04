@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include "glla.h"
 #include "buffer_group.h"
-#include "math/space_sector.h"
+#include "math/bpos.h"
 #include "open-simplex-noise-in-c/open-simplex-noise.h"
 
 //Heightmap function pointers.
@@ -28,7 +28,7 @@ struct triangular_terrain_tile {
 	//Position of the triangular tile's centroid, arithmetic mean of tile_vertices.
 	vec3 centroid;
 	vec3 normal;
-	space_sector sector;
+	bpos_origin sector;
 	//Called at the end of init, passing the new tile and the provided context.
 	void (*finishing_touches)(tri_tile *, void *);
 	void  *finishing_touches_context;
@@ -45,7 +45,7 @@ struct triangular_terrain_tile {
 void tri_tile_raycast_test();
 
 tri_tile * new_tri_tile();
-tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], space_sector sector, int num_rows, void (finishing_touches)(tri_tile *, void *), void *finishing_touches_context);
+tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], bpos_origin sector, int num_rows, void (finishing_touches)(tri_tile *, void *), void *finishing_touches_context);
 void deinit_tri_tile(tri_tile *t);
 void free_tri_tile(tri_tile *t);
 

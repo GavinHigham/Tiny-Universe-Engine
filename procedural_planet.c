@@ -16,8 +16,8 @@
 
 static const float x = 0.525731112119133606;
 static const float z = 0.850650808352039932;
-extern space_sector eye_sector;
-extern space_sector tri_sector;
+extern bpos_origin eye_sector;
+extern bpos_origin tri_sector;
  
 static const vec3 ico_v[] = {    
 	{-x, 0, z}, { x, 0,  z}, {-x,  0,-z}, { x,  0, -z},
@@ -72,12 +72,12 @@ float distance_to_horizon(float R, float h)
 void tri_tile_split(tri_tile *t, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS]);
 
 //TODO: See if I can factor out depth somehow.
-int proc_planet_subdiv_depth(proc_planet *planet, tri_tile *tile, int depth, vec3 cam_pos, space_sector cam_sec)
+int proc_planet_subdiv_depth(proc_planet *planet, tri_tile *tile, int depth, vec3 cam_pos, bpos_origin cam_sec)
 {
 	//Convert camera and tile position to planet-coordinates.
 	//These calculations might hit the limits of floating-point precision if the planet is really large.
-	cam_pos = space_sector_position_relative_to_sector(cam_pos, cam_sec, (space_sector){0, 0, 0});
-	vec3 tile_pos = space_sector_position_relative_to_sector(tile->centroid, tile->sector, (space_sector){0, 0, 0});
+	cam_pos = bpos_remap(cam_pos, cam_sec, (bpos_origin){0, 0, 0});
+	vec3 tile_pos = bpos_remap(tile->centroid, tile->sector, (bpos_origin){0, 0, 0});
 	vec3 surface_pos = cam_pos * planet->radius/vec3_mag(cam_pos);
 
 	float altitude = vec3_mag(cam_pos) - planet->radius;
@@ -203,7 +203,7 @@ void proc_planet_finishing_touches(tri_tile *t, void *finishing_touches_context)
 {
 	//Retrieve tile's planet from finishing_touches_context.
 	proc_planet *p = (proc_planet *)finishing_touches_context;
-	vec3 planet_pos = space_sector_position_relative_to_sector((vec3){0, 0, 0}, (space_sector){0, 0, 0}, t->sector);
+	vec3 planet_pos = bpos_remap((vec3){0, 0, 0}, (bpos_origin){0, 0, 0}, t->sector);
 	//Curve the tile around planet by normalizing each vertex's distance to the planet and scaling by planet radius.
 	reproject_vertices_to_spherical(t->positions, t->num_vertices, planet_pos, p->radius);
 	//Apply perturbations to the surface and calculate normals.
@@ -225,7 +225,7 @@ void tri_tile_split(tri_tile *t, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS])
 	};
 
 	proc_planet *planet = (proc_planet *)t->finishing_touches_context;
-	vec3 planet_pos = space_sector_position_relative_to_sector((vec3){0, 0, 0}, (space_sector){0, 0, 0}, t->sector);
+	vec3 planet_pos = bpos_remap((vec3){0, 0, 0}, (bpos_origin){0, 0, 0}, t->sector);
 	reproject_vertices_to_spherical(new_tile_vertices, 3, planet_pos, planet->radius);
 
 	init_tri_tile(out[0], (vec3[3]){t->tile_vertices[0],  new_tile_vertices[0], new_tile_vertices[1]}, t->sector, DEFAULT_NUM_TRI_TILE_ROWS, t->finishing_touches, t->finishing_touches_context);
@@ -293,7 +293,7 @@ proc_planet * proc_planet_new(float radius, height_map_func height, vec3 color_f
 
 		p->tiles[i] = quadtree_new(new_tri_tile(), 0);
 		//Initialize tile with verts expressed relative to p->sector.
-		init_tri_tile((tri_tile *)p->tiles[i]->data, verts, (space_sector){0, 0, 0}, DEFAULT_NUM_TRI_TILE_ROWS, &proc_planet_finishing_touches, p);
+		init_tri_tile((tri_tile *)p->tiles[i]->data, verts, (bpos_origin){0, 0, 0}, DEFAULT_NUM_TRI_TILE_ROWS, &proc_planet_finishing_touches, p);
 	}
 
 	return p;
@@ -306,7 +306,7 @@ void proc_planet_free(proc_planet *p)
 	free(p);
 }
 
-int proc_planet_drawlist(proc_planet *p, tri_tile **tiles, int max_tiles, vec3 cam_pos_offset, space_sector cam_sector_offset)
+int proc_planet_drawlist(proc_planet *p, tri_tile **tiles, int max_tiles, vec3 cam_pos_offset, bpos_origin cam_sector_offset)
 {
 	struct planet_terrain_context context = {
 		.splits_left = 5, //Total number of splits for this call of drawlist.
@@ -334,10 +334,11 @@ int proc_planet_drawlist(proc_planet *p, tri_tile **tiles, int max_tiles, vec3 c
 struct proc_planet_tile_raycast_context {
 	//Input
 	vec3 pos;
-	space_sector sec;
+	bpos_origin sec;
 	//Output
 	tri_tile *intersecting_tile;
 	vec3 intersection;
+	bpos_origin intersection_sector;
 };
 
 bool proc_planet_tile_raycast(quadtree_node *tree, void *context)
@@ -345,33 +346,45 @@ bool proc_planet_tile_raycast(quadtree_node *tree, void *context)
 	struct proc_planet_tile_raycast_context *ctx = (struct proc_planet_tile_raycast_context *)context;
 	tri_tile *t = tree_tile(tree);
 	vec3 intersection;
-	vec3 local_start = space_sector_position_relative_to_sector(ctx->pos, ctx->sec, t->sector);
-	vec3 local_end = space_sector_position_relative_to_sector((vec3){0, 0, 0}, (space_sector){0, 0, 0}, t->sector);
+	vec3 local_start = bpos_remap(ctx->pos, ctx->sec, t->sector);
+	vec3 local_end = bpos_remap((vec3){0, 0, 0}, (bpos_origin){0, 0, 0}, t->sector);
 	//Flip start and end so we don't find tiles from the back of the planet.
 	int result = ray_tri_intersect(local_start, local_end, tree_tile(tree)->tile_vertices, &intersection);
 	if (result == 1) {
 		t->override_col *= (vec3){0.1, 1.0, 1.0};
 		printf("Tile intersection found! Tile: %i\n", t->tile_index);
+		ctx->intersecting_tile = t;
+		ctx->intersection = intersection;
+		ctx->intersection_sector = t->sector;
 	}
 	return result == 1;
 }
 
 //Raycast towards the planet center and find the altitude on the deepest terrain tile. O(log(n)) complexity in the number of planet tiles.
-float proc_planet_altitude(proc_planet *p, vec3 pos, space_sector sec)
+float proc_planet_altitude(proc_planet *p, vec3 pos, bpos_origin sec, vec3 *intersection, bpos_origin *intersection_sector)
 {
 	//TODO: Don't loop through everything to find this.
-	float smallest_distance = INFINITY;
+	float smallest_dist = INFINITY;
+	float smallest_tile_dist = INFINITY;
 	struct proc_planet_tile_raycast_context context = {pos, sec, NULL};
 	for (int i = 0; i < NUM_ICOSPHERE_FACES; i++) {
 		quadtree_preorder_visit(p->tiles[i], proc_planet_tile_raycast, &context);
 		tri_tile *t = context.intersecting_tile;
 		if (t) {
-			vec3 local_start = space_sector_position_relative_to_sector(pos, sec, t->sector);
-			vec3 local_end = space_sector_position_relative_to_sector((vec3){0, 0, 0}, (space_sector){0, 0, 0}, t->sector);
-			float distance = tri_tile_raycast_depth(t, local_start, local_end);
-			if (distance < smallest_distance)
-				smallest_distance = distance;
+			vec3 local_start = bpos_remap(pos, sec, t->sector);
+			vec3 local_end = bpos_remap((vec3){0, 0, 0}, (bpos_origin){0, 0, 0}, t->sector);
+			float dist = tri_tile_raycast_depth(t, local_start, local_end);
+
+			if (dist < smallest_dist)
+				smallest_dist = dist;
+
+			float tile_dist = vec3_dist(local_start, t->centroid);
+			if (tile_dist < smallest_tile_dist) {
+				smallest_tile_dist = tile_dist;
+				*intersection = context.intersection;
+				*intersection_sector = context.intersection_sector;
+			}
 		}
 	}
-	return smallest_distance;
+	return smallest_dist;
 }
