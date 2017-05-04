@@ -14,16 +14,16 @@ extern const float BPOS_CELL_SIZE;
 
 typedef int_fast64_t bpos_origin __attribute__((ext_vector_type(3)));
 typedef struct {
-	vec3 pos;
+	vec3 offset;
 	bpos_origin origin;
 } bpos;
 
 //If b's position is outside the bounds of b's origin, corrects the origin and remaps b's position.
 void bpos_fix(bpos *b);
-//If pos is outside the bounds of origin, corrects origin and remaps pos to it.
-void bpos_split_fix(vec3 *pos, bpos_origin *origin);
-//If pos is expressed relative to bpos_origin, returns pos relative to new_origin.
-vec3 bpos_remap(vec3 pos, bpos_origin old_origin, bpos_origin new_origin);
+//If offset is outside the bounds of origin, corrects origin and remaps offset to it.
+void bpos_split_fix(vec3 *offset, bpos_origin *origin);
+//Returns pos.offset relative to new_origin.
+vec3 bpos_remap(bpos pos, bpos_origin new_origin);
 
 //Prints a bpos like so: "[x, y, z]" (no newline).
 void bpos_print(bpos b);

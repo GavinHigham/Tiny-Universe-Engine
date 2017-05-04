@@ -116,7 +116,7 @@ tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], bpos_origin sector, int 
 
 	//Recalculate vertex positions relative to new sector.
 	for (int i = 0; i < 3; i++)
-		t->tile_vertices[i] = bpos_remap(vertices[i], sector, t->sector);
+		t->tile_vertices[i] = bpos_remap((bpos){vertices[i], sector}, t->sector);
 
 	//Generate the initial vertex positions, coplanar points on the triangle formed by vertices[3].
 	int numverts = tri_tile_vertices(t->positions, num_rows, t->tile_vertices[0], t->tile_vertices[1], t->tile_vertices[2]);
@@ -243,7 +243,7 @@ float tri_tile_vertex_position_and_normal(height_map_func height, vec3 basis_x, 
 //(0, 0) represents the bottom-left, and (1,1) represents top-right of the triangle strip.
 void tri_tile_strip_face_at(int row, float x, float y, int *i0, int *i1, int *i2)
 {
-	int i = (int)(x + y) + (int)(x) + num_tri_tile_indices(row);
+	int i = floorf(x + y) + floorf(x) + num_tri_tile_indices(row);
 	i = (i + 2) < (num_tri_tile_indices(row+1) - 1) ? i : i - 1; //Hacky way to make the indices inclusive with the end of the strip.
 	printf("x: %f, y: %f, row: %i, row start: %i\n", x, y, row, num_tri_tile_indices(row));
 	*i0 = i;
@@ -261,7 +261,7 @@ int tri_tile_raycast(vec3 tri_vertices[3], int num_tile_rows, vec3 start, vec3 d
 		float x = par_s * num_tile_rows; //x goes from 0 to row_base along the bottom of the triangle strip.
 		float y = ceil(num_tile_rows * par_t) - (num_tile_rows * par_t); //y goes from 0 to 1 from the bottom to the top of the triangle strip.
 		//It's possible to be exactly at the base of the bottom strip, in which case our index math betrays us. Death to the traitor.
-		int strip_row = num_tile_rows * par_t;
+		int strip_row = floorf(num_tile_rows * par_t);
 		strip_row = strip_row < num_tile_rows ? strip_row : num_tile_rows - 1;
 		tri_tile_strip_face_at(strip_row, x, y, &indices[0], &indices[1], &indices[2]);
 	}

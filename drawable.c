@@ -34,5 +34,5 @@ void deinit_drawable(Drawable *d)
 
 void draw_drawable(Drawable *d)
 {
-	d->draw(d->effect, *d->bg, (amat4){d->frame->a, bpos_remap(d->frame->t, *(d->sector), eye_sector)});
+	d->draw(d->effect, *d->bg, (amat4){d->frame->a, bpos_remap((bpos){d->frame->t, *(d->sector)}, eye_sector)});
 }

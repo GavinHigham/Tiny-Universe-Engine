@@ -72,22 +72,22 @@ float distance_to_horizon(float R, float h)
 void tri_tile_split(tri_tile *t, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS]);
 
 //TODO: See if I can factor out depth somehow.
-int proc_planet_subdiv_depth(proc_planet *planet, tri_tile *tile, int depth, vec3 cam_pos, bpos_origin cam_sec)
+int proc_planet_subdiv_depth(proc_planet *planet, tri_tile *tile, int depth, bpos cam_pos)
 {
 	//Convert camera and tile position to planet-coordinates.
 	//These calculations might hit the limits of floating-point precision if the planet is really large.
-	cam_pos = bpos_remap(cam_pos, cam_sec, (bpos_origin){0, 0, 0});
-	vec3 tile_pos = bpos_remap(tile->centroid, tile->sector, (bpos_origin){0, 0, 0});
-	vec3 surface_pos = cam_pos * planet->radius/vec3_mag(cam_pos);
+	cam_pos.offset = bpos_remap(cam_pos, (bpos_origin){0});
+	vec3 tile_pos = bpos_remap((bpos){tile->centroid, tile->sector}, (bpos_origin){0});
+	vec3 surface_pos = cam_pos.offset * planet->radius/vec3_mag(cam_pos.offset);
 
-	float altitude = vec3_mag(cam_pos) - planet->radius;
+	float altitude = vec3_mag(cam_pos.offset) - planet->radius;
 	float tile_radius = split_tile_radius(depth, planet->edge_len);
 	float tile_dist = vec3_dist(surface_pos, tile_pos) - tile_radius;
 	float subdiv_dist = fmax(altitude, tile_dist);
 	float scale_factor = (screen_width * planet->edge_len) / (2 * PIXELS_PER_TRI * DEFAULT_NUM_TRI_TILE_ROWS);
 
 	// //Maybe I can handle this when preparing the drawlist, instead?
-	if (distance_to_horizon(planet->radius, fmax(altitude, 0)) < (vec3_dist(cam_pos, tile_pos) - tile_radius))
+	if (distance_to_horizon(planet->radius, fmax(altitude, 0)) < (vec3_dist(cam_pos.offset, tile_pos) - tile_radius))
 		return 0; //Tiles beyond the horizon should not be split.
 
 	return splits_per_distance(subdiv_dist, scale_factor);
@@ -103,7 +103,7 @@ bool proc_planet_split_visit(quadtree_node *node, void *context)
 	if (node->depth == 0)
 		ctx->splits_left = YIELD_AFTER_DIVS;
 
-	int depth = proc_planet_subdiv_depth(ctx->planet, tile, node->depth, ctx->cam_pos, ctx->cam_sec);
+	int depth = proc_planet_subdiv_depth(ctx->planet, tile, node->depth, ctx->cam_pos);
 
 	if (depth > node->depth && !quadtree_node_has_children(node) && ctx->splits_left > 0) {
 		tri_tile *new_tiles[DEFAULT_NUM_TRI_TILE_DIVS];
@@ -124,7 +124,7 @@ bool proc_planet_drawlist_visit(quadtree_node *node, void *context)
 {
 	struct planet_terrain_context *ctx = (struct planet_terrain_context *)context;
 	tri_tile *tile = tree_tile(node);
-	int depth = proc_planet_subdiv_depth(ctx->planet, tile, node->depth, ctx->cam_pos, ctx->cam_sec);
+	int depth = proc_planet_subdiv_depth(ctx->planet, tile, node->depth, ctx->cam_pos);
 
 	if (depth == node->depth || !quadtree_node_has_children(node))
 		if (ctx->num_tiles < ctx->max_tiles)
@@ -203,7 +203,7 @@ void proc_planet_finishing_touches(tri_tile *t, void *finishing_touches_context)
 {
 	//Retrieve tile's planet from finishing_touches_context.
 	proc_planet *p = (proc_planet *)finishing_touches_context;
-	vec3 planet_pos = bpos_remap((vec3){0, 0, 0}, (bpos_origin){0, 0, 0}, t->sector);
+	vec3 planet_pos = bpos_remap((bpos){0}, t->sector);
 	//Curve the tile around planet by normalizing each vertex's distance to the planet and scaling by planet radius.
 	reproject_vertices_to_spherical(t->positions, t->num_vertices, planet_pos, p->radius);
 	//Apply perturbations to the surface and calculate normals.
@@ -225,7 +225,7 @@ void tri_tile_split(tri_tile *t, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS])
 	};
 
 	proc_planet *planet = (proc_planet *)t->finishing_touches_context;
-	vec3 planet_pos = bpos_remap((vec3){0, 0, 0}, (bpos_origin){0, 0, 0}, t->sector);
+	vec3 planet_pos = bpos_remap((bpos){0}, t->sector);
 	reproject_vertices_to_spherical(new_tile_vertices, 3, planet_pos, planet->radius);
 
 	init_tri_tile(out[0], (vec3[3]){t->tile_vertices[0],  new_tile_vertices[0], new_tile_vertices[1]}, t->sector, DEFAULT_NUM_TRI_TILE_ROWS, t->finishing_touches, t->finishing_touches_context);
@@ -306,12 +306,11 @@ void proc_planet_free(proc_planet *p)
 	free(p);
 }
 
-int proc_planet_drawlist(proc_planet *p, tri_tile **tiles, int max_tiles, vec3 cam_pos_offset, bpos_origin cam_sector_offset)
+int proc_planet_drawlist(proc_planet *p, tri_tile **tiles, int max_tiles, bpos cam_pos)
 {
 	struct planet_terrain_context context = {
 		.splits_left = 5, //Total number of splits for this call of drawlist.
-		.cam_pos = cam_pos_offset,
-		.cam_sec = cam_sector_offset,
+		.cam_pos = cam_pos,
 		.planet = p,
 		.visited = 0,
 		.tiles = tiles,
@@ -333,12 +332,10 @@ int proc_planet_drawlist(proc_planet *p, tri_tile **tiles, int max_tiles, vec3 c
 
 struct proc_planet_tile_raycast_context {
 	//Input
-	vec3 pos;
-	bpos_origin sec;
+	bpos pos;
 	//Output
 	tri_tile *intersecting_tile;
-	vec3 intersection;
-	bpos_origin intersection_sector;
+	bpos intersection;
 };
 
 bool proc_planet_tile_raycast(quadtree_node *tree, void *context)
@@ -346,33 +343,33 @@ bool proc_planet_tile_raycast(quadtree_node *tree, void *context)
 	struct proc_planet_tile_raycast_context *ctx = (struct proc_planet_tile_raycast_context *)context;
 	tri_tile *t = tree_tile(tree);
 	vec3 intersection;
-	vec3 local_start = bpos_remap(ctx->pos, ctx->sec, t->sector);
-	vec3 local_end = bpos_remap((vec3){0, 0, 0}, (bpos_origin){0, 0, 0}, t->sector);
+	vec3 local_start = bpos_remap(ctx->pos, t->sector);
+	vec3 local_end = bpos_remap((bpos){0}, t->sector);
 	//Flip start and end so we don't find tiles from the back of the planet.
 	int result = ray_tri_intersect(local_start, local_end, tree_tile(tree)->tile_vertices, &intersection);
 	if (result == 1) {
 		t->override_col *= (vec3){0.1, 1.0, 1.0};
 		printf("Tile intersection found! Tile: %i\n", t->tile_index);
 		ctx->intersecting_tile = t;
-		ctx->intersection = intersection;
-		ctx->intersection_sector = t->sector;
+		ctx->intersection.offset = intersection;
+		ctx->intersection.origin = t->sector;
 	}
 	return result == 1;
 }
 
 //Raycast towards the planet center and find the altitude on the deepest terrain tile. O(log(n)) complexity in the number of planet tiles.
-float proc_planet_altitude(proc_planet *p, vec3 pos, bpos_origin sec, vec3 *intersection, bpos_origin *intersection_sector)
+float proc_planet_altitude(proc_planet *p, bpos start, bpos *intersection)
 {
 	//TODO: Don't loop through everything to find this.
 	float smallest_dist = INFINITY;
 	float smallest_tile_dist = INFINITY;
-	struct proc_planet_tile_raycast_context context = {pos, sec, NULL};
+	struct proc_planet_tile_raycast_context context = {.pos = start};
 	for (int i = 0; i < NUM_ICOSPHERE_FACES; i++) {
 		quadtree_preorder_visit(p->tiles[i], proc_planet_tile_raycast, &context);
 		tri_tile *t = context.intersecting_tile;
 		if (t) {
-			vec3 local_start = bpos_remap(pos, sec, t->sector);
-			vec3 local_end = bpos_remap((vec3){0, 0, 0}, (bpos_origin){0, 0, 0}, t->sector);
+			vec3 local_start = bpos_remap(start, t->sector);
+			vec3 local_end = bpos_remap((bpos){0}, t->sector);
 			float dist = tri_tile_raycast_depth(t, local_start, local_end);
 
 			if (dist < smallest_dist)
@@ -382,7 +379,6 @@ float proc_planet_altitude(proc_planet *p, vec3 pos, bpos_origin sec, vec3 *inte
 			if (tile_dist < smallest_tile_dist) {
 				smallest_tile_dist = tile_dist;
 				*intersection = context.intersection;
-				*intersection_sector = context.intersection_sector;
 			}
 		}
 	}

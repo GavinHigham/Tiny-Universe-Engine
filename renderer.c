@@ -56,20 +56,17 @@ const float planet_radius = 6000000;
 
 //This is awful and I should change it.
 struct {
-	vec3 pos;
-	bpos_origin sector;
+	bpos pos;
 	proc_planet *planet;
 	vec3 col;
 } test_planets[] = {
 	{
-		{0, 0, 0},
-		{0, 0, 0},
+		{0},
 		NULL,
 		{1.0, 0.7, 0.7},
 	},
 	{
-		{0, 0, 0},
-		{-350, 88, -13800},
+		{{0, 0, 0},{-350, 88, -13800}},
 		NULL,
 		{0.5, 0.7, 0.9},
 	},
@@ -258,13 +255,16 @@ void render()
 {
 	tri_tile *drawlist[LENGTH(test_planets)][3000];
 	int drawlist_count[LENGTH(test_planets)];
-	for (int i = 0; i < LENGTH(test_planets); i++)
-		drawlist_count[i] = proc_planet_drawlist(test_planets[i].planet, drawlist[i], LENGTH(drawlist[i]), eye_frame.t - test_planets[i].pos, eye_sector - test_planets[i].sector);
+	for (int i = 0; i < LENGTH(test_planets); i++) {
+		bpos pos = {eye_frame.t - test_planets[i].pos.offset, eye_sector - test_planets[i].pos.origin};
+		drawlist_count[i] = proc_planet_drawlist(test_planets[i].planet, drawlist[i], LENGTH(drawlist[i]), pos);
+	}
 
 	//Note: This is here so it can set the intersecting tile's override color before the draw.
-	vec3 intersection = {0, 0, 0};
-	bpos_origin intersection_sector = {0, 0, 0};
-	float ship_altitude = proc_planet_altitude(test_planets[0].planet, ship.position.t - test_planets[0].pos, ship.sector - test_planets[0].sector, &intersection, &intersection_sector);
+
+	bpos ray_start = {ship.position.t - test_planets[0].pos.offset, ship.sector - test_planets[0].pos.origin};
+	bpos intersection = {0};
+	float ship_altitude = proc_planet_altitude(test_planets[0].planet, ray_start, &intersection);
 	printf("Current ship altitude to planet 0: %f\n", ship_altitude);
 
 	//float h = vec3_dist(eye_frame.t, test_planet->pos) - test_planet->radius; //If negative, we're below sea level.
@@ -329,7 +329,9 @@ void render()
 				tri_tile *t = drawlist[i][j];
 				if (!t->buffered) //Last resort "BUFFER RIGHT NOW", will cause hiccups.
 					buffer_tri_tile(t);
-				amat4 tile_frame = {tri_frame.a, bpos_remap(test_planets[i].pos, test_planets[i].sector + t->sector, eye_sector)};
+				bpos tile_pos = test_planets[i].pos;
+				tile_pos.offset = bpos_remap((bpos){tile_pos.offset, tile_pos.origin + t->sector}, eye_sector);
+				amat4 tile_frame = {tri_frame.a, tile_pos.offset};
 				glUniform3fv(effects.forward.override_col, 1, (float *)&t->override_col);
 				draw_forward(&effects.forward, t->bg, tile_frame);
 				checkErrors("After drawing a tri_tile");
@@ -414,10 +416,10 @@ void render()
 	//draw_drawable(&d_skybox);
 	stars_draw();
 
-	debug_graphics.lines.ship_to_planet.start = bpos_remap(ship.position.t, ship.sector, eye_sector);
-	debug_graphics.lines.ship_to_planet.end   = bpos_remap(test_planets[0].pos, test_planets[0].sector, eye_sector);
+	debug_graphics.lines.ship_to_planet.start = bpos_remap((bpos){ship.position.t, ship.sector}, eye_sector);
+	debug_graphics.lines.ship_to_planet.end   = bpos_remap(test_planets[0].pos, eye_sector);
 	debug_graphics.lines.ship_to_planet.enabled = true;
-	debug_graphics.points.ship_to_planet_intersection.pos = bpos_remap(intersection, intersection_sector, eye_sector);
+	debug_graphics.points.ship_to_planet_intersection.pos = bpos_remap(intersection, eye_sector);
 	debug_graphics.points.ship_to_planet_intersection.enabled = true;
 	debug_graphics_draw();
 

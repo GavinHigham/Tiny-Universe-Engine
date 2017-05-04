@@ -8,39 +8,39 @@ const float BPOS_CELL_SIZE = 8192;
 void bpos_fix(bpos *b)
 {
 	for (int i = 0; i < 3; i++) {
-		b->origin[i] += truncf(b->pos[i] / BPOS_CELL_SIZE);
-		b->pos[i] = fmod(b->pos[i], BPOS_CELL_SIZE);
-		int_fast64_t tmp = truncf(b->pos[i] / (BPOS_CELL_SIZE/2));
-		b->pos[i] -= tmp * BPOS_CELL_SIZE;
+		b->origin[i] += truncf(b->offset[i] / BPOS_CELL_SIZE);
+		b->offset[i] = fmod(b->offset[i], BPOS_CELL_SIZE);
+		int_fast64_t tmp = truncf(b->offset[i] / (BPOS_CELL_SIZE/2));
+		b->offset[i] -= tmp * BPOS_CELL_SIZE;
 		b->origin[i] += tmp;
 	}
 }
 
-void bpos_split_fix(vec3 *pos, bpos_origin *origin)
+void bpos_split_fix(vec3 *offset, bpos_origin *origin)
 {
-	bpos tmp = {*pos, *origin};
+	bpos tmp = {*offset, *origin};
 	bpos_fix(&tmp);
-	*pos = tmp.pos;
+	*offset = tmp.offset;
 	*origin = tmp.origin;
 }
 
 //Also copied to stars.vs, so update there too if changed.
-vec3 bpos_remap(vec3 pos, bpos_origin old_origin, bpos_origin new_origin)
+vec3 bpos_remap(bpos pos, bpos_origin new_origin)
 {
-	bpos_origin tmp = old_origin - new_origin;
-	return BPOS_CELL_SIZE * (vec3){tmp.x, tmp.y, tmp.z} + pos;
+	bpos_origin tmp = pos.origin - new_origin;
+	return BPOS_CELL_SIZE * (vec3){tmp.x, tmp.y, tmp.z} + pos.offset;
 }
 
 void bpos_print(bpos b)
 {
 	bpos_origin_print(b.origin);
-	vec3_print(b.pos);
+	vec3_print(b.offset);
 }
 
 void bpos_printf(char *ifmt, char *ffmt, bpos b)
 {
 	bpos_origin_printf(ifmt, b.origin);
-	vec3_printf(ffmt, b.pos);
+	vec3_printf(ffmt, b.offset);
 }
 
 void bpos_origin_print(bpos_origin b)
