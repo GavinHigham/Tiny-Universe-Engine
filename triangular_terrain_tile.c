@@ -244,8 +244,9 @@ float tri_tile_vertex_position_and_normal(height_map_func height, vec3 basis_x, 
 void tri_tile_strip_face_at(int row, float x, float y, int *i0, int *i1, int *i2)
 {
 	int i = floorf(x + y) + floorf(x) + num_tri_tile_indices(row);
-	i = (i + 2) < (num_tri_tile_indices(row+1) - 1) ? i : i - 1; //Hacky way to make the indices inclusive with the end of the strip.
-	printf("x: %f, y: %f, row: %i, row start: %i\n", x, y, row, num_tri_tile_indices(row));
+	int next_row_start = num_tri_tile_indices(row+1);
+	i = (i + 3) < next_row_start ? i : next_row_start - 4; //Hacky way to make the indices inclusive with the end of the strip.
+	//printf("x: %f, y: %f, row: %i, row start: %i\n", x, y, row, num_tri_tile_indices(row));
 	*i0 = i;
 	*i1 = i + 1;
 	*i2 = i + 2;
@@ -278,31 +279,41 @@ float tri_tile_raycast_depth(tri_tile *t, vec3 start, vec3 dir)
 	vec3 tile_intersection = {0, 0, 0};
 
 	int result = tri_tile_raycast(t->tile_vertices, t->num_rows, start, dir, &tile_intersection, indices);
-	printf("Intersection indices: %i, %i, %i\n", indices[0], indices[1], indices[2]);
-	printf("Num indices on this tile: %i\n", t->bg.index_count);
 
 	assert(result == 1);
 	assert(indices[0] >= 0);
 	assert(indices[2] < t->bg.index_count);
 
-	printf("Vertices: ");
+	GLuint *global_indices = get_shared_tri_tile_indices(t->num_rows);
+	
+	//printf("Vertices: ");
 	for (int i = 0; i < 3; i++) {
-		positions[i] = t->positions[indices[i]];
-		vec3_print(positions[i]);
+		int pos_i = global_indices[indices[i]];
+		assert(pos_i != PRIMITIVE_RESTART_INDEX);
+		positions[i] = t->positions[pos_i];
+		//vec3_print(positions[i]);
 	}
-	printf("\n");
+	//printf("\n");
 
-	result = ray_tri_intersect(start, tile_intersection, positions, &intersection);
+	result = ray_tri_intersect(start, dir, positions, &intersection);
 
 	if (result == 1) {
 		return vec3_dist(start, intersection);
 	} else {
+		//We could be inside the planet, in which case point the ray backwards.
+		result = ray_tri_intersect(start, -dir, positions, &intersection);
+		if (result == 1)
+			return -vec3_dist(start, intersection);
+		//If not, print debug info.
 		printf("ANOTHER FINE MESS WE'VE GOTTEN INTO\n");
 		printf("THIS WILL HELP YOU IN YOUR JOURNEY:\n");
 		printf("start: "); vec3_println(start);
 		printf("dir:   "); vec3_println(dir);
 		printf("tile intersection: "); vec3_println(tile_intersection);
 		printf("tile index: %i\n",t->tile_index);
+		printf("Intersection indices: %i, %i, %i\n", indices[0], indices[1], indices[2]);
+		printf("Num indices on this tile: %i\n", t->bg.index_count);
+		printf("Vertex buffer indices: %u, %u, %u\n", global_indices[indices[0]], global_indices[indices[1]], global_indices[indices[2]]);
 	}
 	
 	return INFINITY;

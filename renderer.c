@@ -260,8 +260,7 @@ void render()
 		drawlist_count[i] = proc_planet_drawlist(test_planets[i].planet, drawlist[i], LENGTH(drawlist[i]), pos);
 	}
 
-	//Note: This is here so it can set the intersecting tile's override color before the draw.
-
+	//Future Gavin Reminder: You put this here so it can set the intersecting tile's override color before the draw.
 	bpos ray_start = {ship.position.t - test_planets[0].pos.offset, ship.sector - test_planets[0].pos.origin};
 	bpos intersection = {0};
 	float ship_altitude = proc_planet_altitude(test_planets[0].planet, ray_start, &intersection);
@@ -474,6 +473,11 @@ void update(float dt)
 		axes[TRIGGERRIGHT] / controller_max,
 	}, nes30_buttons, ship);
 	bpos_split_fix(&ship.position.t, &ship.sector);
+
+	bpos ray_start = {ship.position.t - test_planets[0].pos.offset, ship.sector - test_planets[0].pos.origin};
+	bpos intersection = {0};
+	float ship_altitude = proc_planet_altitude(test_planets[0].planet, ray_start, &intersection);
+	printf("Current ship altitude to planet 0: %f\n", ship_altitude);
 
 	eye_frame = (amat4){ship.locked_camera.a, amat4_multpoint(ship.position, ship.locked_camera.t)};
 	eye_sector = ship.sector;

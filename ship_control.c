@@ -7,6 +7,15 @@ void apply_impulse(struct ship_physics *ship, vec3 impulse)
 
 }
 
+struct controller_input controller_input_apply_threshold(struct controller_input input, float threshold)
+{
+	input.leftx = fabs(input.leftx) > threshold ? input.leftx : 0;
+	input.lefty = fabs(input.lefty) > threshold ? input.lefty : 0;
+	input.rightx = fabs(input.rightx) > threshold ? input.rightx : 0;
+	input.righty = fabs(input.righty) > threshold ? input.righty : 0;
+	return input;
+}
+
 /*
 The "locked camera" is expressed in coordinates relative to the ship's position, in the ship's affine frame.
 Thus, if the ship points down its own -Z axis, a camera with coordinates {0, 4, 8} is 4 meters above the ship, and 8 meters behind it.
@@ -16,6 +25,7 @@ The "eased camera" is similar to the locked camera. The primary difference is th
 
 struct ship_physics ship_control(float dt, struct controller_input input, bool buttons[16], struct ship_physics ship)
 {
+	input = controller_input_apply_threshold(input, 0.005);
 	if (buttons[INPUT_BUTTON_A])
 		ship.speed = 1000;
 	else
