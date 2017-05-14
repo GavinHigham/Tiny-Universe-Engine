@@ -21,11 +21,6 @@ struct osn_context *osnctx;
 int gl_init(SDL_GLContext *context, SDL_Window *window);
 int glew_init();
 
-static void reload_signal_handler(int signo) {
-	printf("Received SIGUSR1! Reloading shaders!\n");
-	renderer_queue_reload();
-}
-
 int engine_init(SDL_GLContext *context, SDL_Window *window)
 {
 	int img_flags = IMG_INIT_PNG;
@@ -50,10 +45,6 @@ int engine_init(SDL_GLContext *context, SDL_Window *window)
 
 	SDL_GameControllerEventState(SDL_ENABLE);
 	input_event_init();
-
-	if (signal(SIGUSR1, reload_signal_handler) == SIG_ERR) {
-		printf("An error occurred while setting a signal handler.\n");
-	}
 
 	return 0;
 }

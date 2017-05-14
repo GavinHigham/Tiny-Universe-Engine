@@ -16,10 +16,9 @@
 #include "stars.h"
 #include "draw.h"
 #include "drawf.h"
-#include "drawable.h"
+#include "entity/entity_components.h"
 #include "procedural_planet.h"
 #include "triangular_terrain_tile.h"
-#include "ship_control.h"
 #include "math/bpos.h"
 #include "debug_graphics.h"
 
@@ -72,60 +71,74 @@ struct {
 	},
 };
 
-struct ship_physics ship = {
-	.speed = 10,
-	.acceleration = (vec3){0, 0, 0},
-	.velocity     = AMAT4_IDENT,
-	.position      = {.a = MAT3_IDENT, .t = {0, 6000 + planet_radius, 0}},
-	.locked_camera = {.a = MAT3_IDENT, .t = {0, 4, 8}},
-	.eased_camera  = {.a = MAT3_IDENT, .t = {0, 4, 8}},
-	.locked_camera_target = (vec3){0, 0, -4},
-	.eased_camera_target  = (vec3){0, 0, -4},
-	.sector               = (bpos_origin){0, 400, 0}
-};
+Entity *ship_entity = NULL;
+Entity *camera_entity = NULL;
 
 GLfloat proj_mat[16];
 GLfloat proj_view_mat[16];
 
 Drawable d_ship, d_newship, d_teardropship, d_room, d_skybox;
+Entity *entities;
+int16_t nentities;
 
 //Just a hacky record so that I allocate/free all these properly as I develop this.
-struct drawable_rec {
-	Drawable *drawable;
-	Draw_func draw;
-	EFFECT *effect;
-	amat4 *frame;
-	bpos_origin *sector;
-	int (*buffering_function)(struct buffer_group);
-} drawables[] = {
-	{&d_ship,         draw_forward,        &effects.forward, &ship.position, &ship.sector,   buffer_teardropship},
-	{&d_newship,      draw_forward,        &effects.forward, &ship.position, &ship.sector,   buffer_newship     },
-	{&d_teardropship, draw_forward,        &effects.forward, &ship.position, &ship.sector,   buffer_teardropship},
-	{&d_room,         draw_forward,        &effects.forward, &room_frame,    &room_sector,   buffer_newroom     },
-	{&d_skybox,       draw_skybox_forward, &effects.skybox,  &skybox_frame,  &eye_sector,    buffer_cube        }
-};
+// struct drawable_rec {
+// 	Drawable *drawable;
+// 	Draw_func draw;
+// 	EFFECT *effect;
+// 	amat4 *frame;
+// 	bpos_origin *sector;
+// 	int (*buffering_function)(struct buffer_group);
+// } drawables[] = {
+// 	{&d_ship,         draw_forward,        &effects.forward, &ship->physical->position, &ship->physical->origin,   buffer_teardropship},
+// 	{&d_newship,      draw_forward,        &effects.forward, &ship->physical->position, &ship->physical->origin,   buffer_newship     },
+// 	{&d_teardropship, draw_forward,        &effects.forward, &ship->physical->position, &ship->physical->origin,   buffer_teardropship},
+// 	{&d_room,         draw_forward,        &effects.forward, &room_frame,    &room_sector,   buffer_newroom     },
+// 	{&d_skybox,       draw_skybox_forward, &effects.skybox,  &skybox_frame,  &eye_sector,    buffer_cube        }
+// };
 
 static void init_models()
 {
 	//In the future, this function should be called in a loop on all entities with the drawable component.
 	//Maybe configured from some config file?
 	//init_heap_drawable(Drawable *drawable, Draw_func draw, EFFECT *effect, amat4 *frame, int (*buffering_function)(struct buffer_group));
-	for (int i = 0; i < LENGTH(drawables); i++)
-		init_heap_drawable(drawables[i].drawable, drawables[i].draw, drawables[i].effect, drawables[i].frame, drawables[i].sector, drawables[i].buffering_function);
+	// for (int i = 0; i < LENGTH(drawables); i++)
+	// 	init_heap_drawable(drawables[i].drawable, drawables[i].draw, drawables[i].effect, drawables[i].frame, drawables[i].sector, drawables[i].buffering_function);
 
 	test_planets[0].planet = proc_planet_new(planet_radius, proc_planet_height, test_planets[0].col);
 	test_planets[1].planet = proc_planet_new(planet_radius * 1.7, proc_planet_height, test_planets[1].col);
 
-	bpos_split_fix(&ship.position.t, &ship.sector);
+	//bpos_split_fix(&ship.position.t, &ship.sector);
 }
 
 static void deinit_models()
 {
-	for (int i = 0; i < LENGTH(drawables); i++)
-		deinit_drawable(drawables[i].drawable);
+	// for (int i = 0; i < LENGTH(drawables); i++)
+	// 	deinit_drawable(drawables[i].drawable);
 
 	for (int i = 0; i < LENGTH(test_planets); i++)
 		proc_planet_free(test_planets[i].planet);
+}
+
+void entities_init()
+{
+	ship_entity = entity_new(PHYSICAL_MASK | CONTROLLABLE_MASK | DRAWABLE_MASK);
+	ship_entity->physical->position.t = (vec3){0, 6000 + planet_radius, 0};
+	ship_entity->physical->origin = (bpos_origin){0, 400, 0};
+	ship_entity->controllable->control = ship_control;
+	//TODO: Init drawable part
+
+	camera_entity = entity_new(PHYSICAL_MASK | CONTROLLABLE_MASK | SCRIPTABLE_MASK);
+	camera_entity->physical->position.t = (vec3){0, 4, 8};
+	camera_entity->controllable->control = camera_control;
+	camera_entity->controllable->context = ship_entity->physical;
+	camera_entity->scriptable->script = camera_script;
+	camera_entity->scriptable->context = ship_entity->physical;
+}
+
+void entities_deinit()
+{
+	entity_reset();
 }
 
 static void init_lights()
@@ -149,11 +162,28 @@ void handle_resize(int width, int height)
 	make_projection_matrix(FOV, screen_width/screen_height, -near_distance, -far_distance, proj_mat, LENGTH(proj_mat));	
 }
 
+//Signal handler that tells the renderer module to reload itself.
+static void reload_signal_handler(int signo) {
+	printf("Received SIGUSR1! Reloading shaders!\n");
+	renderer_queue_reload();
+}
+
 //Set up everything needed to start rendering frames.
 void renderer_init()
 {
 	if (renderer_is_init)
 		return;
+
+	load_effects(
+		effects.all,       LENGTH(effects.all),
+		shader_file_paths, LENGTH(shader_file_paths),
+		attribute_strings, LENGTH(attribute_strings),
+		uniform_strings,   LENGTH(uniform_strings));
+
+	//When we receive SIGUSR1, reload the renderer module.
+	if (signal(SIGUSR1, reload_signal_handler) == SIG_ERR) {
+		printf("An error occurred while setting a signal handler.\n");
+	}
 
 	glUseProgram(0);
 	glClearDepth(1);
@@ -165,10 +195,7 @@ void renderer_init()
 	make_projection_matrix(FOV, screen_width/screen_height, -1, -far_distance, proj_mat, LENGTH(proj_mat));
 	log_depth_intermediate_factor = 2.0/log2(far_distance + 1.0);
 
-	bpos_split_fix(&ship.position.t, &ship.sector);
-	eye_frame = (amat4){ship.locked_camera.a, amat4_multpoint(ship.position, ship.locked_camera.t)};
-	eye_sector = ship.sector;
-	bpos_split_fix(&eye_frame.t, &eye_sector);
+	entities_init();
 
 	init_models();
 	init_lights();
@@ -188,6 +215,8 @@ void renderer_init()
 	glPointSize(5);
 	glEnable(GL_PROGRAM_POINT_SIZE);
 
+	entity_update_components();
+
 	glUseProgram(0);
 	checkErrors("After init_render");
 	renderer_is_init = true;
@@ -201,17 +230,7 @@ void renderer_deinit()
 	stars_deinit();
 	point_lights.num_lights = 0;
 	renderer_is_init = false;
-}
-
-void renderer_reload()
-{
-	load_effects(
-		effects.all,       LENGTH(effects.all),
-		shader_file_paths, LENGTH(shader_file_paths),
-		attribute_strings, LENGTH(attribute_strings),
-		uniform_strings,   LENGTH(uniform_strings));
-	renderer_deinit();
-	renderer_init();
+	entities_deinit();
 }
 
 void renderer_queue_reload()
@@ -261,7 +280,7 @@ void render()
 	}
 
 	//Future Gavin Reminder: You put this here so it can set the intersecting tile's override color before the draw.
-	bpos ray_start = {ship.position.t - test_planets[0].pos.offset, ship.sector - test_planets[0].pos.origin};
+	bpos ray_start = {ship_entity->physical->position.t - test_planets[0].pos.offset, ship_entity->physical->origin - test_planets[0].pos.origin};
 	bpos intersection = {0};
 	float ship_altitude = proc_planet_altitude(test_planets[0].planet, ray_start, &intersection);
 	printf("Current ship altitude to planet 0: %f\n", ship_altitude);
@@ -415,7 +434,7 @@ void render()
 	//draw_drawable(&d_skybox);
 	stars_draw();
 
-	debug_graphics.lines.ship_to_planet.start = bpos_remap((bpos){ship.position.t, ship.sector}, eye_sector);
+	debug_graphics.lines.ship_to_planet.start = bpos_remap((bpos){ship_entity->physical->position.t, ship_entity->physical->origin}, eye_sector);
 	debug_graphics.lines.ship_to_planet.end   = bpos_remap(test_planets[0].pos, eye_sector);
 	debug_graphics.lines.ship_to_planet.enabled = true;
 	debug_graphics.points.ship_to_planet_intersection.pos = bpos_remap(intersection, eye_sector);
@@ -429,7 +448,8 @@ void render()
 void update(float dt)
 {
 	if (renderer_should_reload) {
-		renderer_reload();
+		renderer_deinit();
+		renderer_init();
 		renderer_should_reload = false;
 	}
 
@@ -437,50 +457,21 @@ void update(float dt)
 	light_time += dt * 0.2;
 	point_lights.position[0] = (vec3){10*cos(light_time), 4, 10*sin(light_time)-8};
 
-	if (key_state[SDL_SCANCODE_T]) {
-		printf("Ship is at [%lli, %lli, %lli]{%f, %f, %f}. Where would you like to teleport?\n",
-			ship.sector.x, ship.sector.y, ship.sector.z,
-			ship.position.t.x, ship.position.t.y, ship.position.t.z);
-		float x, y, z;
-		int_fast64_t sx, sy, sz;
-		scanf("%lli %lli %lli %f %f %f", &sx, &sy, &sz, &x, &y, &z);
-		ship.position.t = (vec3){x, y, z};
-		ship.sector = (bpos_origin){sx, sy, sz};
-		bpos_split_fix(&ship.position.t, &ship.sector);
-	}
 	if (key_state[SDL_SCANCODE_Y]) {
 		printf("Skybox scale is %f, what would you like the scale to be?\n", skybox_scale);
 		scanf("%f", &skybox_scale);
 		skybox_frame.a = mat3_scalemat(skybox_scale, skybox_scale, skybox_scale);
 	}
 
-	//Translate the camera using WASD.
-	float camera_speed = 20.0;
-	ship.locked_camera.t = ship.locked_camera.t + //Honestly I just tried things at random until it worked, but here's my guess:
-		mat3_multvec(mat3_transp(ship.position.a), // 2) Convert those coordinates from world-space to ship-space.
-			mat3_multvec(ship.locked_camera.a, (vec3){ // 1) Move relative to the frame pointed at the ship.
-			(key_state[SDL_SCANCODE_D] - key_state[SDL_SCANCODE_A]) * dt * camera_speed,
-			(key_state[SDL_SCANCODE_Q] - key_state[SDL_SCANCODE_E]) * dt * camera_speed,
-			(key_state[SDL_SCANCODE_S] - key_state[SDL_SCANCODE_W]) * dt * camera_speed}));
+	entity_update_components();
 
-	float controller_max = 32768.0;
-	ship = ship_control(dt, (struct controller_input){
-		axes[LEFTX]  / controller_max,
-		axes[LEFTY]  / controller_max,
-		axes[RIGHTX] / controller_max,
-		axes[RIGHTY] / controller_max,
-		axes[TRIGGERLEFT]  / controller_max,
-		axes[TRIGGERRIGHT] / controller_max,
-	}, nes30_buttons, ship);
-	bpos_split_fix(&ship.position.t, &ship.sector);
-
-	bpos ray_start = {ship.position.t - test_planets[0].pos.offset, ship.sector - test_planets[0].pos.origin};
+	bpos ray_start = {ship_entity->physical->position.t - test_planets[0].pos.offset, ship_entity->physical->origin - test_planets[0].pos.origin};
 	bpos intersection = {0};
 	float ship_altitude = proc_planet_altitude(test_planets[0].planet, ray_start, &intersection);
 	printf("Current ship altitude to planet 0: %f\n", ship_altitude);
 
-	eye_frame = (amat4){ship.locked_camera.a, amat4_multpoint(ship.position, ship.locked_camera.t)};
-	eye_sector = ship.sector;
+	eye_frame = (amat4){camera_entity->physical->position.a, amat4_multpoint(ship_entity->physical->position, camera_entity->physical->position.t)};
+	eye_sector = ship_entity->physical->origin;
 	bpos_split_fix(&eye_frame.t, &eye_sector);
 
 	point_lights.enabled_for_draw[2] = key_state[SDL_SCANCODE_6];

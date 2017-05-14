@@ -23,12 +23,9 @@ OBJECTS = \
 	effects.o \
 	drawf.o \
 	draw.o \
-	drawable.o \
 	terrain_erosion.o \
 	triangular_terrain_tile.o \
 	procedural_planet.o \
-	ship_control.o \
-	dynamic_terrain_tree.o \
 	open-simplex-noise-in-c/open-simplex-noise.o \
 	glla/glla.o \
 	debug_graphics.o \
@@ -38,6 +35,7 @@ OBJECTS = \
 include configuration/configuration.mk
 include math/math.mk
 include models/models.mk
+include entity/entity.mk
 
 all: $(OBJECTS) open-simplex-noise ceffectpp/ceffectpp effects.c
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(EXE)
@@ -65,7 +63,9 @@ open-simplex-noise:
 renderer.o: effects.o procedural_terrain.h
 
 clean:
-	rm $(OBJECTS) && rm $(EXE) && rm .depend
+	rm $(OBJECTS)
+	rm $(EXE)
+	rm .depend
 	cd ceffectpp; make clean
 	cd open-simplex-noise-in-c; make clean
 

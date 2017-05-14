@@ -1,8 +1,6 @@
 #ifndef ENTITY_H
 #define ENTITY_H
-
-#include "glla.h"
-#include "../drawable.h"
+#include "inttypes.h"
 
 /* Entity-Component Design
 
@@ -26,21 +24,34 @@ that other entities are copied from would be known as a "prefab", "prototype", o
 
 */
 
-typedef struct physical_component {
-	float bounding_sphere; //Stored as radius squared, centered on position.t
-	amat4 position;
-	amat4 velocity;
-} Physical;
+typedef struct drawable_component Drawable;
+typedef struct controllable_component Controllable;
+typedef struct scriptable_component Scriptable;
+typedef struct physical_component Physical;
+
+enum {
+	DRAWABLE_MASK     = 1,
+	PHYSICAL_MASK     = 2,
+	CONTROLLABLE_MASK = 4,
+	SCRIPTABLE_MASK   = 8,
+};
 
 typedef struct entity {
 	Drawable *drawable;
 	Physical *physical;
 	Controllable *controllable;
+	Scriptable *scriptable;
 	//Occludable
 	//Occludent
+	//Parent_transform? Could create a chain of transforms.
 } Entity;
 
-Entity global_entities[512]; //Later this can be an expandable arraylist.
-int num_global_entities = 0;
+extern Entity global_entities[512]; //Later this can be an expandable arraylist.
+extern uint16_t num_global_entities;
+
+//Creates a new entity and any associated components specified in component_mask.
+Entity * entity_new(uint16_t component_mask);
+void entity_reset();
+void entity_update_components();
 
 #endif

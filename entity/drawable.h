@@ -2,12 +2,12 @@
 #define DRAWABLE_H
 
 #include <stdbool.h>
-#include "effects.h"
-#include "buffer_group.h"
 #include "glla.h"
-#include "math/bpos.h"
+#include "../effects.h"
+#include "../buffer_group.h"
+#include "../math/bpos.h"
 
-typedef struct drawable {
+typedef struct drawable_component {
 	EFFECT *effect;
 	amat4 *frame;
 	bpos_origin *sector;

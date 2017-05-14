@@ -264,7 +264,7 @@ float proc_planet_height(vec3 pos, vec3 *variety)
 {
 	pos = pos * 0.0015;
 	vec3 v1, v2;
-	float height = fabs(
+	float height = (
 		distorted_height(pos, &v1) +
 		distorted_height(pos * 2, &v2)
 		) / 2;
@@ -326,7 +326,7 @@ int proc_planet_drawlist(proc_planet *p, tri_tile **tiles, int max_tiles, bpos c
 		//terrain_tree_prune(p->tiles[i], proc_planet_split_depth, &context, (terrain_tree_free_fn)free_tri_tile);
 	}
 
-	//printf("%d\n", context.visited);
+	printf("Num tiles drawn:%d\n", context.visited);
 	return context.num_tiles;
 }
 

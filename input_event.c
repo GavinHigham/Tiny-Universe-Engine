@@ -156,3 +156,12 @@ void jbuttonevent(SDL_Event e)
 		printf("Button %d not supported.", button);
 	}
 }
+
+struct controller_axis_input controller_input_apply_threshold(struct controller_axis_input input, float threshold)
+{
+	input.leftx = fabs(input.leftx) > threshold ? input.leftx : 0;
+	input.lefty = fabs(input.lefty) > threshold ? input.lefty : 0;
+	input.rightx = fabs(input.rightx) > threshold ? input.rightx : 0;
+	input.righty = fabs(input.righty) > threshold ? input.righty : 0;
+	return input;
+}
