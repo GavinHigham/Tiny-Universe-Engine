@@ -30,17 +30,17 @@ typedef struct scriptable_component Scriptable;
 typedef struct physical_component Physical;
 
 enum {
-	DRAWABLE_MASK     = 1,
-	PHYSICAL_MASK     = 2,
-	CONTROLLABLE_MASK = 4,
-	SCRIPTABLE_MASK   = 8,
+	DRAWABLE_BIT     = 1,
+	PHYSICAL_BIT     = 2,
+	CONTROLLABLE_BIT = 4,
+	SCRIPTABLE_BIT   = 8,
 };
 
 typedef struct entity {
-	Drawable *drawable;
-	Physical *physical;
-	Controllable *controllable;
-	Scriptable *scriptable;
+	Drawable *Drawable;
+	Physical *Physical;
+	Controllable *Controllable;
+	Scriptable *Scriptable;
 	//Occludable
 	//Occludent
 	//Parent_transform? Could create a chain of transforms.
@@ -51,6 +51,8 @@ extern uint16_t num_global_entities;
 
 //Creates a new entity and any associated components specified in component_mask.
 Entity * entity_new(uint16_t component_mask);
+//Deletes an entity and all associated components.
+void entity_delete(Entity *);
 void entity_reset();
 void entity_update_components();
 

@@ -1,5 +1,6 @@
 #include "scriptable.h"
 #include "physical.h"
+#include <stdio.h>
 
 scriptable_callback(noop_script)
 {
@@ -8,8 +9,8 @@ scriptable_callback(noop_script)
 
 scriptable_callback(camera_script)
 {
-	Physical *camera = entity->physical;
-	Physical *ship = (Physical *)entity->scriptable->context;
+	Physical *camera = entity->Physical;
+	Physical *ship = (Physical *)entity->Scriptable->context;
 
 	//float camera_ease = 0.5; //Using dt on this gives a jittery camera.
 	//float target_ease = 0.5;
@@ -22,7 +23,6 @@ scriptable_callback(camera_script)
 	// 	mat3_multvec(ship.position.a, ship.eased_camera.t),
 	// 	mat3_multvec(ship.position.a, ship.eased_camera_target),
 	// 	mat3_multvec(ship.position.a, (vec3){0, 1, 0}));
-
 	camera->origin = ship->origin;
 	camera->position.a = mat3_lookat(
 		mat3_multvec(ship->position.a, camera->position.t) + mat3_multvec(ship->position.a, ship->position.t), //Look source, relative to ship.

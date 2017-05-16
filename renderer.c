@@ -90,9 +90,9 @@ int16_t nentities;
 // 	bpos_origin *sector;
 // 	int (*buffering_function)(struct buffer_group);
 // } drawables[] = {
-// 	{&d_ship,         draw_forward,        &effects.forward, &ship->physical->position, &ship->physical->origin,   buffer_teardropship},
-// 	{&d_newship,      draw_forward,        &effects.forward, &ship->physical->position, &ship->physical->origin,   buffer_newship     },
-// 	{&d_teardropship, draw_forward,        &effects.forward, &ship->physical->position, &ship->physical->origin,   buffer_teardropship},
+// 	{&d_ship,         draw_forward,        &effects.forward, &ship->Physical->position, &ship->Physical->origin,   buffer_teardropship},
+// 	{&d_newship,      draw_forward,        &effects.forward, &ship->Physical->position, &ship->Physical->origin,   buffer_newship     },
+// 	{&d_teardropship, draw_forward,        &effects.forward, &ship->Physical->position, &ship->Physical->origin,   buffer_teardropship},
 // 	{&d_room,         draw_forward,        &effects.forward, &room_frame,    &room_sector,   buffer_newroom     },
 // 	{&d_skybox,       draw_skybox_forward, &effects.skybox,  &skybox_frame,  &eye_sector,    buffer_cube        }
 // };
@@ -122,18 +122,25 @@ static void deinit_models()
 
 void entities_init()
 {
-	ship_entity = entity_new(PHYSICAL_MASK | CONTROLLABLE_MASK | DRAWABLE_MASK);
-	ship_entity->physical->position.t = (vec3){0, 6000 + planet_radius, 0};
-	ship_entity->physical->origin = (bpos_origin){0, 400, 0};
-	ship_entity->controllable->control = ship_control;
+	ship_entity = entity_new(PHYSICAL_BIT | CONTROLLABLE_BIT | DRAWABLE_BIT);
+	ship_entity->Physical->position.t = (vec3){0, 6000 + planet_radius, 0};
+	ship_entity->Physical->origin = (bpos_origin){0, 400, 0};
+	ship_entity->Controllable->control = ship_control;
+	printf("ship_entity: %p\n", ship_entity);
+	printf("ship_entity->Controllable: %p\n", ship_entity->Controllable);
+	printf("ship_entity->Controllable->context: %p\n", ship_entity->Controllable->context);
 	//TODO: Init drawable part
 
-	camera_entity = entity_new(PHYSICAL_MASK | CONTROLLABLE_MASK | SCRIPTABLE_MASK);
-	camera_entity->physical->position.t = (vec3){0, 4, 8};
-	camera_entity->controllable->control = camera_control;
-	camera_entity->controllable->context = ship_entity->physical;
-	camera_entity->scriptable->script = camera_script;
-	camera_entity->scriptable->context = ship_entity->physical;
+	camera_entity = entity_new(PHYSICAL_BIT | CONTROLLABLE_BIT | SCRIPTABLE_BIT);
+	camera_entity->Physical->position.t = (vec3){0, 4, 8};
+	camera_entity->Controllable->control = camera_control;
+	camera_entity->Controllable->context = ship_entity->Physical;
+	printf("camera_entity: %p\n", camera_entity);
+	printf("camera_entity->Controllable: %p\n", camera_entity->Controllable);
+	printf("camera_entity->Controllable->context: %p\n", camera_entity->Controllable->context);
+
+	camera_entity->Scriptable->script = camera_script;
+	camera_entity->Scriptable->context = ship_entity->Physical;
 }
 
 void entities_deinit()
@@ -280,7 +287,7 @@ void render()
 	}
 
 	//Future Gavin Reminder: You put this here so it can set the intersecting tile's override color before the draw.
-	bpos ray_start = {ship_entity->physical->position.t - test_planets[0].pos.offset, ship_entity->physical->origin - test_planets[0].pos.origin};
+	bpos ray_start = {ship_entity->Physical->position.t - test_planets[0].pos.offset, ship_entity->Physical->origin - test_planets[0].pos.origin};
 	bpos intersection = {0};
 	float ship_altitude = proc_planet_altitude(test_planets[0].planet, ray_start, &intersection);
 	printf("Current ship altitude to planet 0: %f\n", ship_altitude);
@@ -434,7 +441,7 @@ void render()
 	//draw_drawable(&d_skybox);
 	stars_draw();
 
-	debug_graphics.lines.ship_to_planet.start = bpos_remap((bpos){ship_entity->physical->position.t, ship_entity->physical->origin}, eye_sector);
+	debug_graphics.lines.ship_to_planet.start = bpos_remap((bpos){ship_entity->Physical->position.t, ship_entity->Physical->origin}, eye_sector);
 	debug_graphics.lines.ship_to_planet.end   = bpos_remap(test_planets[0].pos, eye_sector);
 	debug_graphics.lines.ship_to_planet.enabled = true;
 	debug_graphics.points.ship_to_planet_intersection.pos = bpos_remap(intersection, eye_sector);
@@ -465,13 +472,13 @@ void update(float dt)
 
 	entity_update_components();
 
-	bpos ray_start = {ship_entity->physical->position.t - test_planets[0].pos.offset, ship_entity->physical->origin - test_planets[0].pos.origin};
+	bpos ray_start = {ship_entity->Physical->position.t - test_planets[0].pos.offset, ship_entity->Physical->origin - test_planets[0].pos.origin};
 	bpos intersection = {0};
 	float ship_altitude = proc_planet_altitude(test_planets[0].planet, ray_start, &intersection);
 	printf("Current ship altitude to planet 0: %f\n", ship_altitude);
 
-	eye_frame = (amat4){camera_entity->physical->position.a, amat4_multpoint(ship_entity->physical->position, camera_entity->physical->position.t)};
-	eye_sector = ship_entity->physical->origin;
+	eye_frame = (amat4){camera_entity->Physical->position.a, amat4_multpoint(ship_entity->Physical->position, camera_entity->Physical->position.t)};
+	eye_sector = ship_entity->Physical->origin;
 	bpos_split_fix(&eye_frame.t, &eye_sector);
 
 	point_lights.enabled_for_draw[2] = key_state[SDL_SCANCODE_6];
