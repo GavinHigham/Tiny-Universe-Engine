@@ -10,7 +10,7 @@
 #include "open-simplex-noise-in-c/open-simplex-noise.h"
 
 //Suppress prints
-//#define printf(...) while(0) {}
+#define printf(...) while(0) {}
 
 //Adapted from http://www.glprogramming.com/red/chapter02.html
 

@@ -13,6 +13,7 @@ uniform mat4 model_view_projection_matrix;
 out vec3 fpos;
 out vec3 fcol;
 
+//TODO: Find a solution that works for 64-bit star locations.
 //Copied from space_sector.c
 vec3 star_in_eye_space(ivec3 eye_sector, ivec3 sector, vec3 pos)
 {
@@ -29,7 +30,6 @@ void main()
 	gl_Position = model_view_projection_matrix * vec4(vpos, 1);
 	gl_Position.z = log2(max(1e-6, 1.0 + gl_Position.w)) * log_depth_intermediate_factor - 2.0; //I'm not sure why, but -2.0 works better for me.
 	//gl_PointSize = 10;//(1-(star_dist / (0.7*stars_radius))) + 2;
-	float index = (gl_VertexID / 40000);
 	gl_PointSize = 5;
 	vec3 teal = vec3(0, 0.9, 0.7);
 	vec3 blue = vec3(0, 0.1, 0.98);

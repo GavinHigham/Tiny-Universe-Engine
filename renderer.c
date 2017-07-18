@@ -14,6 +14,7 @@
 #include "shader_utils.h"
 #include "gl_utils.h"
 #include "stars.h"
+#include "star_blocks.h"
 #include "draw.h"
 #include "drawf.h"
 #include "entity/entity_components.h"
@@ -73,6 +74,7 @@ struct {
 
 Entity *ship_entity = NULL;
 Entity *camera_entity = NULL;
+Entity *star_blocks_entity;
 
 GLfloat proj_mat[16];
 GLfloat proj_view_mat[16];
@@ -134,13 +136,17 @@ void entities_init()
 	camera_entity = entity_new(PHYSICAL_BIT | CONTROLLABLE_BIT | SCRIPTABLE_BIT);
 	camera_entity->Physical->position.t = (vec3){0, 4, 8};
 	camera_entity->Controllable->control = camera_control;
-	camera_entity->Controllable->context = ship_entity->Physical;
+	camera_entity->Controllable->context = ship_entity;
 	printf("camera_entity: %p\n", camera_entity);
 	printf("camera_entity->Controllable: %p\n", camera_entity->Controllable);
 	printf("camera_entity->Controllable->context: %p\n", camera_entity->Controllable->context);
 
 	camera_entity->Scriptable->script = camera_script;
-	camera_entity->Scriptable->context = ship_entity->Physical;
+	camera_entity->Scriptable->context = ship_entity;
+
+	star_blocks_entity = entity_new(SCRIPTABLE_BIT);
+	star_blocks_entity->Scriptable->script = star_blocks_script;
+	star_blocks_entity->Scriptable->context = camera_entity;
 }
 
 void entities_deinit()
@@ -207,6 +213,7 @@ void renderer_init()
 	init_models();
 	init_lights();
 	stars_init();
+	star_blocks_init(eye_sector);
 	debug_graphics_init();
 
 	glUseProgram(effects.forward.handle);
@@ -290,7 +297,7 @@ void render()
 	bpos ray_start = {ship_entity->Physical->position.t - test_planets[0].pos.offset, ship_entity->Physical->origin - test_planets[0].pos.origin};
 	bpos intersection = {0};
 	float ship_altitude = proc_planet_altitude(test_planets[0].planet, ray_start, &intersection);
-	printf("Current ship altitude to planet 0: %f\n", ship_altitude);
+	//printf("Current ship altitude to planet 0: %f\n", ship_altitude);
 
 	//float h = vec3_dist(eye_frame.t, test_planet->pos) - test_planet->radius; //If negative, we're below sea level.
 	//printf("Height: %f\n", h);
@@ -439,7 +446,8 @@ void render()
 	glUniform3f(effects.skybox.sun_color, VEC3_COORDS(sun_color));
 	skybox_frame.t = eye_frame.t;
 	//draw_drawable(&d_skybox);
-	stars_draw();
+	//stars_draw();
+	star_blocks_draw(eye_sector);
 
 	debug_graphics.lines.ship_to_planet.start = bpos_remap((bpos){ship_entity->Physical->position.t, ship_entity->Physical->origin}, eye_sector);
 	debug_graphics.lines.ship_to_planet.end   = bpos_remap(test_planets[0].pos, eye_sector);
@@ -475,7 +483,7 @@ void update(float dt)
 	bpos ray_start = {ship_entity->Physical->position.t - test_planets[0].pos.offset, ship_entity->Physical->origin - test_planets[0].pos.origin};
 	bpos intersection = {0};
 	float ship_altitude = proc_planet_altitude(test_planets[0].planet, ray_start, &intersection);
-	printf("Current ship altitude to planet 0: %f\n", ship_altitude);
+	//printf("Current ship altitude to planet 0: %f\n", ship_altitude);
 
 	eye_frame = (amat4){camera_entity->Physical->position.a, amat4_multpoint(ship_entity->Physical->position, camera_entity->Physical->position.t)};
 	eye_sector = ship_entity->Physical->origin;

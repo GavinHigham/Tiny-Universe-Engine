@@ -19,14 +19,15 @@ OBJECTS = \
 	shader_utils.o \
 	gl_utils.o \
 	stars.o \
+	star_blocks.o \
 	procedural_terrain.o \
-	effects.o \
 	drawf.o \
 	draw.o \
 	terrain_erosion.o \
 	triangular_terrain_tile.o \
 	procedural_planet.o \
 	open-simplex-noise-in-c/open-simplex-noise.o \
+	effects.o \
 	glla/glla.o \
 	debug_graphics.o \
 	quadtree.o
@@ -37,13 +38,11 @@ include math/math.mk
 include models/models.mk
 include entity/entity.mk
 
-all: $(OBJECTS) open-simplex-noise ceffectpp/ceffectpp effects.c
+all: $(OBJECTS) ceffectpp/ceffectpp
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(EXE)
 
 #I want "all" to be the default rule, so any module-specific build rules should be specified in a separate makefile.
 include models/Makefile
-
-#include entity_component.mk #include when I get around to making this
 
 .depend:
 	gcc -M -Iglla $(**/.c) *.c > .depend #Generate dependencies from all .c files, searching recursively.
@@ -57,7 +56,7 @@ effects.h: ceffectpp/ceffectpp $(SHADERS)
 ceffectpp/ceffectpp:
 	cd ceffectpp; make
 
-open-simplex-noise:
+open-simplex-noise.o:
 	cd open-simplex-noise-in-c; make
 
 renderer.o: effects.o procedural_terrain.h

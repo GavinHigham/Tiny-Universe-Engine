@@ -13,6 +13,15 @@ float frand(int *seed);
 //Still looks cool though.
 vec3 rand_bunched_point3d_in_sphere(vec3 origin, float radius);
 //Produces a random point in a box as a vec3.
-vec3 rand_box_point3d(vec3 corner1, vec3 corner2);
+vec3 rand_box_fvec3(vec3 corner1, vec3 corner2);
+//Produces a random point in a box as a qvec3.
+qvec3 rand_box_qvec3(qvec3 corner1, qvec3 corner2);
+//Produces a random point in a box as a svec3.
+svec3 rand_box_svec3(svec3 corner1, svec3 corner2);
+//Generic wrapper that will work with either.
+#define rand_box_vec3(corner1, corner2) _Generic((corner1), \
+	vec3: rand_box_fvec3, \
+	svec3: rand_box_svec3, \
+	qvec3: rand_box_qvec3)(corner1, corner2)
 
 #endif

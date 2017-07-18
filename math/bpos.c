@@ -8,11 +8,15 @@ const float BPOS_CELL_SIZE = 8192;
 void bpos_fix(bpos *b)
 {
 	for (int i = 0; i < 3; i++) {
+		//If offset is more than a full cell-width away from origin, update origin.
 		b->origin[i] += truncf(b->offset[i] / BPOS_CELL_SIZE);
+		//Since the origin moved, trim the offset.
 		b->offset[i] = fmod(b->offset[i], BPOS_CELL_SIZE);
+		//If offset is still more than a half-cell width away from origin, update origin.
 		int_fast64_t tmp = truncf(b->offset[i] / (BPOS_CELL_SIZE/2));
-		b->offset[i] -= tmp * BPOS_CELL_SIZE;
 		b->origin[i] += tmp;
+		//Since origin moved, trim the offset.
+		b->offset[i] -= tmp * BPOS_CELL_SIZE;
 	}
 }
 
@@ -31,26 +35,20 @@ vec3 bpos_remap(bpos pos, bpos_origin new_origin)
 	return BPOS_CELL_SIZE * (vec3){tmp.x, tmp.y, tmp.z} + pos.offset;
 }
 
+vec3 bpos_disp(bpos_origin from, bpos_origin to)
+{
+	bpos_origin tmp = to - from;
+	return BPOS_CELL_SIZE * (vec3){tmp.x, tmp.y, tmp.z};
+}
+
 void bpos_print(bpos b)
 {
-	bpos_origin_print(b.origin);
+	qvec3_print(b.origin);
 	vec3_print(b.offset);
 }
 
 void bpos_printf(char *ifmt, char *ffmt, bpos b)
 {
-	bpos_origin_printf(ifmt, b.origin);
+	qvec3_printf(ifmt, b.origin);
 	vec3_printf(ffmt, b.offset);
-}
-
-void bpos_origin_print(bpos_origin b)
-{
-	printf("[%lli, %lli, %lli]", b.x, b.y, b.z);
-}
-
-void bpos_origin_printf(char *fmt, bpos_origin b)
-{
-	char format[strlen(fmt) * 3 + 7]; //2 braces + 2 commas + 2 spaces + 1 newline = 7
-	sprintf(format, "{%s, %s, %s}", fmt, fmt, fmt);
-	printf(format, b.x, b.y, b.z);
 }

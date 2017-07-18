@@ -52,7 +52,7 @@ controllable_callback(ship_control)
 
 	if (key_state[SDL_SCANCODE_T]) {
 		printf("Ship is at ");
-		bpos_origin_print(ship.origin);
+		qvec3_print(ship.origin);
 		vec3_print(ship.position.t);
 		puts(", where would you like to teleport?");
 		float x, y, z;
@@ -69,21 +69,21 @@ controllable_callback(ship_control)
 controllable_callback(camera_control)
 {
 
-	puts("1");
+	// puts("1");
 	Physical *camera = entity->Physical;
-	puts("2");
-	printf("%p\n", entity->Controllable);
-	printf("%p\n", entity->Controllable->context);
-	Physical *ship = entity->Controllable->context;
+	// puts("2");
+	//printf("%p\n", entity->Controllable);
+	//printf("%p\n", entity->Controllable->context);
+	Physical *ship = ((Entity *)entity->Controllable->context)->Physical;
 	//Translate the camera using WASD.
 	float camera_speed = 0.5;
-	puts("3");
+	// puts("3");
 	camera->position.t = camera->position.t + //Honestly I just tried things at random until it worked, but here's my guess:
 		mat3_multvec(mat3_transp(ship->position.a), // 2) Convert those coordinates from world-space to ship-space.
 			mat3_multvec(camera->position.a, (vec3){ // 1) Move relative to the frame pointed at the ship.
 			(key_state[SDL_SCANCODE_D] - key_state[SDL_SCANCODE_A]) * camera_speed,
 			(key_state[SDL_SCANCODE_Q] - key_state[SDL_SCANCODE_E]) * camera_speed,
 			(key_state[SDL_SCANCODE_S] - key_state[SDL_SCANCODE_W]) * camera_speed}));
-	puts("4");
+	// puts("4");
 }
 

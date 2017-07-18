@@ -3,7 +3,7 @@
 #include "utility.h"
 #include "glla.h"
 
-#define RANDOM_SEED 42 * 1337 + 0xBAE //An excellent random seed
+#define RANDOM_SEED 42 * 1337 + 0xBAE + 'G'+'r'+'e'+'e'+'n' //An excellent random seed
 
 float rand_float()
 {
@@ -42,7 +42,17 @@ vec3 rand_bunched_point3d_in_sphere(vec3 origin, float radius)
 	return origin + (vec3){radius*sin(a1)*cos(a2), radius*sin(a1)*sin(a2), radius*cos(a1)};
 }
 
-vec3 rand_box_point3d(vec3 corner1, vec3 corner2)
+vec3 rand_box_fvec3(vec3 corner1, vec3 corner2)
 {
 	return (vec3){rand_float(), rand_float(), rand_float()} * (corner2 - corner1) + corner1;
+}
+
+qvec3 rand_box_qvec3(qvec3 corner1, qvec3 corner2)
+{
+	return (qvec3){rand(), rand(), rand()} * (corner2 - corner1) + corner1;
+}
+
+svec3 rand_box_svec3(svec3 corner1, svec3 corner2)
+{
+	return (svec3){rand(), rand(), rand()} * (corner2 - corner1) + corner1;
 }

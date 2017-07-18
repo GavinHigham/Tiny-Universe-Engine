@@ -12,9 +12,9 @@
 #include "procedural_planet.h"
 
 //Suppress prints
-// #define printf(...) while(0) {}
-// #define vec3_print(...) while(0) {}
-// #define vec3_println(...) while(0) {}
+#define printf(...) while(0) {}
+#define vec3_print(...) while(0) {}
+#define vec3_println(...) while(0) {}
 
 //If I add margins to all my heightmaps later then I can avoid A LOT of work.
 extern int PRIMITIVE_RESTART_INDEX;

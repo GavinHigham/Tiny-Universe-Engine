@@ -14,9 +14,8 @@ extern amat4 inv_eye_frame;
 extern amat4 eye_frame;
 extern amat4 ship_frame;
 extern GLfloat proj_view_mat[16];
-extern float far_distance;
-extern float near_distance;
 extern bpos_origin eye_sector;
+extern float log_depth_intermediate_factor;
 
 const int   STARS_NUM           = 40000;  //Total number of stars to generate.
 const float STARS_SECTOR_RADIUS = 100000; //We want to make stars in a sphere, what is its radius in sectors?
@@ -44,7 +43,7 @@ void stars_init()
 	vec3 c2 = {STARS_SECTOR_RADIUS, STARS_SECTOR_RADIUS, STARS_SECTOR_RADIUS};
 	for (int i = 0; i < STARS_NUM; i++) {
 		//Choose a random sector to put the star in.
-		vec3 s = rand_box_point3d(c1, c2);
+		vec3 s = rand_box_vec3(c1, c2);
 		//If the star is in the sphere, keep it.
 		if (vec3_mag(s) < STARS_SECTOR_RADIUS * STARS_SECTOR_RADIUS) {
 			stars.all[i] = (bpos_origin){s.x, s.y, s.z};
@@ -78,7 +77,7 @@ void stars_init()
 	glEnableVertexAttribArray(effects.stars.sector_coords);
 	glVertexAttribIPointer(effects.stars.sector_coords, 3, GL_INT, 0, NULL);
 	glUniform1f(effects.stars.sector_size, BPOS_CELL_SIZE);
-	glUniform1f(effects.stars.log_depth_intermediate_factor, 2.0/log(far_distance/near_distance));
+	glUniform1f(effects.stars.log_depth_intermediate_factor, log_depth_intermediate_factor);
 	glBindVertexArray(0);
 }
 
