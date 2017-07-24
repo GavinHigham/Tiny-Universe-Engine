@@ -36,12 +36,11 @@ typedef struct effect_data {
 	union {
 		struct {
 			GLint sector_coords;
-			GLint star_pos;
 			GLint vColor;
 			GLint vNormal;
 			GLint vPos;
 		};
-		GLint attr[5];
+		GLint attr[4];
 	};
 } EFFECT;
 
@@ -61,7 +60,7 @@ union effect_list {
 extern union effect_list effects;
 
 extern const char *uniform_strings[22];
-extern const char *attribute_strings[5];
+extern const char *attribute_strings[4];
 extern const char *shader_file_paths[21];
 
 #endif

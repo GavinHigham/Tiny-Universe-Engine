@@ -347,7 +347,7 @@ bool proc_planet_tile_raycast(quadtree_node *node, void *context)
 	vec3 local_end = bpos_remap((bpos){0}, t->sector);
 	int result = ray_tri_intersect(local_start, local_end, tree_tile(node)->tile_vertices, &intersection);
 	if (result == 1) {
-		t->override_col *= (vec3){0.1, 1.0, 1.0};
+		//t->override_col *= (vec3){0.1, 1.0, 1.0};
 		//printf("Tile intersection found! Tile: %i\n", t->tile_index);
 		ctx->intersecting_tile = t;
 		ctx->intersection.offset = intersection;

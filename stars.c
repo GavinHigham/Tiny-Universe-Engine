@@ -20,7 +20,7 @@ extern float log_depth_intermediate_factor;
 const int   STARS_NUM           = 40000;  //Total number of stars to generate.
 const float STARS_SECTOR_RADIUS = 100000; //We want to make stars in a sphere, what is its radius in sectors?
 
-struct stars_globals {
+static struct stars_globals {
 	GLuint vbo;
 	GLuint vao;
 	bpos_origin all[STARS_NUM];   //All the stars

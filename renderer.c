@@ -128,18 +128,18 @@ void entities_init()
 	ship_entity->Physical->position.t = (vec3){0, 6000 + planet_radius, 0};
 	ship_entity->Physical->origin = (bpos_origin){0, 400, 0};
 	ship_entity->Controllable->control = ship_control;
-	printf("ship_entity: %p\n", ship_entity);
-	printf("ship_entity->Controllable: %p\n", ship_entity->Controllable);
-	printf("ship_entity->Controllable->context: %p\n", ship_entity->Controllable->context);
+	// printf("ship_entity: %p\n", ship_entity);
+	// printf("ship_entity->Controllable: %p\n", ship_entity->Controllable);
+	// printf("ship_entity->Controllable->context: %p\n", ship_entity->Controllable->context);
 	//TODO: Init drawable part
 
 	camera_entity = entity_new(PHYSICAL_BIT | CONTROLLABLE_BIT | SCRIPTABLE_BIT);
 	camera_entity->Physical->position.t = (vec3){0, 4, 8};
 	camera_entity->Controllable->control = camera_control;
 	camera_entity->Controllable->context = ship_entity;
-	printf("camera_entity: %p\n", camera_entity);
-	printf("camera_entity->Controllable: %p\n", camera_entity->Controllable);
-	printf("camera_entity->Controllable->context: %p\n", camera_entity->Controllable->context);
+	// printf("camera_entity: %p\n", camera_entity);
+	// printf("camera_entity->Controllable: %p\n", camera_entity->Controllable);
+	// printf("camera_entity->Controllable->context: %p\n", camera_entity->Controllable->context);
 
 	camera_entity->Scriptable->script = camera_script;
 	camera_entity->Scriptable->context = ship_entity;
@@ -186,12 +186,14 @@ void renderer_init()
 {
 	if (renderer_is_init)
 		return;
+	checkErrors("Function enter");
 
 	load_effects(
 		effects.all,       LENGTH(effects.all),
 		shader_file_paths, LENGTH(shader_file_paths),
 		attribute_strings, LENGTH(attribute_strings),
 		uniform_strings,   LENGTH(uniform_strings));
+	checkErrors("load_effects");
 
 	//When we receive SIGUSR1, reload the renderer module.
 	if (signal(SIGUSR1, reload_signal_handler) == SIG_ERR) {
@@ -204,16 +206,20 @@ void renderer_init()
 	glDepthFunc(GL_LESS);
 	glClearColor(0.01f, 0.02f, 0.03f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
+	checkErrors("glClear");
 	make_projection_matrix(FOV, screen_width/screen_height, -1, -far_distance, proj_mat, LENGTH(proj_mat));
 	log_depth_intermediate_factor = 2.0/log2(far_distance + 1.0);
 
 	entities_init();
-
+	checkErrors("Entities");
 	init_models();
+	checkErrors("Models");
 	init_lights();
-	stars_init();
+	checkErrors("Lights");
+	//stars_init();
+	checkErrors("Init stars");
 	star_blocks_init(eye_sector);
+	checkErrors("Init star_blocks");
 	debug_graphics_init();
 
 	glUseProgram(effects.forward.handle);
@@ -241,7 +247,7 @@ void renderer_deinit()
 	if (!renderer_is_init)
 		return;
 	deinit_models();
-	stars_deinit();
+	//stars_deinit();
 	point_lights.num_lights = 0;
 	renderer_is_init = false;
 	entities_deinit();
@@ -454,7 +460,7 @@ void render()
 	debug_graphics.lines.ship_to_planet.enabled = true;
 	debug_graphics.points.ship_to_planet_intersection.pos = bpos_remap(intersection, eye_sector);
 	debug_graphics.points.ship_to_planet_intersection.enabled = true;
-	debug_graphics_draw();
+	//debug_graphics_draw();
 
 	checkErrors("After forward junk");
 }
