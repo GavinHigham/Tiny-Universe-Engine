@@ -6,6 +6,7 @@
 #include "entity/scriptable.h"
 #include "entity/physical.h"
 #include "gl_utils.h"
+#include "gl/glew.h"
 
 /*
 Since each block has a bpos_origin, each star only needs to store its offset from that origin;
@@ -34,7 +35,8 @@ static struct star_blocks_globals {
 	GLuint vaos[27];
 	GLuint vbos[27];
 	bpos_origin origins[3][3][3];
-	vec3 stars[STARS_PER_BLOCK*27];
+	vec3 stars[27*STARS_PER_BLOCK];
+	GLfloat unpack_zone[3*STARS_PER_BLOCK];
 } star_blocks = {
 	{0}
 };
@@ -52,6 +54,27 @@ static void star_blocks_generate(bpos_origin o, vec3 *star_buffer, int num)
 	srand(((o.x * 13 + o.y) * 7 + o.z) * 53);
 	for (int i = 0; i < num; i++)
 		star_buffer[i] = rand_box_vec3(c1, c2);
+}
+
+static void star_blocks_bind_block(int i)
+{
+	glBindVertexArray(star_blocks.vaos[i]);
+	checkErrors("bind vao");
+	glEnableVertexAttribArray(effects.star_blocks.star_pos);
+	checkErrors("enable vaa");
+	glVertexAttribPointer(effects.star_blocks.star_pos, 3, GL_FLOAT, 0, 0, NULL);
+	checkErrors("attrib i pointer");
+	glBindBuffer(GL_ARRAY_BUFFER, star_blocks.vbos[i]);
+	checkErrors("star_blocks bind vbo");
+}
+
+static void star_blocks_unpack_block(int index)
+{
+	for (int i = 0; i < STARS_PER_BLOCK; i++) {
+		star_blocks.unpack_zone[i*3 + 0] = star_blocks.stars[index*STARS_PER_BLOCK + i].x;
+		star_blocks.unpack_zone[i*3 + 1] = star_blocks.stars[index*STARS_PER_BLOCK + i].y;
+		star_blocks.unpack_zone[i*3 + 2] = star_blocks.stars[index*STARS_PER_BLOCK + i].z;
+	}
 }
 
 /*
@@ -85,11 +108,9 @@ void star_blocks_update(bpos_origin observer)
 					int tmp = i*9 + j*3 + k;
 					*sbo = curr;
 					star_blocks_generate(*sbo, &star_blocks.stars[tmp*STARS_PER_BLOCK], STARS_PER_BLOCK);
-					glBindVertexArray(star_blocks.vaos[tmp]);
-					glEnableVertexAttribArray(effects.star_blocks.vPos);
-					glVertexAttribPointer(effects.star_blocks.vPos, 3, GL_FLOAT, 0, sizeof(vec3) - 3*sizeof(GL_FLOAT), NULL);
-					glBindBuffer(GL_ARRAY_BUFFER, star_blocks.vbos[tmp]);
-					glBufferData(GL_ARRAY_BUFFER, STARS_PER_BLOCK*sizeof(vec3), &star_blocks.stars[tmp*STARS_PER_BLOCK], GL_STATIC_DRAW);
+					star_blocks_bind_block(tmp);
+					star_blocks_unpack_block(tmp);
+					glBufferData(GL_ARRAY_BUFFER, sizeof(star_blocks.unpack_zone), star_blocks.unpack_zone, GL_STATIC_DRAW);
 					printf("Replacing block at "); qvec3_println(indexes);
 					checkErrors("After buffering a star_block");
 				}
@@ -107,14 +128,8 @@ void star_blocks_init(bpos_origin observer)
 	checkErrors("gen vao");
 	glGenBuffers(27, star_blocks.vbos);
 	checkErrors("gen buffers");
-	for (int i = 0; i < 27; i++) {
-		glBindVertexArray(star_blocks.vaos[i]);
-		checkErrors("bind vao");
-		glEnableVertexAttribArray(effects.star_blocks.vPos);
-		glVertexAttribPointer(effects.star_blocks.vPos, 3, GL_SHORT, 0, sizeof(vec3) - 3*sizeof(GL_FLOAT), NULL);
-		checkErrors("attrib i pointer");
-		glBindBuffer(GL_ARRAY_BUFFER, star_blocks.vbos[i]);
-	}
+	for (int i = 0; i < 27; i++)
+		star_blocks_bind_block(i);
 	checkErrors("After creating star_blocks buffers and vao");
 	glUniform1f(effects.star_blocks.bpos_size, BPOS_CELL_SIZE);
 	glUniform1f(effects.star_blocks.log_depth_intermediate_factor, log_depth_intermediate_factor);
@@ -129,28 +144,27 @@ void star_blocks_draw(bpos_origin camera_origin)
 	glEnable(GL_BLEND); //We're going to blend the contribution from each individual star.
 	glBlendEquation(GL_FUNC_ADD); //The light contributions get blended additively.
 	glBlendFunc(GL_ONE, GL_ONE); //Just straight addition.
-	glUseProgram(effects.star_blocks.handle);
-	checkErrors("Set the program");
-	glUniformMatrix4fv(effects.star_blocks.model_view_projection_matrix, 1, GL_TRUE, proj_view_mat);
-	checkErrors("Sent star_blocks proj_view_mat");
 	for (int i = 0; i < 3; i++) {
 		for (int j = 0; j < 3; j++) {
 			for (int k = 0; k < 3; k++) {
 				int tmp = i*9 + j*3 + k;
-				glBindVertexArray(star_blocks.vaos[tmp]);
-				glEnableVertexAttribArray(effects.star_blocks.vPos);
+				star_blocks_bind_block(tmp);
+
+				glUseProgram(effects.star_blocks.handle);
+				checkErrors("Set the program");
+				glUniformMatrix4fv(effects.star_blocks.model_view_projection_matrix, 1, GL_TRUE, proj_view_mat);
+				checkErrors("Sent star_blocks proj_view_mat");
 				vec3 eye_block_offset = bpos_disp(camera_origin, star_blocks.origins[i][j][k]);
 				glUniform3fv(effects.star_blocks.eye_block_offset, 1, (float *)&eye_block_offset);
+				
 				checkErrors("Sent eye_block_offset");
-				glBindBuffer(GL_ARRAY_BUFFER, star_blocks.vbos[tmp]);
-				checkErrors("Bound the buffer");
 				glDrawArrays(GL_POINTS, 0, STARS_PER_BLOCK);
 				checkErrors("After drawing a block");
-				glDisableVertexAttribArray(effects.star_blocks.vPos);
 			}
 		}
 	}
 	glDisable(GL_BLEND);
+	glDisableVertexAttribArray(effects.star_blocks.star_pos);
 	glBindVertexArray(0);
 }
 

@@ -165,6 +165,7 @@ void load_effects(
 			glDeleteProgram(program_handle);
 			printf("Program [%s, %s] failed.\n", paths[i*nsh], paths[i*nsh + 2]);
 		}
+		//if (checkErrors("Compile an effect") != GL_NO_ERROR) printf("Effect %i produced an error. [%s]\n", i, paths[i*nsh]);
 	}
 
 	for (int i = 0; i < LENGTH(shader_texts); i++)

@@ -7,6 +7,7 @@
 #include "effects.h"
 #include "math/utility.h"
 #include "math/bpos.h"
+#include "gl_utils.h"
 
 //Externs that could be useful.
 extern amat4 inv_eye_frame;
@@ -27,16 +28,22 @@ void debug_graphics_init()
 {
 	if (debug_graphics.is_init)
 		return;
+	glGenVertexArrays(1, &debug_graphics.vao);
+	checkErrors("debug_graphics vao gen");
+	glBindVertexArray(debug_graphics.vao);
+	checkErrors("debug_graphics vao bind");
 
 	glUseProgram(effects.debug_graphics.handle);
-	glGenVertexArrays(1, &debug_graphics.vao);
-	glBindVertexArray(debug_graphics.vao);
+	checkErrors("debug_graphics use program");
 	glGenBuffers(1, &debug_graphics.vbo);
-	glUniform1f(effects.forward.log_depth_intermediate_factor, log_depth_intermediate_factor);
+	checkErrors("debug_graphics gen buffers");
+	glUniform1f(effects.debug_graphics.log_depth_intermediate_factor, log_depth_intermediate_factor);
+	checkErrors("debug_graphics gl uniform");
 
 	//Whatever setup I need for debug graphics. Can derive this from the similar stars init.
 
 	glBindVertexArray(0);
+	checkErrors("bind vao 0");
 	debug_graphics.is_init = true;
 }
 

@@ -37,13 +37,6 @@ int engine_init(SDL_GLContext *context, SDL_Window *window)
 		return -1;
 	checkErrors("glew_init");
 
-	load_effects(
-		effects.all,       LENGTH(effects.all),
-		shader_file_paths, LENGTH(shader_file_paths),
-		attribute_strings, LENGTH(attribute_strings),
-		uniform_strings,   LENGTH(uniform_strings));
-	checkErrors("load_effects");
-
 	open_simplex_noise(open_simplex_noise_seed, &osnctx);
 
 	SDL_GameControllerEventState(SDL_ENABLE);

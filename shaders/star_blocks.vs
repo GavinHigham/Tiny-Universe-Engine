@@ -1,6 +1,6 @@
 #version 330 
 
-in vec3 vPos;
+in vec3 star_pos;
 uniform vec3 eye_pos;
 uniform vec3 eye_block_offset;
 uniform float bpos_size;
@@ -12,7 +12,7 @@ out vec3 fcol;
 
 void main()
 {
-	vec3 vpos = vPos*bpos_size + eye_block_offset;
+	vec3 vpos = star_pos*bpos_size + eye_block_offset;
 	//float star_dist = distance(eye_pos, vpos);
 	
 	gl_Position = model_view_projection_matrix * vec4(vpos, 1);
@@ -23,9 +23,9 @@ void main()
 	vec3 blue = vec3(0, 0.1, 0.98);
 	vec3 white = vec3(1.0);
 	fcol = (
-		0.5*(1 + sin(vPos.x)) * teal + 
-		0.5*(1 + sin(vPos.y)) * blue +
-		0.5*(1 + sin(vPos.z)) * white) / 2.1;
+		0.5*(1 + sin(star_pos.x)) * teal + 
+		0.5*(1 + sin(star_pos.y)) * blue +
+		0.5*(1 + sin(star_pos.z)) * white) / 2.1;
 
 	fpos = vpos;
 }

@@ -195,6 +195,8 @@ void renderer_init()
 		uniform_strings,   LENGTH(uniform_strings));
 	checkErrors("load_effects");
 
+	glGenVertexArrays(1, &gVAO);
+
 	//When we receive SIGUSR1, reload the renderer module.
 	if (signal(SIGUSR1, reload_signal_handler) == SIG_ERR) {
 		printf("An error occurred while setting a signal handler.\n");
@@ -221,12 +223,17 @@ void renderer_init()
 	star_blocks_init(eye_sector);
 	checkErrors("Init star_blocks");
 	debug_graphics_init();
+	checkErrors("Init debug_graphics");
 
 	glUseProgram(effects.forward.handle);
 	glUniform1f(effects.forward.log_depth_intermediate_factor, log_depth_intermediate_factor);
 
+	checkErrors("forward log_depth_intermediate_factor");
+
 	glUseProgram(effects.skybox.handle);
 	glUniform1f(effects.skybox.log_depth_intermediate_factor, log_depth_intermediate_factor);
+
+	checkErrors("skybox log_depth_intermediate_factor");
 
 	skybox_scale = 2*far_distance / sqrt(3);
 	skybox_frame.a = mat3_scalemat(skybox_scale, skybox_scale, skybox_scale);
@@ -234,6 +241,7 @@ void renderer_init()
 
 	glPointSize(5);
 	glEnable(GL_PROGRAM_POINT_SIZE);
+	checkErrors("glPointSize");
 
 	entity_update_components();
 
