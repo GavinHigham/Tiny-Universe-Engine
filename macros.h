@@ -1,7 +1,7 @@
 #ifndef MACROS_H
 #define MACROS_H
 
-#define LENGTH(arr) (sizeof(arr)/sizeof(arr[0]))
+#define LENGTH(arr) (sizeof((arr))/sizeof(((arr)[0])))
 #define VEC3_COORDS(v) v.x, v.y, v.z
 
 #endif

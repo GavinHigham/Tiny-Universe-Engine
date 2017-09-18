@@ -79,19 +79,21 @@ int main()
 
 	lua_State *L = luaL_newstate();
 	luaL_openlibs(L);
-	char *screen_title = NULL;
-	lua_Number w = screen_width, h = screen_height;
-	bool fullscreen = false;
-	load_lua_config(L, "conf.lua", &w, &h, &screen_title, &fullscreen);
-	screen_width = w;
-	screen_height = h;
+	if (luaL_dofile(L, "conf.lua")) {
+		luaconf_error(L, "cannot run config. file: %s", lua_tostring(L, -1));
+		lua_pop(L, 1);
+	}
+	char *screen_title = getglob(L, "screen_title", "Creative Title");
+	bool fullscreen = getglobbool(L, "fullscreen", false);
+	screen_width = getglob(L, "screen_width", 800);
+	screen_height = getglob(L, "screen_height", 600);
 
 	window = SDL_CreateWindow(
-		screen_title ? screen_title : "Creative Title",
+		screen_title,
 		WINDOW_OFFSET_X,
 		WINDOW_OFFSET_Y,
-		w,
-		h,
+		screen_width,
+		screen_height,
 		WINDOW_FLAGS);
 
 	free(screen_title);

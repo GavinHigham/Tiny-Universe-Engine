@@ -101,9 +101,10 @@ void main() {
 	vec3 specular_frag = vec3(0.0);
 	vec3 v = normalize(camera_position - fPos); //View vector.
 	if (ambient_pass == 1) {
-		point_light_fragment2(uLight_pos, v, normal, specular, diffuse);
-		//diffuse_frag = color*diffuse*sky_color(normal, normalize(vec3(0.1, 0.8, 0.1)), uLight_col);
-		//specular_frag = color*specular*sky_color(reflect(v, normal), normalize(vec3(0.1, 0.8, 0.1)), uLight_col);
+		vec3 l = normalize(uLight_pos-fPos);
+		point_light_fragment2(l, v, normal, specular, diffuse);
+		diffuse_frag = color*diffuse*sky_color(normal, normalize(vec3(0.1, 0.8, 0.1)), uLight_col);
+		specular_frag = color*specular*sky_color(reflect(v, normal), normalize(vec3(0.1, 0.8, 0.1)), uLight_col);
 		diffuse_frag = color*diffuse*uLight_col;
 		specular_frag = color*specular*uLight_col;
 	} else {

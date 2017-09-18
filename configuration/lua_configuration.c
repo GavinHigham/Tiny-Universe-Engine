@@ -8,7 +8,7 @@
 
 //From the examples in "Programming in Lua: Fourth edition"
 
-void engine_lua_error(lua_State *L, const char *fmt, ...)
+void luaconf_error(lua_State *L, const char *fmt, ...)
 {
 	va_list argp;
 	va_start(argp, fmt);
@@ -18,68 +18,35 @@ void engine_lua_error(lua_State *L, const char *fmt, ...)
 	//exit(EXIT_FAILURE);
 }
 
-bool getglobbool(lua_State *L, const char *var)
+bool getglobbool(lua_State *L, const char *var, bool d)
 {
-	int result;
 	lua_getglobal(L, var);
-	result = lua_toboolean(L, -1);
+	bool result = lua_isboolean(L, -1) ? lua_toboolean(L, -1) : d;
 	lua_pop(L, 1);
 	return result;
 }
 
-//Get a global int from the Lua runtime. Returns 0 on success, nonzero on failure.
-int getglobint(lua_State *L, const char *var, int *out)
+int getglobint(lua_State *L, const char *var, lua_Integer d)
 {
-	int isnum, result;
 	lua_getglobal(L, var);
-	result = (int)lua_tointegerx(L, -1, &isnum);
-	if (!isnum)
-		engine_lua_error(L, "'%s' should be a number\n", var);
-	else
-		*out = result;
+	int result = (int)luaL_optinteger(L, -1, d);
 	lua_pop(L, 1);
-	return !isnum;
+	return result;
 }
 
-//Get a global int from the Lua runtime. Returns 0 on success, nonzero on failure.
-int getglobnum(lua_State *L, const char *var, lua_Number *out)
+lua_Number getglobnum(lua_State *L, const char *var, lua_Number d)
 {
-	int isnum;
-	lua_Number result;
 	lua_getglobal(L, var);
-	result = lua_tonumberx(L, -1, &isnum);
-	if (!isnum)
-		engine_lua_error(L, "'%s' should be a number\n", var);
-	else
-		*out = result;
+	lua_Number result = luaL_optnumber(L, -1, d);
 	lua_pop(L, 1);
-	return !isnum;
+	return result;
 }
 
-//Get a global string from the Lua runtime. The returned string should be freed with free(). Returns NULL on failure.
-char * getglobstr(lua_State *L, const char *var)
+char * getglobstr(lua_State *L, const char *var, const char *d)
 {
-	char *tmp = NULL;
 	lua_getglobal(L, var);
-	const char *s = lua_tostring(L, -1);
-	if (!s)
-		engine_lua_error(L, "'%s' should be a string\n", var);
-	else
-		tmp = strdup(s);
+	char *result = (char *)luaL_optstring(L, -1, d);
+	result = result ? strdup(result) : NULL;
 	lua_pop(L, 1);
-	return tmp;
-}
-
-//Example config load function. I will probably want to replace this with something more general in the future.
-void load_lua_config(lua_State *L, const char *fname, lua_Number *w, lua_Number *h, char **title, bool *fullscreen)
-{
-	if (luaL_loadfile(L, fname) || lua_pcall(L, 0, 0, 0)) {
-		engine_lua_error(L, "cannot run config. file: %s", lua_tostring(L, -1));
-		lua_pop(L, 1);
-	}
-	getglobnum(L, "screen_width", w);
-	getglobnum(L, "screen_height", h);
-	char *tmp = getglobstr(L, "screen_title");
-	*title = tmp ? tmp : *title;
-	*fullscreen = getglobbool(L, "fullscreen");
+	return result;
 }

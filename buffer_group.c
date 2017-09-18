@@ -10,6 +10,7 @@ void setup_attrib_for_draw(GLuint attr_handle, GLuint buffer, GLenum attr_type, 
 {
 	glEnableVertexAttribArray(attr_handle);
 	glBindBuffer(GL_ARRAY_BUFFER, buffer);
+	//TODO: Use normalized = TRUE and an array of bytes for color information.
 	glVertexAttribPointer(attr_handle, attr_size, attr_type, GL_FALSE, 0, NULL);
 }
 

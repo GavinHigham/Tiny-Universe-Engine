@@ -12,14 +12,23 @@ controllable_callback(ship_control)
 	Physical ship = *entity->Physical;
 	input = controller_input_apply_threshold(input, 0.005);
 	float speed = 10;
-	if (buttons[INPUT_BUTTON_A])
-		speed = 1000;
+
+	/* TODO
+	Jerk should be nonzero when a boost button is pressed.
+	It adds to acceleration while the button is pressed, otherwise acceleration is normal.
+	*/
+
 
 	//Set the ship's acceleration using the controller axes.
-	ship.acceleration.t = mat3_multvec(ship.position.a, speed * (vec3){
+	vec3 dir = mat3_multvec(ship.position.a, (vec3){
 		 input.leftx,
 		-input.lefty,
 		buttons[INPUT_BUTTON_L2] - buttons[INPUT_BUTTON_R2]});//speed * (input.rtrigger - input.ltrigger)});
+
+	if (buttons[INPUT_BUTTON_A])
+		ship.acceleration.t += 300 * dir;
+	else
+		ship.acceleration.t = speed * dir;
 
 	//Angular velocity is currently determined by how much each axis is deflected.
 	float a1 = -input.rightx / 100;
@@ -29,23 +38,24 @@ controllable_callback(ship_control)
 	if (buttons[INPUT_BUTTON_Y])
 		ship.velocity.a = (mat3)MAT3_IDENT;
 
-	if (buttons[INPUT_BUTTON_X])
+	if (buttons[INPUT_BUTTON_X]) {
+		ship.acceleration.t = (vec3){0, 0, 0};
 		ship.velocity.t = (vec3){0, 0, 0};
+	}
 
 	{
 		//This part should be spliced out into the physical component.
 			//Add our acceleration to our velocity to change our speed.
-			//Note: The /60 is just a hack since I'm removing dt from this and don't want to tweak the values yet.
-			ship.velocity.t = ship.velocity.t + ship.acceleration.t;
+			ship.velocity.t += ship.acceleration.t;
 
 			//Rotate the ship by applying the angular velocity to the angular orientation.
 			ship.position.a = mat3_mult(ship.position.a, ship.velocity.a);
 
 			//Move the ship by applying the velocity to the position.
 			if (buttons[INPUT_BUTTON_B])
-				ship.position.t = ship.position.t + (10000 * ship.acceleration.t);
+				ship.position.t += (10000 * ship.acceleration.t);
 			else
-				ship.position.t = ship.position.t + ship.velocity.t;
+				ship.position.t += ship.velocity.t;
 
 			bpos_split_fix(&ship.position.t, &ship.origin);
 	}

@@ -14,7 +14,7 @@
 #include "shader_utils.h"
 #include "gl_utils.h"
 #include "stars.h"
-#include "star_blocks.h"
+#include "star_box.h"
 #include "draw.h"
 #include "drawf.h"
 #include "entity/entity_components.h"
@@ -22,6 +22,7 @@
 #include "triangular_terrain_tile.h"
 #include "math/bpos.h"
 #include "debug_graphics.h"
+#include "solar_system.h"
 
 static bool renderer_is_init = false;
 static bool renderer_should_reload = false;
@@ -55,26 +56,28 @@ struct point_light_attributes point_lights = {.num_lights = 0};
 const float planet_radius = 6000000;
 
 //This is awful and I should change it.
-struct {
-	bpos pos;
-	proc_planet *planet;
-	vec3 col;
-} test_planets[] = {
-	{
-		{0},
-		NULL,
-		{1.0, 0.7, 0.7},
-	},
-	{
-		{{0, 0, 0},{-350, 88, -13800}},
-		NULL,
-		{0.5, 0.7, 0.9},
-	},
-};
+// struct {
+// 	bpos pos;
+// 	proc_planet *planet;
+// 	vec3 col;
+// } test_planets[] = {
+// 	{
+// 		{0},
+// 		NULL,
+// 		{1.0, 0.7, 0.7},
+// 	},
+// 	{
+// 		{{0, 0, 0},{-350, 88, -13800}},
+// 		NULL,
+// 		{0.5, 0.7, 0.9},
+// 	},
+// };
+
+solar_system ssystem;
 
 Entity *ship_entity = NULL;
 Entity *camera_entity = NULL;
-Entity *star_blocks_entity;
+Entity *star_box_entity;
 
 GLfloat proj_mat[16];
 GLfloat proj_view_mat[16];
@@ -107,8 +110,9 @@ static void init_models()
 	// for (int i = 0; i < LENGTH(drawables); i++)
 	// 	init_heap_drawable(drawables[i].drawable, drawables[i].draw, drawables[i].effect, drawables[i].frame, drawables[i].sector, drawables[i].buffering_function);
 
-	test_planets[0].planet = proc_planet_new(planet_radius, proc_planet_height, test_planets[0].col);
-	test_planets[1].planet = proc_planet_new(planet_radius * 1.7, proc_planet_height, test_planets[1].col);
+	//test_planets[0].planet = proc_planet_new(planet_radius, proc_planet_height, test_planets[0].col);
+	//test_planets[1].planet = proc_planet_new(planet_radius * 1.7, proc_planet_height, test_planets[1].col);
+	ssystem = solar_system_new(eye_sector);
 
 	//bpos_split_fix(&ship.position.t, &ship.sector);
 }
@@ -117,9 +121,10 @@ static void deinit_models()
 {
 	// for (int i = 0; i < LENGTH(drawables); i++)
 	// 	deinit_drawable(drawables[i].drawable);
+	solar_system_free(ssystem);
 
-	for (int i = 0; i < LENGTH(test_planets); i++)
-		proc_planet_free(test_planets[i].planet);
+	//for (int i = 0; i < LENGTH(test_planets); i++)
+		//proc_planet_free(test_planets[i].planet);
 }
 
 void entities_init()
@@ -144,9 +149,9 @@ void entities_init()
 	camera_entity->Scriptable->script = camera_script;
 	camera_entity->Scriptable->context = ship_entity;
 
-	star_blocks_entity = entity_new(SCRIPTABLE_BIT);
-	star_blocks_entity->Scriptable->script = star_blocks_script;
-	star_blocks_entity->Scriptable->context = camera_entity;
+	star_box_entity = entity_new(SCRIPTABLE_BIT);
+	star_box_entity->Scriptable->script = star_box_script;
+	star_box_entity->Scriptable->context = camera_entity;
 }
 
 void entities_deinit()
@@ -172,7 +177,7 @@ void handle_resize(int width, int height)
 	glViewport(0, 0, width, height);
 	screen_width = width;
 	screen_height = height;
-	make_projection_matrix(FOV, screen_width/screen_height, -near_distance, -far_distance, proj_mat, LENGTH(proj_mat));	
+	make_projection_matrix(FOV, screen_width/screen_height, -near_distance, -far_distance, proj_mat);	
 }
 
 //Signal handler that tells the renderer module to reload itself.
@@ -204,12 +209,12 @@ void renderer_init()
 
 	glUseProgram(0);
 	glClearDepth(1);
-	//glEnable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
 	glClearColor(0.01f, 0.02f, 0.03f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 	checkErrors("glClear");
-	make_projection_matrix(FOV, screen_width/screen_height, -1, -far_distance, proj_mat, LENGTH(proj_mat));
+	make_projection_matrix(FOV, screen_width/screen_height, -1, -far_distance, proj_mat);
 	log_depth_intermediate_factor = 2.0/log2(far_distance + 1.0);
 
 	entities_init();
@@ -220,8 +225,8 @@ void renderer_init()
 	checkErrors("Lights");
 	//stars_init();
 	checkErrors("Init stars");
-	star_blocks_init(eye_sector);
-	checkErrors("Init star_blocks");
+	star_box_init(eye_sector);
+	checkErrors("Init star_box");
 	debug_graphics_init();
 	checkErrors("Init debug_graphics");
 
@@ -268,17 +273,16 @@ void renderer_queue_reload()
 
 //Create a projection matrix with "fov" field of view, "a" aspect ratio, n and f near and far planes.
 //Stick it into buffer buf, ready to send to OpenGL.
-void make_projection_matrix(GLfloat fov, GLfloat a, GLfloat n, GLfloat f, GLfloat *buf, int buf_len)
+void make_projection_matrix(GLfloat fov, GLfloat a, GLfloat n, GLfloat f, GLfloat *buf)
 {
-	assert(buf_len == 16);
 	GLfloat nn = 1.0/tan(fov/2.0);
-	GLfloat tmp[] = {
+	GLfloat tmp[] = (GLfloat []){
 		nn, 0,           0,              0,
 		0, nn,           0,              0,
-		0,  0, (f+n)/(f-n), (-2*f*n)/(f-n),
+		0,  0,   (n)/(n-f),  (n*f)/(n-f),
+		//0,  0, (f+n)/(f-n), (-2*f*n)/(f-n),
 		0,  0,          -1,              1
 	};
-	assert(buf_len == LENGTH(tmp));
 	if (a >= 0)
 		tmp[0] /= a;
 	else
@@ -300,17 +304,17 @@ static Drawable *pvs[] = {};//{&d_ship};
 
 void render()
 {
-	tri_tile *drawlist[LENGTH(test_planets)][3000];
-	int drawlist_count[LENGTH(test_planets)];
-	for (int i = 0; i < LENGTH(test_planets); i++) {
-		bpos pos = {eye_frame.t - test_planets[i].pos.offset, eye_sector - test_planets[i].pos.origin};
-		drawlist_count[i] = proc_planet_drawlist(test_planets[i].planet, drawlist[i], LENGTH(drawlist[i]), pos);
+	tri_tile *drawlist[ssystem.num_planets][3000];
+	int drawlist_count[ssystem.num_planets];
+	for (int i = 0; i < ssystem.num_planets; i++) {
+		bpos pos = {eye_frame.t - ssystem.planet_positions[i].offset, eye_sector - ssystem.planet_positions[i].origin};
+		drawlist_count[i] = proc_planet_drawlist(ssystem.planets[i], drawlist[i], LENGTH(drawlist[i]), pos);
 	}
 
 	//Future Gavin Reminder: You put this here so it can set the intersecting tile's override color before the draw.
-	bpos ray_start = {ship_entity->Physical->position.t - test_planets[0].pos.offset, ship_entity->Physical->origin - test_planets[0].pos.origin};
-	bpos intersection = {0};
-	float ship_altitude = proc_planet_altitude(test_planets[0].planet, ray_start, &intersection);
+	//bpos ray_start = {ship_entity->Physical->position.t - test_planets[0].pos.offset, ship_entity->Physical->origin - test_planets[0].pos.origin};
+	//bpos intersection = {{0}};
+	//float ship_altitude = proc_planet_altitude(test_planets[0].planet, ray_start, &intersection);
 	//printf("Current ship altitude to planet 0: %f\n", ship_altitude);
 
 	//float h = vec3_dist(eye_frame.t, test_planet->pos) - test_planet->radius; //If negative, we're below sea level.
@@ -357,7 +361,8 @@ void render()
 		if (apass) {
 			glUniform1i(effects.forward.ambient_pass, 1);
 			glUniform3f(effects.forward.uLight_col, VEC3_COORDS(sun_color));
-			glUniform3f(effects.forward.uLight_pos, VEC3_COORDS(sun_direction));
+			vec3 sun = bpos_remap((bpos){{0,0,0}, ssystem.origin}, eye_sector);
+			glUniform3f(effects.forward.uLight_pos, VEC3_COORDS(sun)); //was sun_direction
 		} else {
 			glDrawBuffer(GL_NONE); //Disable drawing to the color buffer if no ambient pass, save on fillrate.
 		}
@@ -370,12 +375,12 @@ void render()
 		//glDisable(GL_CULL_FACE);
 
 		//Draw procedural planets
-		for (int i = 0; i < LENGTH(test_planets); i++) {
+		for (int i = 0; i < ssystem.num_planets; i++) {
 			for (int j = 0; j < drawlist_count[i]; j++) {
 				tri_tile *t = drawlist[i][j];
 				if (!t->buffered) //Last resort "BUFFER RIGHT NOW", will cause hiccups.
 					buffer_tri_tile(t);
-				bpos tile_pos = test_planets[i].pos;
+				bpos tile_pos = ssystem.planet_positions[i];
 				tile_pos.offset = bpos_remap((bpos){tile_pos.offset, tile_pos.origin + t->sector}, eye_sector);
 				amat4 tile_frame = {tri_frame.a, tile_pos.offset};
 				glUniform3fv(effects.forward.override_col, 1, (float *)&t->override_col);
@@ -461,13 +466,13 @@ void render()
 	skybox_frame.t = eye_frame.t;
 	//draw_drawable(&d_skybox);
 	//stars_draw();
-	star_blocks_draw(eye_sector);
+	star_box_draw(eye_sector);
 
 	debug_graphics.lines.ship_to_planet.start = bpos_remap((bpos){ship_entity->Physical->position.t, ship_entity->Physical->origin}, eye_sector);
-	debug_graphics.lines.ship_to_planet.end   = bpos_remap(test_planets[0].pos, eye_sector);
+	debug_graphics.lines.ship_to_planet.end   = bpos_remap(ssystem.planet_positions[0], eye_sector);
 	debug_graphics.lines.ship_to_planet.enabled = true;
-	debug_graphics.points.ship_to_planet_intersection.pos = bpos_remap(intersection, eye_sector);
-	debug_graphics.points.ship_to_planet_intersection.enabled = true;
+	//debug_graphics.points.ship_to_planet_intersection.pos = bpos_remap(intersection, eye_sector);
+	//debug_graphics.points.ship_to_planet_intersection.enabled = true;
 	//debug_graphics_draw();
 
 	checkErrors("After forward junk");
@@ -494,9 +499,9 @@ void update(float dt)
 
 	entity_update_components();
 
-	bpos ray_start = {ship_entity->Physical->position.t - test_planets[0].pos.offset, ship_entity->Physical->origin - test_planets[0].pos.origin};
-	bpos intersection = {0};
-	float ship_altitude = proc_planet_altitude(test_planets[0].planet, ray_start, &intersection);
+	//bpos ray_start = {ship_entity->Physical->position.t - test_planets[0].pos.offset, ship_entity->Physical->origin - test_planets[0].pos.origin};
+	//bpos intersection = {0};
+	//float ship_altitude = proc_planet_altitude(test_planets[0].planet, ray_start, &intersection);
 	//printf("Current ship altitude to planet 0: %f\n", ship_altitude);
 
 	eye_frame = (amat4){camera_entity->Physical->position.a, amat4_multpoint(ship_entity->Physical->position, camera_entity->Physical->position.t)};

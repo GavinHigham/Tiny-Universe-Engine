@@ -7,6 +7,20 @@
 #include "../buffer_group.h"
 #include "../math/bpos.h"
 
+/*
+A drawable component should encapsulate the following:
+What shader to use
+What stage the entity should be drawn in
+Whether the entity casts and receives shadows, and from which shadow groups
+If the entity has a mesh component, or renders as some kind of primitive
+	(Do I want refcounting on the meshes? I could use talloc for that.)
+	Vertex format for the mesh
+Any kind of custom drawing the drawable needs
+What texture setup the drawable needs
+
+I should also have some sort of batch drawing functions, to avoid unnessesary OpenGL state changes
+*/
+
 typedef struct drawable_component {
 	EFFECT *effect;
 	amat4 *frame;

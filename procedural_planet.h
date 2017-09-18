@@ -28,6 +28,16 @@ the highest-frequency features, for efficiency. Could also use it to distort the
 like with domain warping (could look good, could look bad).
 */
 
+enum {
+	PROC_PLANET_MAX_NUM_ELEMENTS = 4,
+	//The more rows, the fewer draw calls, and the fewer primitive restart indices hurting memory locality.
+	//The fewer rows, the fewer overall vertices, and the better overall culling efficiency.
+	//If I keep it as a power-of-two, I can avoid using spherical linear interpolation, and it will be faster.
+	PROC_PLANET_NUM_TILE_ROWS = 128,
+	PROC_PLANET_TILE_PIXELS_PER_TRI = 5,
+	PROC_PLANET_TILE_MAX_SUBDIVISIONS = 7, //TODO(Gavin): Choose a number that sets the surface resolution to a nice number.
+};
+
 typedef struct procedural_planet {
 	vec3 up;
 	vec3 right;
@@ -38,12 +48,15 @@ typedef struct procedural_planet {
 	//TODO: Consolidate these.
 	vec3 colors[3];
 	vec3 color_family;
+	int elements[PROC_PLANET_MAX_NUM_ELEMENTS];
+	int num_elements;
 	quadtree_node *tiles[NUM_ICOSPHERE_FACES];
 	height_map_func height;
 } proc_planet;
 
 struct planet_terrain_context {
 	int splits_left;
+	int splits_max;
 	bpos cam_pos;
 	proc_planet *planet;
 	int visited;
@@ -52,7 +65,8 @@ struct planet_terrain_context {
 	int max_tiles;
 };
 
-proc_planet * proc_planet_new(float radius, height_map_func height, vec3 color_family);
+proc_planet * proc_planet_new(float radius, height_map_func height, int *elements, int num_elements);
+
 void proc_planet_free(proc_planet *p);
 int proc_planet_drawlist(proc_planet *p, tri_tile **tiles, int max_tiles, bpos cam_pos);
 float proc_planet_height(vec3 pos, vec3 *variety);

@@ -11,7 +11,7 @@ typedef struct effect_data {
 			GLint ambient_pass;
 			GLint bpos_size;
 			GLint camera_position;
-			GLint eye_block_offset;
+			GLint eye_box_offset;
 			GLint eye_pos;
 			GLint eye_sector_coords;
 			GLint gLightPos;
@@ -23,6 +23,7 @@ typedef struct effect_data {
 			GLint override_col;
 			GLint projection_view_matrix;
 			GLint sector_size;
+			GLint star_box_size;
 			GLint sun_color;
 			GLint sun_direction;
 			GLint uLight_attr;
@@ -31,7 +32,7 @@ typedef struct effect_data {
 			GLint uOrigin;
 			GLint zpass;
 		};
-		GLint unif[22];
+		GLint unif[23];
 	};
 	union {
 		struct {
@@ -52,7 +53,7 @@ union effect_list {
 		EFFECT outline;
 		EFFECT shadow;
 		EFFECT skybox;
-		EFFECT star_blocks;
+		EFFECT star_box;
 		EFFECT stars;
 	};
 	EFFECT all[7];
@@ -60,7 +61,7 @@ union effect_list {
 
 extern union effect_list effects;
 
-extern const char *uniform_strings[22];
+extern const char *uniform_strings[23];
 extern const char *attribute_strings[5];
 extern const char *shader_file_paths[21];
 

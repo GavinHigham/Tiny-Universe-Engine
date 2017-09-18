@@ -19,7 +19,7 @@ OBJECTS = \
 	shader_utils.o \
 	gl_utils.o \
 	stars.o \
-	star_blocks.o \
+	star_box.o \
 	procedural_terrain.o \
 	drawf.o \
 	draw.o \
@@ -30,7 +30,10 @@ OBJECTS = \
 	effects.o \
 	glla/glla.o \
 	debug_graphics.o \
-	quadtree.o
+	quadtree.o \
+	solar_system.o \
+	element.o \
+
 
 #Module includes append to OBJECTS and define other custom rules.
 include configuration/configuration.mk
