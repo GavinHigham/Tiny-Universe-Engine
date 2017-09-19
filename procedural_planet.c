@@ -100,7 +100,7 @@ static bool proc_planet_split_visit(quadtree_node *node, void *context)
 
 	//Cap the number of subdivisions per whole-tree traversal (per frame essentially)
 	if (node->depth == 0)
-		ctx->splits_left = YIELD_AFTER_DIVS;
+		ctx->splits_left = ctx->splits_max;
 
 	int depth = proc_planet_subdiv_depth(ctx->planet, tile, node->depth, ctx->cam_pos);
 
