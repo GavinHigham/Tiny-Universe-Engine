@@ -136,3 +136,13 @@ void int_shuffle(int ints[], int num)
 	for (int i = num-1; i > 0; i--)
 		int_swap(&ints[rand()%(i+1)], &ints[i]);
 }
+
+lldiv_t lldiv_floor(int64_t a, int64_t b)
+{
+	lldiv_t d = lldiv(a, b);
+	//1, if the remainder is nonzero and different in sign from the denominator
+	int64_t corr = (d.rem != 0 && ((d.rem < 0) != (b < 0)));
+	d.quot -= corr; //Correct the quotient for floor division.
+	d.rem += corr * b; //Correct the remainder for floor division.
+	return d;
+}

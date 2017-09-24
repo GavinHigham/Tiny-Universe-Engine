@@ -1,5 +1,6 @@
 #ifndef UTILITY_H
 #define UTILITY_H
+#include <stdlib.h>
 #include "glla.h"
 
 // Random numbers
@@ -58,5 +59,9 @@ void int_swap(int *a, int *b);
 //Useful for random indices into an array set.
 //TODO(Gavin): Add a random seed argument.
 void int_shuffle(int ints[], int num);
+
+//Performs a division towards negative infinity.
+lldiv_t lldiv_floor(int64_t a, int64_t b);
+
 
 #endif

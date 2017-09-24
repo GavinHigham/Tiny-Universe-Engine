@@ -113,6 +113,16 @@ static void star_box_generate(bpos_origin o, int index)
 	}
 }
 
+static int idx_from_pt(bpos_origin pt)
+{
+	qvec3 idx;
+	for (int i = 0; i < 3; i++) {
+		idx[i] = lldiv_floor(pt[i], STAR_BOX_SIZE).quot % 3;
+		idx[i] += 3*(idx[i] < 0);
+	}
+	return idx.x + idx.y * 3 + idx.z * 9;
+}
+
 /*
 Find the star box for the observer position.
 For each box in 3x3x3 about that box, check that the origin matches.
@@ -125,16 +135,17 @@ void star_box_update(bpos_origin observer)
 	bool any_changed = false;
 
 	for (int i = 0; i < NUM_BOXES; i++) {
-		bpos_origin sbo = star_box.origins[i];
 		bpos_origin curr = center + ((qvec3){i%3, (i/3)%3, (i/9)} - 1)*STAR_BOX_SIZE;
+		int idx = idx_from_pt(curr);
+		bpos_origin sbo = star_box.origins[idx];
 		if (memcmp(&sbo, &curr, sizeof(sbo))) {
 			any_changed = true;
 			printf("Replacing box at %i, new origin ", i); qvec3_print(curr); puts("");
 			//Generate the stars for that star box.
-			star_box.origins[i] = curr;
-			star_box_generate(star_box.origins[i], i);
-			glBindBuffer(GL_ARRAY_BUFFER, star_box.vbos[i]);
-			glBufferData(GL_ARRAY_BUFFER, STAR_SIZE*STARS_PER_BOX, &star_box.stars[i*3*STARS_PER_BOX], GL_STATIC_DRAW);
+			star_box.origins[idx] = curr;
+			star_box_generate(star_box.origins[idx], idx);
+			glBindBuffer(GL_ARRAY_BUFFER, star_box.vbos[idx]);
+			glBufferData(GL_ARRAY_BUFFER, STAR_SIZE*STARS_PER_BOX, &star_box.stars[idx*3*STARS_PER_BOX], GL_STATIC_DRAW);
 		}
 	}
 

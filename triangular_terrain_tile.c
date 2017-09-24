@@ -216,28 +216,6 @@ int tri_tile_vertices(vec3 vertices[], int num_rows, vec3 a, vec3 b, vec3 c)
 	return written;
 }
 
-//Using height, take position and distort it along the basis vectors, and compute its normal.
-//height: A heightmap function which will affect the final position of the vertex along the basis_y vector.
-//basis x, basis_y, basis_z: Basis vectors for the vertex.
-//position: In/Out, the starting and ending position of the vertex.
-//normal: Output for the normal of the vertex.
-//Returns the "height", or displacement along basis_y.
-float tri_tile_vertex_position_and_normal(height_map_func height, vec3 basis_x, vec3 basis_y, vec3 basis_z, float epsilon, vec3 *position, vec3 *normal)
-{
-		//Create two points, scootched out along the basis vectors.
-		vec3 pos1 = basis_x * epsilon + *position;
-		vec3 pos2 = basis_z * epsilon + *position;
-		vec3 discard;
-
-		//Find procedural heights, and add them.
-		pos1      = basis_y * height(pos1, &discard) + pos1;
-		pos2      = basis_y * height(pos2, &discard) + pos2;
-		*position = basis_y * height(*position, &discard) + *position;
-		//Compute the normal.
-		*normal = vec3_normalize(vec3_cross(pos1 - *position, pos2 - *position));
-		return position->y;
-}
-
 //Given a particular tri tile row, and point coordinates (x, y),
 //Return the vertex indices of the triangle containing the specified point.
 //(0, 0) represents the bottom-left, and (1,1) represents top-right of the triangle strip.
