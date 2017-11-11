@@ -7,6 +7,7 @@
 #include "triangular_terrain_tile.h"
 #include "renderer.h"
 #include "macros.h"
+#include "mesh.h"
 #include "math/utility.h"
 #include "math/geometry.h"
 #include "procedural_planet.h"
@@ -33,7 +34,7 @@ struct {
 //GLuint shared_tri_tile_indices_buffer_object = 0;
 //int shared_tri_tile_indices_buffer_object_rows_buffered = 0;
 
-static GLuint *get_shared_tri_tile_indices(int num_rows)
+static GLuint **get_shared_tri_tile_indices(int num_rows)
 {
 	GLuint *old = shared_tri_tile_ibo.indices;
 	if (num_rows > shared_tri_tile_ibo.num_rows)
@@ -46,7 +47,7 @@ static GLuint *get_shared_tri_tile_indices(int num_rows)
 		shared_tri_tile_ibo.num_rows = 0;
 	}
 
-	return shared_tri_tile_ibo.indices;
+	return &shared_tri_tile_ibo.indices;
 }
 
 static GLuint get_shared_tri_tile_indices_buffer_object(int num_rows)
@@ -56,7 +57,7 @@ static GLuint get_shared_tri_tile_indices_buffer_object(int num_rows)
 
 	if (num_rows > shared_tri_tile_ibo.rows_buffered) {
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shared_tri_tile_ibo.buffer_object);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLuint)*num_tri_tile_indices(num_rows), get_shared_tri_tile_indices(num_rows), GL_STATIC_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLuint)*num_tri_tile_indices(num_rows), *get_shared_tri_tile_indices(num_rows), GL_STATIC_DRAW);
 	}
 
 	return shared_tri_tile_ibo.buffer_object;
@@ -105,6 +106,60 @@ tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], bpos_origin sector, int 
 
 	//Get an appropriately expanded index buffer.
 	t->bg.ibo = get_shared_tri_tile_indices_buffer_object(num_rows);
+
+	t->override_col = (vec3){1.0, 1.0, 1.0};
+
+	//The new tile origin will be the centroid of the three tile vertices.
+	t->centroid = (vertices[0] + vertices[1] + vertices[2]) / 3.0;
+	t->normal = vec3_normalize(t->centroid); //This is a sphere normal, TODO: Handle non-sphere case.
+	t->sector = sector;
+	bpos_split_fix(&t->centroid, &t->sector);
+
+	//Recalculate vertex positions relative to new sector.
+	for (int i = 0; i < 3; i++)
+		t->tile_vertices[i] = bpos_remap((bpos){vertices[i], sector}, t->sector);
+
+	//Generate the initial vertex positions, coplanar points on the triangle formed by vertices[3].
+	int numverts = tri_tile_vertices(t->positions, num_rows, t->tile_vertices[0], t->tile_vertices[1], t->tile_vertices[2]);
+
+	assert(t->num_vertices == numverts);
+
+	//Run any finishing touches (such as curving the tile onto a planet).
+	t->finishing_touches = finishing_touches;
+	t->finishing_touches_context = finishing_touches_context;
+	t->finishing_touches(t, finishing_touches_context);
+
+	t->is_init = true;
+
+	return t;
+}
+
+//Creates storage for the positions, normals, and colors, as well as OpenGL handles.
+//Should be freed by the caller, using free_tri_tile.
+tri_tile * init_tri_tile2(tri_tile *t, vec3 vertices[3], bpos_origin sector, int num_rows, void (finishing_touches)(tri_tile *, void *), void *finishing_touches_context)
+{
+	assert(!t->is_init);
+	if (t->is_init) return t;
+
+	//Get counts.
+	t->num_rows = num_rows;
+	//Generate storage.
+	t->mesh = geo_mesh_new(0, num_tri_tile_vertices(num_rows), 0); //No indices, we'll use the shared one.
+	t->mesh->num_indices = num_tri_tile_indices(num_rows);
+	t->mesh->indices = get_shared_tri_tile_indices(num_rows);
+	//t->mesh->indices_adjacency, eventually, if terrain should cast stencil shadows.
+
+	//Set up GPU buffer storage. I hate how this works and need to simplify it.
+	// t->bg.primitive_type = GL_TRIANGLE_STRIP;
+	// glGenVertexArrays(1, &t->bg.vao);
+	// glBindVertexArray(t->bg.vao);
+	// glGenBuffers(LENGTH(t->bg.buffer_handles), t->bg.buffer_handles);
+	// setup_attrib_for_draw(effects.forward.vPos,    t->bg.vbo, GL_FLOAT, 3);
+	// setup_attrib_for_draw(effects.forward.vNormal, t->bg.nbo, GL_FLOAT, 3);
+	// setup_attrib_for_draw(effects.forward.vColor,  t->bg.cbo, GL_FLOAT, 3);
+	// t->buffered = false;
+
+	//Get an appropriately expanded index buffer.
 
 	t->override_col = (vec3){1.0, 1.0, 1.0};
 
@@ -262,11 +317,11 @@ float tri_tile_raycast_depth(tri_tile *t, vec3 start, vec3 dir)
 	assert(indices[0] >= 0);
 	assert(indices[2] < t->bg.index_count);
 
-	GLuint *global_indices = get_shared_tri_tile_indices(t->num_rows);
+	GLuint **global_indices = get_shared_tri_tile_indices(t->num_rows);
 	
 	//printf("Vertices: ");
 	for (int i = 0; i < 3; i++) {
-		int pos_i = global_indices[indices[i]];
+		int pos_i = *global_indices[indices[i]];
 		assert(pos_i != PRIMITIVE_RESTART_INDEX);
 		positions[i] = t->positions[pos_i];
 		//vec3_print(positions[i]);

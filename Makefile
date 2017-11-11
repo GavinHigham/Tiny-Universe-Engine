@@ -1,7 +1,7 @@
 CC = gcc
 SDL = -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW
 MODULE_PATHS = -Iglla
-CFLAGS = $(MODULE_PATHS) -Wall -c -std=c11 -g -pthread -Iglla
+CFLAGS = $(MODULE_PATHS) -Wall -c -std=c11 -g -pthread -Iglla -march=native
 LDFLAGS = $(SDL) -llua
 SHADERS = shaders/*.vs shaders/*.fs shaders/*.gs
 EXE = sock
@@ -33,6 +33,9 @@ OBJECTS = \
 	quadtree.o \
 	solar_system.o \
 	element.o \
+	mesh.o \
+	state_machine.o \
+	glsw_shaders.o \
 
 
 #Module includes append to OBJECTS and define other custom rules.
@@ -40,6 +43,7 @@ include configuration/configuration.mk
 include math/math.mk
 include models/models.mk
 include entity/entity.mk
+include glsw/glsw.mk
 
 all: $(OBJECTS) ceffectpp/ceffectpp
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(EXE)

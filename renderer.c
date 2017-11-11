@@ -23,6 +23,7 @@
 #include "math/bpos.h"
 #include "debug_graphics.h"
 #include "solar_system.h"
+#include "glsw_shaders.h"
 
 static bool renderer_is_init = false;
 static bool renderer_should_reload = false;
@@ -193,6 +194,9 @@ void renderer_init()
 		return;
 	checkErrors("Function enter");
 
+	glsw_shaders_init();
+	checkErrors("glsw_shaders_init");
+
 	load_effects(
 		effects.all,       LENGTH(effects.all),
 		shader_file_paths, LENGTH(shader_file_paths),
@@ -229,6 +233,8 @@ void renderer_init()
 	checkErrors("Init star_box");
 	debug_graphics_init();
 	checkErrors("Init debug_graphics");
+	proc_planet_init();
+
 
 	glUseProgram(effects.forward.handle);
 	glUniform1f(effects.forward.log_depth_intermediate_factor, log_depth_intermediate_factor);
@@ -261,6 +267,7 @@ void renderer_deinit()
 		return;
 	deinit_models();
 	//stars_deinit();
+	proc_planet_deinit();
 	point_lights.num_lights = 0;
 	renderer_is_init = false;
 	entities_deinit();
@@ -269,25 +276,6 @@ void renderer_deinit()
 void renderer_queue_reload()
 {
 	renderer_should_reload = true;
-}
-
-//Create a projection matrix with "fov" field of view, "a" aspect ratio, n and f near and far planes.
-//Stick it into buffer buf, ready to send to OpenGL.
-void make_projection_matrix(GLfloat fov, GLfloat a, GLfloat n, GLfloat f, GLfloat *buf)
-{
-	GLfloat nn = 1.0/tan(fov/2.0);
-	GLfloat tmp[] = (GLfloat []){
-		nn, 0,           0,              0,
-		0, nn,           0,              0,
-		0,  0,   (n)/(n-f),  (n*f)/(n-f),
-		//0,  0, (f+n)/(f-n), (-2*f*n)/(f-n),
-		0,  0,          -1,              1
-	};
-	if (a >= 0)
-		tmp[0] /= a;
-	else
-		tmp[5] *= a;
-	memcpy(buf, tmp, sizeof(tmp));
 }
 
 static void forward_update_point_light(EFFECT *effect, struct point_light_attributes *lights, int i)
@@ -304,12 +292,14 @@ static Drawable *pvs[] = {};//{&d_ship};
 
 void render()
 {
-	tri_tile *drawlist[ssystem.num_planets][3000];
-	int drawlist_count[ssystem.num_planets];
-	for (int i = 0; i < ssystem.num_planets; i++) {
-		bpos pos = {eye_frame.t - ssystem.planet_positions[i].offset, eye_sector - ssystem.planet_positions[i].origin};
-		drawlist_count[i] = proc_planet_drawlist(ssystem.planets[i], drawlist[i], LENGTH(drawlist[i]), pos);
-	}
+	// //Create a list of planet tiles to draw.
+	// int drawlist_max = 3000;
+	// tri_tile *drawlist[ssystem.num_planets][drawlist_max];
+	// int drawlist_count[ssystem.num_planets];
+	// for (int i = 0; i < ssystem.num_planets; i++) {
+	// 	bpos pos = {eye_frame.t - ssystem.planet_positions[i].offset, eye_sector - ssystem.planet_positions[i].origin};
+	// 	drawlist_count[i] = proc_planet_drawlist(ssystem.planets[i], drawlist[i], drawlist_max, pos);
+	// }
 
 	//Future Gavin Reminder: You put this here so it can set the intersecting tile's override color before the draw.
 	//bpos ray_start = {ship_entity->Physical->position.t - test_planets[0].pos.offset, ship_entity->Physical->origin - test_planets[0].pos.origin};
@@ -328,7 +318,7 @@ void render()
 
 	bool wireframe = false;
 
-	//Computer inverse eye frame.
+	//Compute inverse eye frame.
 	{
 		inv_eye_frame = amat4_inverse(eye_frame);
 		float tmp[16];
@@ -356,7 +346,7 @@ void render()
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	//Depth prepass, can also be used as an ambient pass.
-	{ 
+	{
 		glUseProgram(effects.forward.handle);
 		if (apass) {
 			glUniform1i(effects.forward.ambient_pass, 1);
@@ -374,20 +364,22 @@ void render()
 
 		//glDisable(GL_CULL_FACE);
 
-		//Draw procedural planets
-		for (int i = 0; i < ssystem.num_planets; i++) {
-			for (int j = 0; j < drawlist_count[i]; j++) {
-				tri_tile *t = drawlist[i][j];
-				if (!t->buffered) //Last resort "BUFFER RIGHT NOW", will cause hiccups.
-					buffer_tri_tile(t);
-				bpos tile_pos = ssystem.planet_positions[i];
-				tile_pos.offset = bpos_remap((bpos){tile_pos.offset, tile_pos.origin + t->sector}, eye_sector);
-				amat4 tile_frame = {tri_frame.a, tile_pos.offset};
-				glUniform3fv(effects.forward.override_col, 1, (float *)&t->override_col);
-				draw_forward(&effects.forward, t->bg, tile_frame);
-				checkErrors("After drawing a tri_tile");
-			}
-		}
+		// //Draw procedural planets
+		// for (int i = 0; i < ssystem.num_planets; i++) {
+		// 	for (int j = 0; j < drawlist_count[i]; j++) {
+		// 		tri_tile *t = drawlist[i][j];
+		// 		if (!t->buffered) //Last resort "BUFFER RIGHT NOW", will cause hiccups.
+		// 			buffer_tri_tile(t);
+		// 		bpos tile_pos = ssystem.planet_positions[i];
+		// 		tile_pos.offset = bpos_remap((bpos){tile_pos.offset, tile_pos.origin + t->sector}, eye_sector);
+		// 		amat4 tile_frame = {tri_frame.a, tile_pos.offset};
+		// 		glUniform3fv(effects.forward.override_col, 1, (float *)&t->override_col);
+		// 		draw_forward(&effects.forward, t->bg, tile_frame);
+		// 		checkErrors("After drawing a tri_tile");
+		// 	}
+		// }
+		checkErrors("Before planets draw");
+		proc_planet_draw(&effects.forward, eye_frame, ssystem.planets, ssystem.planet_positions, ssystem.num_planets);
 
 		glUniform3f(effects.forward.override_col, 1.0, 1.0, 1.0);
 

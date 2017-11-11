@@ -5,6 +5,7 @@
 #include "buffer_group.h"
 #include "math/bpos.h"
 #include "open-simplex-noise-in-c/open-simplex-noise.h"
+#include "mesh.h"
 
 //Heightmap function pointers.
 typedef float (*height_map_func)(vec3, vec3 *);
@@ -29,6 +30,7 @@ struct triangular_terrain_tile {
 	vec3 centroid;
 	vec3 normal;
 	bpos_origin sector;
+	struct geo_mesh *mesh;
 	//Called at the end of init, passing the new tile and the provided context.
 	void (*finishing_touches)(tri_tile *, void *);
 	void  *finishing_touches_context;

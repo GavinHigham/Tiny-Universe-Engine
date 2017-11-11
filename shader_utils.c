@@ -20,8 +20,7 @@ void printLog(GLuint handle, bool is_program)
 	void (*glGetInfoLog)(GLuint, GLsizei, GLsizei *, GLchar *) = is_program? glGetProgramInfoLog : glGetShaderInfoLog;
 
 	if (glIs(handle)) {
-		int log_length = 0;
-		int max_length = log_length;
+		int log_length = 0, max_length = 0;
 		glGetiv(handle, GL_INFO_LOG_LENGTH, &max_length);
 		char *info_log = (char *)malloc(max_length);
 		glGetInfoLog(handle, max_length, &log_length, info_log);
@@ -75,19 +74,20 @@ static void read_in_shaders(const char *paths[], GLchar *shader_texts[], int num
 	}
 }
 
-static GLuint compile_shader(GLenum type, const GLchar *source, const char *path, GLuint program_handle)
+GLuint shader_new(GLenum type, const GLchar **strings, const char *path)
 {
-	if (source && path) {
+	if (strings && path) {
 		GLint success = false;
 		const GLuint shader = glCreateShader(type);
 
-		glShaderSource(shader, 1, &source, NULL);
+		glShaderSource(shader, 1, strings, NULL);
 		glCompileShader(shader);
 		glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
 		if (success != true) {
 			printf("Unable to compile %s %d! (Path: %s)\n", shader_enum_to_string(type), shader, path);
 			printLog(shader, false);
 			glDeleteShader(shader);
+			//BUG(Gavin): This returns a negative value, but GLuint is unsigned...
 			return -1; //Means compilation failure.
 		}
 		return shader;
@@ -101,7 +101,7 @@ static int compile_effect(const char *file_paths[], GLchar *shader_texts[], GLen
 	GLuint shader_handles[num];
 
 	for (int i = 0; i < num; i++) {
-		shader_handles[i] = compile_shader(shader_types[i], (const GLchar *)shader_texts[i], file_paths[i], program_handle);
+		shader_handles[i] = shader_new(shader_types[i], (const GLchar **)&shader_texts[i], file_paths[i]);
 		glAttachShader(program_handle, shader_handles[i]);
 		success = success && (shader_handles[i] != -1);
 	}
@@ -120,6 +120,25 @@ static int compile_effect(const char *file_paths[], GLchar *shader_texts[], GLen
 
 	return !success; //Success is 0.
 }
+
+int compile_shader_program(GLuint program_handle, GLuint shaders[], int num_shaders)
+{
+	GLint success = true;
+
+	for (int i = 0; i < num_shaders; i++)
+		glAttachShader(program_handle, shaders[i]);
+
+	if (success) {
+		glLinkProgram(program_handle);
+		glGetProgramiv(program_handle, GL_LINK_STATUS, &success);
+		if (success != true) {
+			printf("Unable to link program %d!\n", program_handle);
+			printLog(program_handle, true);
+		}
+	}
+	return !success; //Success is 0.
+}
+
 
 static void init_attrs(GLuint program_handle, const char **astrs, GLint *attrs, int num)
 {

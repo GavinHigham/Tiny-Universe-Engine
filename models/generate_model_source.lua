@@ -1,7 +1,3 @@
-function edgeString(v1, v2)
-	return v1.x .. v1.y .. v1.z .. v2.x .. v2.y .. v2.z
-end
-
 function modelNameFromPath(file)
 	local tokens = {}
 	for token in string.gmatch(file, "[^./]+") do --Match anything that's not a slash or a dot.
@@ -16,7 +12,6 @@ print([[
 #define MODELS_H
 
 #include <GL/glew.h>
-#include "../buffer_group.h"
 ]])
 
 for _, file in ipairs(arg) do
@@ -24,42 +19,49 @@ for _, file in ipairs(arg) do
 	local faces = {}
 	local halfEdges = {}
 	local properties = {}
+	local prop_idx = {}
 	--Read in vertices and faces
 	local numverts = 0
 	local numfaces = 0
 	local reading_header = true
 	local modelName = modelNameFromPath(file)
+
+	local function edgeString(v1, v2)
+		return v1[prop_idx["x"]] .. v1[prop_idx["y"]] .. v1[prop_idx["z"]] .. v2[prop_idx["x"]] .. v2[prop_idx["y"]] .. v2[prop_idx["z"]]
+	end
+
 	for line in io.lines(file) do
+		--Tokenize line
 		local tokens = {}
 		for token in string.gmatch(line, "[^%s]+") do
 			table.insert(tokens, token)
 		end
+
 		if reading_header then
 			if tokens[1] == "element" then
 				if tokens[2] == "vertex" then
 					numverts = tonumber(tokens[3])
-				end
-				if tokens[2] == "face" then
+				elseif tokens[2] == "face" then
 					numfaces = tonumber(tokens[3])
 				end
-			end
-			if tokens[1] == "property" and tokens[2] ~= "list" then
+			elseif tokens[1] == "property" and tokens[2] ~= "list" then
 				table.insert(properties, tokens[3])
-			end
-			if tokens[1] == "end_header" then
+				prop_idx[tokens[3]] = #properties
+			elseif tokens[1] == "end_header" then
 				reading_header = false
 			end
 		else
 			if numverts > 0 then
-				local new_vert = {}
-				for i, property in ipairs(properties) do
-					new_vert[property] = tokens[i]
-				end
-				table.insert(vertices, new_vert)
+				table.insert(vertices, tokens)
 				numverts = numverts - 1
 			elseif numfaces > 0 then
-				local new_face = {tokens[2], tokens[3], tokens[4]} --don't support quads
-				table.insert(faces, new_face)
+				table.insert(faces, {tokens[2], tokens[3], tokens[4]}) --don't support quads
+				if tonumber(tokens[1]) > 4 then
+					io.stderr:write("N-Gons not supported, check mesh export settings.\n");
+				elseif tonumber(tokens[1]) == 4 then
+					io.stderr:write("Quads not suggested, will split arbitrarily, check mesh export settings.\n")
+					table.insert(faces, {tokens[3], tokens[4], tokens[5]})
+				end
 				numfaces = numfaces - 1
 			end
 		end
@@ -75,87 +77,55 @@ for _, file in ipairs(arg) do
 		halfEdges[edgeString(v3, v1)] = face[2]
 	end
 
-	local usingColors = #vertices > 0 and vertices[1].red and vertices[1].blue and vertices[1].green
-	local usingNormals = #vertices > 0 and vertices[1].nx and vertices[1].ny and vertices[1].nz
+	local usingPositions = #vertices > 0 and prop_idx["x"]   and prop_idx["y"]    and prop_idx["z"]
+	local usingColors    = #vertices > 0 and prop_idx["red"] and prop_idx["blue"] and prop_idx["green"]
+	local usingNormals   = #vertices > 0 and prop_idx["nx"]  and prop_idx["ny"]   and prop_idx["nz"]
 
-	print("int buffer_" .. modelName .. "(struct buffer_group bg)\n{")
-	print("\tGLfloat positions[] = {")
-	for i = 1, #vertices do
-		local vertex = vertices[i]
-		local lineEnd = ","
-		if i == #vertices then lineEnd = "\n\t};\n" end
-		print("\t\t" .. vertex.x .. ", " .. vertex.y .. ", " .. vertex.z .. lineEnd)
+	if usingPositions then
+		print("GLfloat " .. modelName .. "_positions[] = {")
+		for i = 1, #vertices do
+			local vertex = vertices[i]
+			print("\t" .. vertex[prop_idx["x"]] .. ", " .. vertex[prop_idx["y"]] .. ", " .. vertex[prop_idx["z"]] .. ",")
+		end
+		print("};\n")
 	end
 	if usingNormals then
-		print("\tGLfloat normals[] = {")
+		print("GLfloat " .. modelName .. "_normals[] = {")
 		for i = 1, #vertices do
 			local vertex = vertices[i]
-			local lineEnd = ","
-			if i == #vertices then lineEnd = "\n\t};\n" end
-			print("\t\t" .. vertex.nx .. ", " .. vertex.ny .. ", " .. vertex.nz .. lineEnd)
+			print("\t" .. vertex[prop_idx["nx"]] .. ", " .. vertex[prop_idx["ny"]] .. ", " .. vertex[prop_idx["nz"]] .. ",")
 		end
+		print("};\n")
 	end
 	if usingColors then
-		local colorScale = 1/255.0
-		local gamma = 2.2
-		print("\tGLfloat colors[] = {")
+		print("unsigned char " .. modelName .. "_colors[] = {")
 		for i = 1, #vertices do
 			local vertex = vertices[i]
-			local lineEnd = ","
-			if i == #vertices then lineEnd = "\n\t};\n" end
-			print("\t\t" .. (vertex.red*colorScale)^gamma .. ", " .. (vertex.green*colorScale)^gamma .. ", " .. (vertex.blue*colorScale)^gamma .. lineEnd)
+			print("\t" .. vertex[prop_idx["red"]] .. ", " .. vertex[prop_idx["green"]] .. ", " .. vertex[prop_idx["blue"]] .. ",")
 		end
+		print("};\n")
 	end
 	--colors, revisit code to make concise, efficient-er
-	print("\tGLuint adjacent_indices[] = {")
+	print("GLuint " .. modelName .. "_indices_adjacent[] = {")
 	for i = 1, #faces do
 		local face = faces[i]
 		local v1 = vertices[face[1]+1]
 		local v2 = vertices[face[2]+1]
 		local v3 = vertices[face[3]+1]
-		local lineEnd = ","
-		if i == #faces then lineEnd = "\n\t};\n" end
-		print("\t\t" .. face[1] .. ", " .. halfEdges[edgeString(v2, v1)] .. ", " .. face[2] .. ", " .. halfEdges[edgeString(v3, v2)] .. ", " .. face[3] .. ", " .. halfEdges[edgeString(v1, v3)] .. lineEnd)
-		--print("\t\t" .. face[1] .. ", " .. face[2] .. ", " .. face[3] .. lineEnd)
+		print("\t" .. face[1] .. ", " .. halfEdges[edgeString(v2, v1)] .. ", " .. face[2] .. ", " .. halfEdges[edgeString(v3, v2)] .. ", " .. face[3] .. ", " .. halfEdges[edgeString(v1, v3)] .. ",")
+		--print("\t\t" .. face[1] .. ", " .. face[2] .. ", " .. face[3] .. ",")
 	end
-	print("\tGLuint indices[] = {")
+	print("};\n")
+	print("GLuint " .. modelName .. "_indices[] = {")
 	for i = 1, #faces do
 		local face = faces[i]
 		local v1 = vertices[face[1]+1]
 		local v2 = vertices[face[2]+1]
 		local v3 = vertices[face[3]+1]
-		local lineEnd = ","
-		if i == #faces then lineEnd = "\n\t};\n" end
-		--print("\t\t" ..halfEdges[edgeString(v2, v1)] .. ", " .. face[2] .. ", " .. halfEdges[edgeString(v3, v2)] .. ", " .. face[3] .. ", " .. halfEdges[edgeString(v1, v3)] .. ", " .. face[1] .. lineEnd)
-		print("\t\t" .. face[1] .. ", " .. face[2] .. ", " .. face[3] .. lineEnd)
+		--print("\t\t" ..halfEdges[edgeString(v2, v1)] .. ", " .. face[2] .. ", " .. halfEdges[edgeString(v3, v2)] .. ", " .. face[3] .. ", " .. halfEdges[edgeString(v1, v3)] .. ", " .. face[1] .. ",")
+		print("\t" .. face[1] .. ", " .. face[2] .. ", " .. face[3] .. ",")
 	end
-	print([[
-	int attr_index = -1;
-	if ((attr_index = buffer_group_attribute_index("vPos")) != -1) {
-		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
-	}]])
-	if usingColors then
-		print([[
-	if ((attr_index = buffer_group_attribute_index("vColor")) != -1) {
-		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
-	}]])
-	end
-	if usingNormals then
-		print([[
-	if ((attr_index = buffer_group_attribute_index("vNormal")) != -1) {
-		glBindBuffer(GL_ARRAY_BUFFER, bg.buffer_handles[attr_index]);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
-	}]])
-	end
-	print([[
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(adjacent_indices), adjacent_indices, GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-	return sizeof(indices)/sizeof(indices[0]);
-}]])
+	print("};\n")
 end
 
 print("#endif")

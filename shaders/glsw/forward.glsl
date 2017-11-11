@@ -1,4 +1,30 @@
-#version 330
+-- vertex.GL33 --
+
+in vec3 vColor;
+in vec3 vPos; 
+in vec3 vNormal;
+
+uniform float log_depth_intermediate_factor;
+
+uniform mat4 model_matrix;
+uniform mat4 model_view_normal_matrix;
+uniform mat4 model_view_projection_matrix;
+uniform float hella_time;
+
+out vec3 fPos;
+out vec3 fColor;
+out vec3 fNormal;
+
+void main()
+{
+	gl_Position = model_view_projection_matrix * vec4(vPos, 1);
+	gl_Position.z = (log2(max(1e-6, 1.0 + gl_Position.z)) * log_depth_intermediate_factor - 1.0) * gl_Position.w;
+	fPos = vec3(model_matrix * vec4(vPos, 1));
+	fColor = vColor;
+	fNormal = vec3(vec4(vNormal, 0.0) * model_view_normal_matrix);
+}
+
+-- fragment.GL33 --
 
 uniform vec3 uLight_pos; //Light position in world space.
 uniform vec3 uLight_col; //Light color.
@@ -14,73 +40,17 @@ uniform vec3 override_col = vec3(1.0, 1.0, 1.0);
 #define INTENSITY   3
 #define M_PI 3.1415926535897932384626433832795
 
-// set important material values
-float roughnessValue = 0.8; // 0 : smooth, 1: rough
-float F0 = 0.2; // fresnel reflectance at normal incidence
-float k = 0.2; // fraction of diffuse reflection (specular reflection = 1 - k)
-
 in vec3 fPos;
 in vec3 fColor;
 in vec3 fNormal;
 
 out vec4 LFragment;
 
-float rand(vec2 co){
-    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
-}
-
-void point_light_fragment(in vec3 l, in vec3 v, in vec3 normal, out float specular, out float diffuse)
-{
-	vec3 h = normalize(l + v); //Halfway vector.
-
-	float base = 1 - dot(v, h);
-	float exponential = pow(base, 5.0);
-	float F0 = 0.5;
-	float fresnel = exponential + F0 * (1.0 - exponential);
-
-	specular = fresnel * pow(max(0.0, dot(h, normal)), 32.0);
-	diffuse = max(0.0, dot(l, normal));
-}
-
-void point_light_fragment2(in vec3 l, in vec3 v, in vec3 normal, out float specular, out float diffuse)
-{
-	vec3 h = normalize(l + v); //Halfway vector.
-	
-	// do the lighting calculation for each fragment.
-	float NdotL = max(dot(normal, l), 0.0);
-	specular = 0.0;
-	if(NdotL > 0.0)
-	{
-		// calculate intermediary values
-		float NdotH = max(dot(normal, h), 0.0); 
-		float NdotV = max(dot(normal, v), 0.0); // note: this could also be NdotL, which is the same value
-		float VdotH = max(dot(v, h), 0.0);
-		float mSquared = roughnessValue * roughnessValue;
-		
-		// geometric attenuation
-		float NH2 = 2.0 * NdotH;
-		float g1 = (NH2 * NdotV) / VdotH;
-		float g2 = (NH2 * NdotL) / VdotH;
-		float geoAtt = min(1.0, min(g1, g2));
-	 
-		// roughness (or: microfacet distribution function)
-		// beckmann distribution function
-		float r1 = 1.0 / ( 4.0 * mSquared * pow(NdotH, 4.0));
-		float r2 = (NdotH * NdotH - 1.0) / (mSquared * NdotH * NdotH);
-		float roughness = r1 * exp(r2);
-		
-		// fresnel
-		// Schlick approximation
-		float fresnel = pow(1.0 - VdotH, 5.0);
-		fresnel *= (1.0 - F0);
-		fresnel += F0;
-		
-		specular = (fresnel * geoAtt * roughness) / (NdotV * NdotL * M_PI);
-	}
-	
-	specular = max(0.0, NdotL * (k + specular * (1.0 - k)));
-	diffuse = max(0.0, dot(l, normal));
-}
+// set important material values
+float roughnessValue = 0.8; // 0 : smooth, 1: rough
+float F0 = 0.2; // fresnel reflectance at normal incidence
+float k = 0.2; // fraction of diffuse reflection (specular reflection = 1 - k)
+void point_light_fresnel(in vec3 l, in vec3 v, in vec3 normal, out float specular, out float diffuse);
 
 vec3 sky_color(vec3 v, vec3 s, vec3 c)
 {
@@ -88,14 +58,12 @@ vec3 sky_color(vec3 v, vec3 s, vec3 c)
 	return mix(vec3(0.0), vec3(0.0, 0.0, 1.0)*length(c), sun) + c*pow(sun, 2);
 }
 
-
 void main() {
 	float gamma = 2.2;
 	vec3 color = fColor;
 	//roughnessValue = pow(0.2*length(color), 8);
 	color *= override_col;
 	vec3 normal = normalize(fNormal);
-	//vec3 normal = normalize(cross(dFdy(fPos.xyz), dFdx(fPos.xyz)));
 	vec3 final_color = vec3(0.0);
 	float specular, diffuse;
 	vec3 diffuse_frag = vec3(0.0);
@@ -103,7 +71,7 @@ void main() {
 	vec3 v = normalize(camera_position - fPos); //View vector.
 	if (ambient_pass == 1) {
 		vec3 l = normalize(uLight_pos-fPos);
-		point_light_fragment2(l, v, normal, specular, diffuse);
+		point_light_fresnel(l, v, normal, specular, diffuse);
 		diffuse_frag = color*diffuse*sky_color(normal, normalize(vec3(0.1, 0.8, 0.1)), uLight_col);
 		specular_frag = color*specular*sky_color(reflect(v, normal), normalize(vec3(0.1, 0.8, 0.1)), uLight_col);
 		diffuse_frag = color*diffuse*uLight_col;
@@ -112,7 +80,7 @@ void main() {
 		float dist = distance(fPos, uLight_pos);
 		float attenuation = uLight_attr[CONSTANT] + uLight_attr[LINEAR]*dist + uLight_attr[EXPONENTIAL]*dist*dist;
 		vec3 l = normalize(uLight_pos-fPos); //Light vector.
-		point_light_fragment2(l, v, normal, specular, diffuse);
+		point_light_fresnel(l, v, normal, specular, diffuse);
 		diffuse_frag = color*uLight_col*uLight_attr[INTENSITY]*diffuse/attenuation;
 		specular_frag = color*uLight_col*uLight_attr[INTENSITY]*specular/attenuation;
 	}

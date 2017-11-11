@@ -29,7 +29,7 @@ solar_system solar_system_new(bpos_origin o)
 	solar_system s = {
 		.seed = seed,
 		.origin = o,
-		.num_planets = seed % SOLAR_SYSTEM_MAX_PLANETS,
+		.num_planets = frand(&seed) * SOLAR_SYSTEM_MAX_PLANETS,
 	};
 	element_get_random_set(s.elements, SOLAR_SYSTEM_MAX_ELEMENTS);
 
@@ -47,6 +47,7 @@ solar_system solar_system_new(bpos_origin o)
 	printf("\n");
 
 	for (int i = 0; i < s.num_planets; i++) {
+		printf("Creating a planet! ");
 		float radius = (frand(&seed)+1) * (MAX_PLANET_RADIUS-MIN_PLANET_RADIUS) + MIN_PLANET_RADIUS;
 		//Is this deterministic?
 
@@ -57,7 +58,7 @@ solar_system solar_system_new(bpos_origin o)
 		do s.planet_positions[i].origin = p = rand_box_qvec3(c1, c2); while (qvec3_sum(p*p) > w*w);
 		//Later I might use this if I want the planets to actually move slowly following an orbit.
 		s.planet_positions[i].offset = (vec3){0,0,0};
-		printf("Created a planet!"); qvec3_print(s.planet_positions[i].origin); puts(""); 
+		qvec3_print(s.planet_positions[i].origin); puts(""); 
 	}
 
 	//Determine the type/chemical makeup of each planet

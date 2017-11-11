@@ -1,8 +1,3 @@
-#include <GL/glew.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <math.h>
 #include "procedural_planet.h"
 #include "math/geometry.h"
 #include "math/utility.h"
@@ -10,13 +5,26 @@
 #include "input_event.h" //For controller hotkeys
 #include "open-simplex-noise-in-c/open-simplex-noise.h"
 #include "element.h"
+#include "draw.h"
+#include "drawf.h" //For draw planets
+#include "gl_utils.h"
+#include <GL/glew.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <math.h>
 
 //Suppress prints
 #define printf(...) while(0) {}
 
+struct {
+	GLuint vao;
+	bool is_init;
+} proc_planets;
 
 extern bpos_origin eye_sector;
 extern bpos_origin tri_sector;
+extern GLfloat proj_view_mat[16];
  
 //Adapted from http://www.glprogramming.com/red/chapter02.html
 static const float x = 0.525731112119133606;
@@ -70,6 +78,16 @@ static float split_tile_radius(int depth, float base_length)
 
 static void tri_tile_split(tri_tile *t, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS]);
 
+static bool above_horizon(tri_tile *tile, int depth, struct planet_terrain_context ctx)
+{
+	ctx.cam_pos.offset = bpos_remap(ctx.cam_pos, (bpos_origin){0});
+	vec3 tile_pos = bpos_remap((bpos){tile->centroid, tile->sector}, (bpos_origin){0});
+	float tile_radius = split_tile_radius(depth, ctx.planet->edge_len);
+	float altitude = vec3_mag(ctx.cam_pos.offset) - ctx.planet->radius;
+	return nes30_buttons[INPUT_BUTTON_START] || 
+		distance_to_horizon(ctx.planet->radius, fmax(altitude, 0)) > (vec3_dist(ctx.cam_pos.offset, tile_pos) - tile_radius);
+}
+
 //TODO: See if I can factor out depth somehow.
 static int proc_planet_subdiv_depth(proc_planet *planet, tri_tile *tile, int depth, bpos cam_pos)
 {
@@ -86,7 +104,7 @@ static int proc_planet_subdiv_depth(proc_planet *planet, tri_tile *tile, int dep
 	float scale_factor = (screen_width * planet->edge_len) / (2 * PROC_PLANET_TILE_PIXELS_PER_TRI * PROC_PLANET_NUM_TILE_ROWS);
 
 	// //Maybe I can handle this when preparing the drawlist, instead?
-	if (distance_to_horizon(planet->radius, fmax(altitude, 0)) < (vec3_dist(cam_pos.offset, tile_pos) - tile_radius))
+	if (distance_to_horizon(planet->radius, fmax(altitude, 0)) < (vec3_dist(cam_pos.offset, tile_pos) - tile_radius) && !nes30_buttons[INPUT_BUTTON_START])
 		return 0; //Tiles beyond the horizon should not be split.
 
 	return splits_per_distance(subdiv_dist, scale_factor);
@@ -119,31 +137,18 @@ static bool proc_planet_split_visit(quadtree_node *node, void *context)
 	return depth > node->depth;
 }
 
-static bool proc_planet_drawlist_visit(quadtree_node *node, void *context)
-{
-	struct planet_terrain_context *ctx = (struct planet_terrain_context *)context;
-	tri_tile *tile = tree_tile(node);
-	int depth = proc_planet_subdiv_depth(ctx->planet, tile, node->depth, ctx->cam_pos);
-
-	if (depth == node->depth || !quadtree_node_has_children(node))
-		if (ctx->num_tiles < ctx->max_tiles)
-			ctx->tiles[ctx->num_tiles++] = tile;
-
-	return depth > node->depth;
-}
-
 static float noise3(vec3 pos)
 {
 	return (1+open_simplex_noise3(osnctx, pos.x, pos.y, pos.z))/2;
 }
 
-static tri_tile * proc_planet_vertices_and_normals(struct element_properties *elements, int num_elements, tri_tile *t, height_map_func height, vec3 planet_pos, float noise_radius, float amplitude)
+static tri_tile * proc_planet_vertices_and_normals(struct element_properties *elements, int num_elements, tri_tile *t, height_map_func height, vec3 planet_pos, float noise_radius, float planet_radius, float amplitude)
 {
 	//vec3 brownish = {0.30, .27, 0.21};
 	//vec3 whiteish = {0.96, .94, 0.96};
 	//vec3 orangeish = (vec3){255, 181, 112} / 255;
 
-	float epsilon = noise_radius / 100000; //TODO: Check this value or make it empirical somehow.
+	float epsilon = vec3_dist(t->tile_vertices[0], t->tile_vertices[2]) * (noise_radius / planet_radius / t->num_rows / 5);//noise_radius / 100000; //TODO: Check this value or make it empirical somehow.
 	for (int i = 0; i < t->num_vertices; i++) {
 		//Points towards vertex from planet origin
 		vec3 pos = t->positions[i] - planet_pos;
@@ -171,7 +176,7 @@ static tri_tile * proc_planet_vertices_and_normals(struct element_properties *el
 			for (int j = 0; j < num_elements; j++) {
 				rgb_to_cmyk(elements[j].color, &cmy, &k);
 				float offset = 4529 * j;//random number
-				float scale = pow(2, j*2);
+				float scale = pow(2, j*2)*2;
 				float mag = amplitude / scale;
 				vec3 turb = {ys[0], ys[1], ys[2]};
 				double h = noise3(turb + p0 * scale + offset);
@@ -224,7 +229,7 @@ static void proc_planet_finishing_touches(tri_tile *t, void *finishing_touches_c
 	struct element_properties props[p->num_elements];
 	for (int i = 0; i < p->num_elements; i++)
 		props[i] = element_get_properties(p->elements[i]);
-	proc_planet_vertices_and_normals(props, p->num_elements, t, p->height, planet_pos, p->noise_radius, p->amplitude);
+	proc_planet_vertices_and_normals(props, p->num_elements, t, p->height, planet_pos, p->noise_radius, p->radius, p->amplitude);
 }
 
 static void tri_tile_split(tri_tile *t, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS])
@@ -290,6 +295,29 @@ float proc_planet_height(vec3 pos, vec3 *variety)
 
 // Public Functions //
 
+void proc_planet_init()
+{
+	if (!proc_planets.is_init) {
+		glGenVertexArrays(1, &proc_planets.vao);
+		glBindVertexArray(proc_planets.vao);
+		glEnableVertexAttribArray(effects.forward.vPos);
+		glEnableVertexAttribArray(effects.forward.vNormal);
+		glEnableVertexAttribArray(effects.forward.vColor);
+		glVertexAttribPointer(effects.forward.vPos, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+		glVertexAttribPointer(effects.forward.vNormal, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+		glVertexAttribPointer(effects.forward.vColor, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+		proc_planets.is_init = true;
+	}
+}
+
+void proc_planet_deinit()
+{
+	if (proc_planets.is_init) {
+		proc_planets.is_init = false;
+		glDeleteVertexArrays(1, &proc_planets.vao);
+	}
+}
+
 proc_planet * proc_planet_new(float radius, height_map_func height, int *elements, int num_elements)
 {
 	proc_planet *p = malloc(sizeof(proc_planet));
@@ -323,8 +351,24 @@ proc_planet * proc_planet_new(float radius, height_map_func height, int *element
 void proc_planet_free(proc_planet *p)
 {
 	for (int i = 0; i < NUM_ICOSPHERE_FACES; i++)
-		quadtree_free(p->tiles[i], (void (*)(void *))free_tri_tile, false);
+		quadtree_free(p->tiles[i], (void (*)(void *))free_tri_tile);
 	free(p);
+}
+
+static bool proc_planet_drawlist_visit(quadtree_node *node, void *context)
+{
+	struct planet_terrain_context *ctx = (struct planet_terrain_context *)context;
+	tri_tile *tile = tree_tile(node);
+	int depth = proc_planet_subdiv_depth(ctx->planet, tile, node->depth, ctx->cam_pos);
+
+	if (depth == node->depth || !quadtree_node_has_children(node)) {
+		if (ctx->num_tiles < ctx->max_tiles && above_horizon(tile, depth, *ctx))
+			ctx->tiles[ctx->num_tiles++] = tile;
+		// else
+		// 	ctx->excess_tiles = true;
+	}
+
+	return depth > node->depth;
 }
 
 int proc_planet_drawlist(proc_planet *p, tri_tile **tiles, int max_tiles, bpos cam_pos)
@@ -341,12 +385,59 @@ int proc_planet_drawlist(proc_planet *p, tri_tile **tiles, int max_tiles, bpos c
 	for (int i = 0; i < NUM_ICOSPHERE_FACES; i++) {
 		quadtree_preorder_visit(p->tiles[i], proc_planet_split_visit, &context);
 		quadtree_preorder_visit(p->tiles[i], proc_planet_drawlist_visit, &context);
-		//TODO: Find a good way to implement prune.
+		if (context.excess_tiles)
+			printf("Excess tiles.\n");
+		//TODO: Find a good way to implement prune with hysteresis.
 		//terrain_tree_prune(p->tiles[i], proc_planet_split_depth, &context, (terrain_tree_free_fn)free_tri_tile);
 	}
 
 	printf("Num tiles drawn:%d\n", context.visited);
 	return context.num_tiles;
+}
+
+//Duplicate from draw.c for now
+void pp_prep_matrices(amat4 model_matrix, GLfloat pvm[16], GLfloat mm[16], GLfloat mvpm[16], GLfloat mvnm[16])
+{
+	amat4_to_array(model_matrix, mm);
+	amat4_buf_mult(pvm, mm, mvpm);
+	mat3_vec3_to_array(mat3_transp(model_matrix.a), (vec3){0, 0, 0}, mvnm);
+}
+
+void proc_planet_draw(EFFECT *e, amat4 eye_frame, proc_planet *planets[], bpos planet_positions[], int num_planets)
+{
+	// glBindVertexArray(proc_planets.vao);
+	//Create a list of planet tiles to draw.
+	int drawlist_max = 3000 * num_planets;
+	amat4 tri_frame  = {.a = MAT3_IDENT, .t = {0, 0, 0}};
+	tri_tile **drawlist = malloc(sizeof(tri_tile *) * drawlist_max);
+	int planet_tiles_start[num_planets + 1];
+	int drawlist_count = 0;
+	for (int i = 0; i < num_planets; i++) {
+		bpos pos = {eye_frame.t - planet_positions[i].offset, eye_sector - planet_positions[i].origin};
+		planet_tiles_start[i] = drawlist_count;
+		drawlist_count += proc_planet_drawlist(planets[i], drawlist + drawlist_count, drawlist_max-drawlist_count, pos);
+	}
+	planet_tiles_start[num_planets] = drawlist_count;
+
+	for (int i = 0; i < num_planets; i++) {
+		for (int j = planet_tiles_start[i]; j < planet_tiles_start[i+1]; j++) {
+			tri_tile *t = drawlist[j];
+			glBindVertexArray(t->bg.vao);
+			if (!t->buffered) //Last resort "BUFFER RIGHT NOW", will cause hiccups.
+				buffer_tri_tile(t);
+			bpos tile_pos = planet_positions[i];
+			tile_pos.offset = bpos_remap((bpos){tile_pos.offset, tile_pos.origin + t->sector}, eye_sector);
+			amat4 tile_frame = {tri_frame.a, tile_pos.offset};
+			glUniform3fv(effects.forward.override_col, 1, (float *)&t->override_col);
+			GLfloat mm[16], mvpm[16], mvnm[16];
+			pp_prep_matrices(tile_frame, proj_view_mat, mm, mvpm, mvnm);
+			drawf("-m-m-m", e->model_matrix, mm, e->model_view_projection_matrix, mvpm, e->model_view_normal_matrix, mvnm);
+			glDrawElements(GL_TRIANGLE_STRIP, t->bg.index_count, GL_UNSIGNED_INT, NULL);
+			checkErrors("Drew a planet tile");
+		}
+	}
+	free(drawlist);
+	//free(planet_tiles_start);
 }
 
 struct proc_planet_tile_raycast_context {

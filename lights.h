@@ -1,7 +1,7 @@
 #ifndef LIGHTS_H
 #define LIGHTS_H
 #include <stdbool.h>
-#include "glla/glla.h"
+#include "glla.h"
 
 
 enum default_light_settings {

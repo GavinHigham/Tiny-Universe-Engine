@@ -63,12 +63,16 @@ struct planet_terrain_context {
 	tri_tile **tiles;
 	int num_tiles;
 	int max_tiles;
+	bool excess_tiles;
 };
 
+void proc_planet_init();
+void proc_planet_deinit();
 proc_planet * proc_planet_new(float radius, height_map_func height, int *elements, int num_elements);
 
 void proc_planet_free(proc_planet *p);
 int proc_planet_drawlist(proc_planet *p, tri_tile **tiles, int max_tiles, bpos cam_pos);
+void proc_planet_draw(EFFECT *e, amat4 eye_frame, proc_planet *planets[], bpos planet_positions[], int num_planets);
 float proc_planet_height(vec3 pos, vec3 *variety);
 
 //Raycast towards the planet center and find the altitude on the deepest terrain tile. O(log(n)) complexity in the number of planet tiles.

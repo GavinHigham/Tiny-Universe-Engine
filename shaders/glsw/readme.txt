@@ -1,0 +1,1 @@
+GLSW uses the term "effect" to mean a bundle of shaders, no mind about which stages of the shader pipeline they are a part of. My engine uses the term "effect" to mean an OpenGL shader program object, with enough defined shader stages to be usable for some operation. 

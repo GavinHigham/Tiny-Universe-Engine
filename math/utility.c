@@ -1,7 +1,8 @@
-#include <stdlib.h>
-#include <math.h>
 #include "utility.h"
 #include "glla.h"
+#include <stdlib.h>
+#include <math.h>
+#include <string.h>
 
 #define RANDOM_SEED 42 * 1337 + 0xBAE + 'G'+'r'+'e'+'e'+'n' //An excellent random seed
 static int seed = RANDOM_SEED;
@@ -145,4 +146,21 @@ lldiv_t lldiv_floor(int64_t a, int64_t b)
 	d.quot -= corr; //Correct the quotient for floor division.
 	d.rem += corr * b; //Correct the remainder for floor division.
 	return d;
+}
+
+void make_projection_matrix(float fov, float a, float n, float f, float *buf)
+{
+	float nn = 1.0/tan(fov/2.0);
+	float tmp[] = (float []){
+		nn, 0,           0,              0,
+		0, nn,           0,              0,
+		0,  0,   (n)/(n-f),  (n*f)/(n-f),
+		//0,  0, (f+n)/(f-n), (-2*f*n)/(f-n),
+		0,  0,          -1,              1
+	};
+	if (a >= 0)
+		tmp[0] /= a;
+	else
+		tmp[5] *= a;
+	memcpy(buf, tmp, sizeof(tmp));
 }

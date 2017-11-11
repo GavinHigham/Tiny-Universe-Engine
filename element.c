@@ -15,6 +15,8 @@ struct element_properties all_element_properties[] = {
 	{{158, 99, 83}},
 	{{167, 183, 234}},
 	{{24, 30, 130}},
+	{{98, 9, 212}},
+	{{94, 147, 110}},
 };
 size_t num_elements = LENGTH(all_element_properties);
 

@@ -60,18 +60,20 @@ controllable_callback(ship_control)
 			bpos_split_fix(&ship.position.t, &ship.origin);
 	}
 
-	if (key_state[SDL_SCANCODE_T]) {
-		printf("Ship is at ");
-		qvec3_print(ship.origin);
-		vec3_print(ship.position.t);
-		puts(", where would you like to teleport?");
-		float x, y, z;
-		int_fast64_t sx, sy, sz;
-		scanf("%lli %lli %lli %f %f %f", &sx, &sy, &sz, &x, &y, &z);
-		ship.position.t = (vec3){x, y, z};
-		ship.origin = (bpos_origin){sx, sy, sz};
-		bpos_split_fix(&ship.position.t, &ship.origin);
-	}
+	//Commented out because I keep hitting T by mistake.
+	//Useful for debug teleportation.
+	// if (key_state[SDL_SCANCODE_T]) {
+	// 	printf("Ship is at ");
+	// 	qvec3_print(ship.origin);
+	// 	vec3_print(ship.position.t);
+	// 	puts(", where would you like to teleport?");
+	// 	float x, y, z;
+	// 	int_fast64_t sx, sy, sz;
+	// 	scanf("%lli %lli %lli %f %f %f", &sx, &sy, &sz, &x, &y, &z);
+	// 	ship.position.t = (vec3){x, y, z};
+	// 	ship.origin = (bpos_origin){sx, sy, sz};
+	// 	bpos_split_fix(&ship.position.t, &ship.origin);
+	// }
 
 	*entity->Physical = ship;
 }

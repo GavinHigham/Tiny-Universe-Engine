@@ -44,26 +44,20 @@ void quadtree_postorder_visit(quadtree_node *tree, quadtree_visit_fn visit, void
 	visit(tree, context);
 }
 
-bool quadtree_node_free(quadtree_node *node, void *context)
+bool quadtree_node_free(quadtree_node *node, void *free_data)
 {
-	if (node && context) {
-		void (*free_data)(void *data) = context;
-		free_data(node->data);
+	if (node && free_data) {
+		//Cast free_data to a function taking a void * and returning void, and call it.
+		((void (*)(void *))free_data)(node->data);
 		free(node);
 		return true;
 	}
 	return false;
 }
 
-void quadtree_free(quadtree_node *tree, void (*free_data)(void *data), bool children_only)
+void quadtree_free(quadtree_node *tree, void (*free_data)(void *data))
 {
-	if (children_only)
-		return quadtree_postorder_visit(tree, quadtree_node_free, free_data);
-
-	if (tree && quadtree_node_has_children(tree))
-		for (int i = 0; i < NCHILDREN; i++)
-			quadtree_free(tree->children[i], free_data, false);
-	quadtree_node_set_childless(tree);
+	quadtree_postorder_visit(tree, quadtree_node_free, free_data);
 }
 
 bool quadtree_node_has_children(quadtree_node *tree)

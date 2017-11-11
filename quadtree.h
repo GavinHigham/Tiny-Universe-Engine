@@ -26,7 +26,7 @@ typedef struct quadtree_node {
 typedef bool (*quadtree_visit_fn)(quadtree_node *, void *);
 
 quadtree_node * quadtree_new(void *tile, int depth);
-void quadtree_free(quadtree_node *tree, void (*free_data)(void *data), bool children_only);
+void quadtree_free(quadtree_node *tree, void (*free_data)(void *data));
 void quadtree_preorder_visit(quadtree_node *tree, quadtree_visit_fn visit, void *context);
 void quadtree_postorder_visit(quadtree_node *tree, quadtree_visit_fn visit, void *context);
 void quadtree_node_add_children(quadtree_node *node, void *child_data[QUADTREE_NUM_CHILDREN]);
