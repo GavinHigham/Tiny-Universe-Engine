@@ -7,6 +7,7 @@
 #include "element.h"
 #include "draw.h"
 #include "drawf.h" //For draw planets
+#include "effects.h"
 #include "gl_utils.h"
 #include <GL/glew.h>
 #include <stdio.h>
@@ -15,7 +16,7 @@
 #include <math.h>
 
 //Suppress prints
-#define printf(...) while(0) {}
+//#define printf(...) while(0) {}
 
 struct {
 	GLuint vao;
@@ -24,7 +25,6 @@ struct {
 
 extern bpos_origin eye_sector;
 extern bpos_origin tri_sector;
-extern GLfloat proj_view_mat[16];
  
 //Adapted from http://www.glprogramming.com/red/chapter02.html
 static const float x = 0.525731112119133606;
@@ -148,10 +148,10 @@ static tri_tile * proc_planet_vertices_and_normals(struct element_properties *el
 	//vec3 whiteish = {0.96, .94, 0.96};
 	//vec3 orangeish = (vec3){255, 181, 112} / 255;
 
-	float epsilon = vec3_dist(t->tile_vertices[0], t->tile_vertices[2]) * (noise_radius / planet_radius / t->num_rows / 5);//noise_radius / 100000; //TODO: Check this value or make it empirical somehow.
+	float epsilon = vec3_dist(t->vertices[0], t->vertices[2]) * (noise_radius / planet_radius / t->num_rows / 5);//noise_radius / 100000; //TODO: Check this value or make it empirical somehow.
 	for (int i = 0; i < t->num_vertices; i++) {
 		//Points towards vertex from planet origin
-		vec3 pos = t->positions[i] - planet_pos;
+		vec3 pos = t->mesh[i].position - planet_pos;
 		float m = vec3_mag(pos);
 		//Point at the surface of our simulated smaller planet.
 		vec3 noise_surface = pos * (noise_radius/m);
@@ -162,50 +162,45 @@ static tri_tile * proc_planet_vertices_and_normals(struct element_properties *el
 		vec3 z = vec3_normalize(vec3_cross(pos, x));
 		vec3 y = vec3_normalize(pos);
 
-		//Calculate position and normal on a sphere of noise_radius radius.
-		//position_normal_color(height, x, y, z, epsilon, &noise_surface, &t->normals[i], &t->colors[i]);
+		//Create two points, scootched out along the basis vectors.
+		vec3 pos1 = x * epsilon + noise_surface;
+		vec3 pos2 = z * epsilon + noise_surface;
+		vec3 p0 = noise_surface * 0.00005, p1 = pos1 * 0.00005, p2 = pos2 * 0.00005;
 
-		{
-			//Create two points, scootched out along the basis vectors.
-			vec3 pos1 = x * epsilon + noise_surface;
-			vec3 pos2 = z * epsilon + noise_surface;
-			vec3 p0 = noise_surface * 0.00005, p1 = pos1 * 0.00005, p2 = pos2 * 0.00005;
-
-			vec3 cmy, sum_cmy = {0,0,0}; float k, sum_k = 0, sum_h = 0;
-			double ys[3] = {0};
-			for (int j = 0; j < num_elements; j++) {
-				rgb_to_cmyk(elements[j].color, &cmy, &k);
-				float offset = 4529 * j;//random number
-				float scale = pow(2, j*2)*2;
-				float mag = amplitude / scale;
-				vec3 turb = {ys[0], ys[1], ys[2]};
-				double h = noise3(turb + p0 * scale + offset);
-				sum_h += h;
-				sum_cmy += cmy*h;
-				sum_k += k*h;
-				ys[0] += mag * h;
-				ys[1] += mag * noise3(turb + p1 * scale + offset);
-				ys[2] += mag * noise3(turb + p2 * scale + offset);
-			}
-			cmy = sum_cmy / sum_h; k = sum_k / sum_h;
-			cmyk_to_rgb(cmy, k, &t->colors[i]);
-			t->colors[i] /= 255;
-
-			//Find procedural heights, and add them.
-			// pos1      = y * height(pos1, &color1) + pos1;
-			// pos2      = y * height(pos2, &color2) + pos2;
-			// noise_surface = y * height(noise_surface, &c) + noise_surface;
-			pos1          = y * amplitude * ys[1] + pos1;
-			pos2          = y * amplitude * ys[2] + pos2;
-			noise_surface = y * amplitude * ys[0] + noise_surface;
-
-			//Compute the normal.
-			t->normals[i] = vec3_normalize(vec3_cross(pos1 - noise_surface, pos2 - noise_surface));
-			//Compute the new surface position.
-			//Scale back up to planet size.
-			t->positions[i] = noise_surface * (m/noise_radius) + planet_pos;
+		vec3 cmy, sum_cmy = {0,0,0}; float k, sum_k = 0, sum_h = 0;
+		double ys[3] = {0};
+		for (int j = 0; j < num_elements; j++) {
+			float offset = 4529 * j;//random number
+			float scale = pow(2, j*2)*2;
+			vec3 turb = {ys[0], ys[1], ys[2]};
+			double h = noise3(turb + p0 * scale + offset);
+			rgb_to_cmyk(elements[j].color, &cmy, &k);
+			sum_h += h;
+			sum_cmy += cmy*h;
+			sum_k += k*h;
+			ys[0] += scale * h;
+			ys[1] += scale * noise3(turb + p1 * scale + offset);
+			ys[2] += scale * noise3(turb + p2 * scale + offset);
 		}
+		cmy = sum_cmy / sum_h; k = sum_k / sum_h;
+		cmyk_to_rgb(cmy, k, &t->mesh[i].color);
+		t->mesh[i].color /= 255;
+
+		//Find procedural heights, and add them.
+		// pos1      = y * height(pos1, &color1) + pos1;
+		// pos2      = y * height(pos2, &color2) + pos2;
+		// noise_surface = y * height(noise_surface, &c) + noise_surface;
+		pos1          = y * amplitude * ys[1] + pos1;
+		pos2          = y * amplitude * ys[2] + pos2;
+		noise_surface = y * amplitude * ys[0] + noise_surface;
+
+		//Compute the normal.
+		t->mesh[i].normal = vec3_normalize(vec3_cross(pos1 - noise_surface, pos2 - noise_surface));
+		//Compute the new surface position.
+		//Scale back up to planet size.
+		t->mesh[i].position = noise_surface * (m/noise_radius) + planet_pos;
 	}
+
 	return t;
 }
 
@@ -223,7 +218,11 @@ static void proc_planet_finishing_touches(tri_tile *t, void *finishing_touches_c
 	proc_planet *p = (proc_planet *)finishing_touches_context;
 	vec3 planet_pos = bpos_remap((bpos){0}, t->sector);
 	//Curve the tile around planet by normalizing each vertex's distance to the planet and scaling by planet radius.
-	reproject_vertices_to_spherical(t->positions, t->num_vertices, planet_pos, p->radius);
+	for (int i = 0; i < t->num_vertices; i++) {
+		vec3 d = t->mesh[i].position - planet_pos;
+		t->mesh[i].position = d * p->radius/vec3_mag(d) + planet_pos;
+	}
+	//reproject_vertices_to_spherical(t->positions, sizeof(struct tri_tile_vertex), t->num_vertices, planet_pos, p->radius);
 	//Apply perturbations to the surface and calculate normals.
 	//Since noise doesn't compute well on huge planets, noise is calculated on a simulated smaller planet and scaled up.
 	struct element_properties props[p->num_elements];
@@ -234,26 +233,27 @@ static void proc_planet_finishing_touches(tri_tile *t, void *finishing_touches_c
 
 static void tri_tile_split(tri_tile *t, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS])
 {
-	for (int i = 0; i < DEFAULT_NUM_TRI_TILE_DIVS; i++) {
-		out[i] = new_tri_tile();
-		out[i]->depth = t->depth + 1;
-	}
-
-	vec3 new_tile_vertices[] = {
-		vec3_lerp(t->tile_vertices[0], t->tile_vertices[1], 0.5),
-		vec3_lerp(t->tile_vertices[0], t->tile_vertices[2], 0.5),
-		vec3_lerp(t->tile_vertices[1], t->tile_vertices[2], 0.5)
+	vec3 new_vertices[] = {
+		vec3_lerp(t->vertices[0], t->vertices[1], 0.5),
+		vec3_lerp(t->vertices[0], t->vertices[2], 0.5),
+		vec3_lerp(t->vertices[1], t->vertices[2], 0.5)
 	};
 
 	proc_planet *planet = (proc_planet *)t->finishing_touches_context;
 	vec3 planet_pos = bpos_remap((bpos){0}, t->sector);
-	reproject_vertices_to_spherical(new_tile_vertices, 3, planet_pos, planet->radius);
+	reproject_vertices_to_spherical(new_vertices, 3, planet_pos, planet->radius);
 
-	init_tri_tile(out[0], (vec3[3]){t->tile_vertices[0],  new_tile_vertices[0], new_tile_vertices[1]}, t->sector, PROC_PLANET_NUM_TILE_ROWS, t->finishing_touches, t->finishing_touches_context);
-	init_tri_tile(out[1], (vec3[3]){new_tile_vertices[0], t->tile_vertices[1],  new_tile_vertices[2]}, t->sector, PROC_PLANET_NUM_TILE_ROWS, t->finishing_touches, t->finishing_touches_context);
-	init_tri_tile(out[2], (vec3[3]){new_tile_vertices[0], new_tile_vertices[2], new_tile_vertices[1]}, t->sector, PROC_PLANET_NUM_TILE_ROWS, t->finishing_touches, t->finishing_touches_context);
-	init_tri_tile(out[3], (vec3[3]){new_tile_vertices[1], new_tile_vertices[2], t->tile_vertices[2]},  t->sector, PROC_PLANET_NUM_TILE_ROWS, t->finishing_touches, t->finishing_touches_context);
-	printf("Dividing %p, depth %i into %d new tiles.\n", t, t->depth, DEFAULT_NUM_TRI_TILE_DIVS);
+	vec3 new_tile_vertices[DEFAULT_NUM_TRI_TILE_DIVS][3] = {
+		{t->vertices[0],  new_vertices[0], new_vertices[1]},
+		{new_vertices[0], t->vertices[1],  new_vertices[2]},
+		{new_vertices[0], new_vertices[2], new_vertices[1]},
+		{new_vertices[1], new_vertices[2], t->vertices[2]}
+	};
+
+	for (int i = 0; i < DEFAULT_NUM_TRI_TILE_DIVS; i++)
+		tri_tile_init(tri_tile_new(new_tile_vertices[i]), t->sector, PROC_PLANET_NUM_TILE_ROWS, t->finishing_touches, t->finishing_touches_context);
+	
+	printf("Dividing %p.\n", t);
 }
 
 static float fbm(vec3 p)
@@ -327,10 +327,12 @@ proc_planet * proc_planet_new(float radius, height_map_func height, int *element
 	p->num_elements = num_elements;
 	//p->color_family = color_family; //TODO: Will eventually choose from a palette of good color combos.
 	p->noise_radius = radius/1000; //TODO: Determine the largest reasonable noise radius, map input radius to a good range.
-	p->amplitude = TERRAIN_AMPLITUDE * 1.4; //TODO: Choose a good number, pass this through the chain of calls.
+	p->amplitude = TERRAIN_AMPLITUDE; //TODO: Choose a good number, pass this through the chain of calls.
 	p->edge_len = radius / sin(2.0*M_PI/5.0);
 	printf("Edge len: %f\n", p->edge_len);
 	p->height = height;
+
+	uint32_t ticks = SDL_GetTicks();
 
 	//Initialize the planet terrain
 	for (int i = 0; i < NUM_ICOSPHERE_FACES; i++) {
@@ -340,10 +342,20 @@ proc_planet * proc_planet_new(float radius, height_map_func height, int *element
 			ico_v[ico_i[3*i+2]] * radius
 		};
 
-		p->tiles[i] = quadtree_new(new_tri_tile(), 0);
+		p->tiles[i] = quadtree_new(tri_tile_new(verts), 0);
 		//Initialize tile with verts expressed relative to p->sector.
-		init_tri_tile((tri_tile *)p->tiles[i]->data, verts, (bpos_origin){0, 0, 0}, PROC_PLANET_NUM_TILE_ROWS, &proc_planet_finishing_touches, p);
+		tri_tile_init((tri_tile *)p->tiles[i]->data, (bpos_origin){0, 0, 0}, PROC_PLANET_NUM_TILE_ROWS, &proc_planet_finishing_touches, p);
 	}
+
+	uint32_t ticks2 = SDL_GetTicks();
+
+	//for (int i = 0; i < NUM_ICOSPHERE_FACES; i++)
+	//	tri_tile_buffer(p->tiles[i]->data);
+
+	//uint32_t ticks3 = SDL_GetTicks();
+
+	p->ms_per_tile_gen    = (ticks2 - ticks)  / (float)NUM_ICOSPHERE_FACES;
+	p->ms_per_tile_buffer = 0;//(ticks3 - ticks2) / (float)NUM_ICOSPHERE_FACES;
 
 	return p;
 }
@@ -351,7 +363,7 @@ proc_planet * proc_planet_new(float radius, height_map_func height, int *element
 void proc_planet_free(proc_planet *p)
 {
 	for (int i = 0; i < NUM_ICOSPHERE_FACES; i++)
-		quadtree_free(p->tiles[i], (void (*)(void *))free_tri_tile);
+		quadtree_free(p->tiles[i], (quadtree_free_fn)tri_tile_free);
 	free(p);
 }
 
@@ -374,7 +386,7 @@ static bool proc_planet_drawlist_visit(quadtree_node *node, void *context)
 int proc_planet_drawlist(proc_planet *p, tri_tile **tiles, int max_tiles, bpos cam_pos)
 {
 	struct planet_terrain_context context = {
-		.splits_max = 50, //Total number of splits for this call of drawlist.
+		.splits_max = 50,//15.0 / (4 * (p->ms_per_tile_gen + p->ms_per_tile_buffer)), //Total number of splits for this call of drawlist.
 		.cam_pos = cam_pos,
 		.planet = p,
 		.tiles = tiles,
@@ -388,10 +400,10 @@ int proc_planet_drawlist(proc_planet *p, tri_tile **tiles, int max_tiles, bpos c
 		if (context.excess_tiles)
 			printf("Excess tiles.\n");
 		//TODO: Find a good way to implement prune with hysteresis.
-		//terrain_tree_prune(p->tiles[i], proc_planet_split_depth, &context, (terrain_tree_free_fn)free_tri_tile);
+		//terrain_tree_prune(p->tiles[i], proc_planet_split_depth, &context, (terrain_tree_free_fn)tri_tile_free);
 	}
 
-	printf("Num tiles drawn:%d\n", context.visited);
+	//printf("Num tiles drawn:%d\n", context.visited);
 	return context.num_tiles;
 }
 
@@ -403,41 +415,48 @@ void pp_prep_matrices(amat4 model_matrix, GLfloat pvm[16], GLfloat mm[16], GLflo
 	mat3_vec3_to_array(mat3_transp(model_matrix.a), (vec3){0, 0, 0}, mvnm);
 }
 
-void proc_planet_draw(EFFECT *e, amat4 eye_frame, proc_planet *planets[], bpos planet_positions[], int num_planets)
+void proc_planet_draw(amat4 eye_frame, float proj_view_mat[16], proc_planet *planets[], bpos planet_positions[], int num_planets)
 {
 	// glBindVertexArray(proc_planets.vao);
 	//Create a list of planet tiles to draw.
-	int drawlist_max = 3000 * num_planets;
 	amat4 tri_frame  = {.a = MAT3_IDENT, .t = {0, 0, 0}};
-	tri_tile **drawlist = malloc(sizeof(tri_tile *) * drawlist_max);
-	int planet_tiles_start[num_planets + 1];
+	int drawlist_max = 3000 * num_planets; //TODO(Gavin): Get a good estimate of this from actual number of runtime tiles.
+	tri_tile *drawlist[drawlist_max];
+	int planet_tiles_start[num_planets + 1] __attribute__((aligned(64))); //Compiler bug!
 	int drawlist_count = 0;
 	for (int i = 0; i < num_planets; i++) {
 		bpos pos = {eye_frame.t - planet_positions[i].offset, eye_sector - planet_positions[i].origin};
 		planet_tiles_start[i] = drawlist_count;
-		drawlist_count += proc_planet_drawlist(planets[i], drawlist + drawlist_count, drawlist_max-drawlist_count, pos);
+		int planet_count = proc_planet_drawlist(planets[i], drawlist + drawlist_count, drawlist_max - drawlist_count, pos);
+		drawlist_count += planet_count;
+		if (key_state[SDL_SCANCODE_2])
+			printf("Planet %2i drawing %10i tiles this frame.\n", i, planet_count);
 	}
+	if (key_state[SDL_SCANCODE_2])
+		puts("");
+
 	planet_tiles_start[num_planets] = drawlist_count;
 
 	for (int i = 0; i < num_planets; i++) {
 		for (int j = planet_tiles_start[i]; j < planet_tiles_start[i+1]; j++) {
 			tri_tile *t = drawlist[j];
-			glBindVertexArray(t->bg.vao);
+			glBindVertexArray(t->vao);
 			if (!t->buffered) //Last resort "BUFFER RIGHT NOW", will cause hiccups.
-				buffer_tri_tile(t);
+				tri_tile_buffer(t);
 			bpos tile_pos = planet_positions[i];
 			tile_pos.offset = bpos_remap((bpos){tile_pos.offset, tile_pos.origin + t->sector}, eye_sector);
 			amat4 tile_frame = {tri_frame.a, tile_pos.offset};
 			glUniform3fv(effects.forward.override_col, 1, (float *)&t->override_col);
 			GLfloat mm[16], mvpm[16], mvnm[16];
 			pp_prep_matrices(tile_frame, proj_view_mat, mm, mvpm, mvnm);
-			drawf("-m-m-m", e->model_matrix, mm, e->model_view_projection_matrix, mvpm, e->model_view_normal_matrix, mvnm);
-			glDrawElements(GL_TRIANGLE_STRIP, t->bg.index_count, GL_UNSIGNED_INT, NULL);
+			drawf("-m-m-m",
+				effects.forward.model_matrix, mm,
+				effects.forward.model_view_projection_matrix, mvpm,
+				effects.forward.model_view_normal_matrix, mvnm);
+			glDrawElements(GL_TRIANGLE_STRIP, t->num_indices, GL_UNSIGNED_INT, NULL);
 			checkErrors("Drew a planet tile");
 		}
 	}
-	free(drawlist);
-	//free(planet_tiles_start);
 }
 
 struct proc_planet_tile_raycast_context {
@@ -455,7 +474,7 @@ bool proc_planet_tile_raycast(quadtree_node *node, void *context)
 	vec3 intersection;
 	vec3 local_start = bpos_remap(ctx->pos, t->sector);
 	vec3 local_end = bpos_remap((bpos){0}, t->sector);
-	int result = ray_tri_intersect(local_start, local_end, tree_tile(node)->tile_vertices, &intersection);
+	int result = ray_tri_intersect(local_start, local_end, tree_tile(node)->vertices, &intersection);
 	if (result == 1) {
 		//t->override_col *= (vec3){0.1, 1.0, 1.0};
 		//printf("Tile intersection found! Tile: %i\n", t->tile_index);

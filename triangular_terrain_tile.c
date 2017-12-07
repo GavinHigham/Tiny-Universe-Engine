@@ -64,117 +64,65 @@ static GLuint get_shared_tri_tile_indices_buffer_object(int num_rows)
 }
 
 //Creates a terrain struct.
-tri_tile * new_tri_tile()
+tri_tile * tri_tile_new(vec3 vertices[3])
 {
 	static int tile_index = 0;
 	//Could be replaced with a custom allocator in the future.
 	tri_tile *new = malloc(sizeof(tri_tile));
 	new->is_init = false;
-	new->depth = 0; //TODO: Figure out why I put this here, and if I need it here.
 	new->tile_index = tile_index++;
 
 	return new;
 }
 
 //Creates storage for the positions, normals, and colors, as well as OpenGL handles.
-//Should be freed by the caller, using free_tri_tile.
-tri_tile * init_tri_tile(tri_tile *t, vec3 vertices[3], bpos_origin sector, int num_rows, void (finishing_touches)(tri_tile *, void *), void *finishing_touches_context)
+//Should be freed by the caller, using tri_tile_free.
+tri_tile * tri_tile_init(tri_tile *t, bpos_origin sector, int num_rows, void (finishing_touches)(tri_tile *, void *), void *finishing_touches_context)
 {
 	assert(!t->is_init);
 	if (t->is_init) return t;
 
 	//Get counts.
-	t->bg.index_count = num_tri_tile_indices(num_rows);
-	t->num_vertices   = num_tri_tile_vertices(num_rows);
+	t->num_indices = num_tri_tile_indices(num_rows);
+	t->num_vertices = num_tri_tile_vertices(num_rows);
 	t->num_rows = num_rows;
-	//Generate storage.
-	t->positions = (vec3 *)malloc(sizeof(vec3) * t->num_vertices);
-	t->normals   = (vec3 *)malloc(sizeof(vec3) * t->num_vertices);
-	t->colors    = (vec3 *)malloc(sizeof(vec3) * t->num_vertices);
-	if (!t->positions || !t->normals || !t->colors)
+	t->mesh = (struct tri_tile_vertex *)malloc(sizeof(struct tri_tile_vertex) * t->num_vertices);
+	if (!t->mesh)
 		printf("Malloc didn't work lol\n");
 
-	//Set up GPU buffer storage. I hate how this works and need to simplify it.
-	t->bg.primitive_type = GL_TRIANGLE_STRIP;
-	glGenVertexArrays(1, &t->bg.vao);
-	glBindVertexArray(t->bg.vao);
-	glGenBuffers(LENGTH(t->bg.buffer_handles), t->bg.buffer_handles);
-	setup_attrib_for_draw(effects.forward.vPos,    t->bg.vbo, GL_FLOAT, 3);
-	setup_attrib_for_draw(effects.forward.vNormal, t->bg.nbo, GL_FLOAT, 3);
-	setup_attrib_for_draw(effects.forward.vColor,  t->bg.cbo, GL_FLOAT, 3);
+	glGenVertexArrays(1, &t->vao);
+	glBindVertexArray(t->vao);
+
+	glGenBuffers(1, &t->mesh_buffer);
+	glEnableVertexAttribArray(effects.forward.vPos);
+	glEnableVertexAttribArray(effects.forward.vNormal);
+	glEnableVertexAttribArray(effects.forward.vColor);
+	glBindBuffer(GL_ARRAY_BUFFER, t->mesh_buffer);
+	glVertexAttribPointer(effects.forward.vPos, 3, GL_FLOAT, GL_FALSE,
+		sizeof(struct tri_tile_vertex), (void *)offsetof(struct tri_tile_vertex, position));
+	glVertexAttribPointer(effects.forward.vNormal, 3, GL_FLOAT, GL_FALSE,
+		sizeof(struct tri_tile_vertex), (void *)offsetof(struct tri_tile_vertex, normal));
+	glVertexAttribPointer(effects.forward.vColor, 3, GL_FLOAT, GL_FALSE,
+		sizeof(struct tri_tile_vertex), (void *)offsetof(struct tri_tile_vertex, color));
+
 	t->buffered = false;
 
 	//Get an appropriately expanded index buffer.
-	t->bg.ibo = get_shared_tri_tile_indices_buffer_object(num_rows);
+	t->ibo = get_shared_tri_tile_indices_buffer_object(num_rows);
 
 	t->override_col = (vec3){1.0, 1.0, 1.0};
 
 	//The new tile origin will be the centroid of the three tile vertices.
-	t->centroid = (vertices[0] + vertices[1] + vertices[2]) / 3.0;
-	t->normal = vec3_normalize(t->centroid); //This is a sphere normal, TODO: Handle non-sphere case.
+	t->centroid = (t->vertices[0] + t->vertices[1] + t->vertices[2]) / 3.0;
 	t->sector = sector;
 	bpos_split_fix(&t->centroid, &t->sector);
 
 	//Recalculate vertex positions relative to new sector.
 	for (int i = 0; i < 3; i++)
-		t->tile_vertices[i] = bpos_remap((bpos){vertices[i], sector}, t->sector);
+		t->vertices[i] = bpos_remap((bpos){t->vertices[i], sector}, t->sector);
 
 	//Generate the initial vertex positions, coplanar points on the triangle formed by vertices[3].
-	int numverts = tri_tile_vertices(t->positions, num_rows, t->tile_vertices[0], t->tile_vertices[1], t->tile_vertices[2]);
-
-	assert(t->num_vertices == numverts);
-
-	//Run any finishing touches (such as curving the tile onto a planet).
-	t->finishing_touches = finishing_touches;
-	t->finishing_touches_context = finishing_touches_context;
-	t->finishing_touches(t, finishing_touches_context);
-
-	t->is_init = true;
-
-	return t;
-}
-
-//Creates storage for the positions, normals, and colors, as well as OpenGL handles.
-//Should be freed by the caller, using free_tri_tile.
-tri_tile * init_tri_tile2(tri_tile *t, vec3 vertices[3], bpos_origin sector, int num_rows, void (finishing_touches)(tri_tile *, void *), void *finishing_touches_context)
-{
-	assert(!t->is_init);
-	if (t->is_init) return t;
-
-	//Get counts.
-	t->num_rows = num_rows;
-	//Generate storage.
-	t->mesh = geo_mesh_new(0, num_tri_tile_vertices(num_rows), 0); //No indices, we'll use the shared one.
-	t->mesh->num_indices = num_tri_tile_indices(num_rows);
-	t->mesh->indices = get_shared_tri_tile_indices(num_rows);
-	//t->mesh->indices_adjacency, eventually, if terrain should cast stencil shadows.
-
-	//Set up GPU buffer storage. I hate how this works and need to simplify it.
-	// t->bg.primitive_type = GL_TRIANGLE_STRIP;
-	// glGenVertexArrays(1, &t->bg.vao);
-	// glBindVertexArray(t->bg.vao);
-	// glGenBuffers(LENGTH(t->bg.buffer_handles), t->bg.buffer_handles);
-	// setup_attrib_for_draw(effects.forward.vPos,    t->bg.vbo, GL_FLOAT, 3);
-	// setup_attrib_for_draw(effects.forward.vNormal, t->bg.nbo, GL_FLOAT, 3);
-	// setup_attrib_for_draw(effects.forward.vColor,  t->bg.cbo, GL_FLOAT, 3);
-	// t->buffered = false;
-
-	//Get an appropriately expanded index buffer.
-
-	t->override_col = (vec3){1.0, 1.0, 1.0};
-
-	//The new tile origin will be the centroid of the three tile vertices.
-	t->centroid = (vertices[0] + vertices[1] + vertices[2]) / 3.0;
-	t->normal = vec3_normalize(t->centroid); //This is a sphere normal, TODO: Handle non-sphere case.
-	t->sector = sector;
-	bpos_split_fix(&t->centroid, &t->sector);
-
-	//Recalculate vertex positions relative to new sector.
-	for (int i = 0; i < 3; i++)
-		t->tile_vertices[i] = bpos_remap((bpos){vertices[i], sector}, t->sector);
-
-	//Generate the initial vertex positions, coplanar points on the triangle formed by vertices[3].
-	int numverts = tri_tile_vertices(t->positions, num_rows, t->tile_vertices[0], t->tile_vertices[1], t->tile_vertices[2]);
+	int numverts = tri_tile_mesh_positions(t->mesh, num_rows, t->vertices);
 
 	assert(t->num_vertices == numverts);
 
@@ -189,26 +137,25 @@ tri_tile * init_tri_tile2(tri_tile *t, vec3 vertices[3], bpos_origin sector, int
 }
 
 //Frees the dynamic storage and OpenGL objects held by a terrain struct.
-void deinit_tri_tile(tri_tile *t)
+void tri_tile_deinit(tri_tile *t)
 {
 	if (t->is_init) {
-		free(t->positions);
-		free(t->normals);
-		free(t->colors);
+		free(t->mesh);
 		//free(t->indices);
 		//glDeleteBuffers(1, &t->bg.ibo);
-		glDeleteVertexArrays(1, &t->bg.vao);
-		glDeleteBuffers(LENGTH(t->bg.buffer_handles), t->bg.buffer_handles);
+		glDeleteVertexArrays(1, &t->vao);
+		glDeleteBuffers(1, &t->mesh_buffer);
+		//glDeleteBuffers(LENGTH(t->bg.buffer_handles), t->bg.buffer_handles);
 		t->is_init = false;
 		t->buffered = false;
 	}
 }
 
 //Frees a dynamically-allocated tri_tile, deinit-ing it first.
-void free_tri_tile(tri_tile *t)
+void tri_tile_free(tri_tile *t)
 {
 	if (t) {
-		deinit_tri_tile(t);
+		tri_tile_deinit(t);
 		free(t);
 	}
 }
@@ -255,17 +202,17 @@ int tri_tile_indices(GLuint indices[], int num_rows, int start_row)
 	return written - num_tri_tile_indices(start_row);
 }
 
-int tri_tile_vertices(vec3 vertices[], int num_rows, vec3 a, vec3 b, vec3 c)
+int tri_tile_mesh_positions(struct tri_tile_vertex mesh[], int num_rows, vec3 vertices[3])
 {
 	int written = 0;
-	vertices[written++] = a;
+	mesh[written++].position = vertices[0];
 	for (int i = 1; i <= num_rows; i++) {
 		float f1 = (float)i/(num_rows);
-		vec3 left = vec3_lerp(a, b, f1);
-		vec3 right = vec3_lerp(a, c, f1);
+		vec3 left = vec3_lerp(vertices[0], vertices[1], f1);
+		vec3 right = vec3_lerp(vertices[0], vertices[2], f1);
 		for (int j = 0; j <= i; j++) {
 			float f2 = (float)j/(i);
-			vertices[written++] = vec3_lerp(left, right, f2); 
+			mesh[written++].position = vec3_lerp(left, right, f2); 
 		}
 	}
 	return written;
@@ -311,11 +258,11 @@ float tri_tile_raycast_depth(tri_tile *t, vec3 start, vec3 dir)
 	vec3 intersection = {0, 0, 0};
 	vec3 tile_intersection = {0, 0, 0};
 
-	int result = tri_tile_raycast(t->tile_vertices, t->num_rows, start, dir, &tile_intersection, indices);
+	int result = tri_tile_raycast(t->vertices, t->num_rows, start, dir, &tile_intersection, indices);
 
 	assert(result == 1);
 	assert(indices[0] >= 0);
-	assert(indices[2] < t->bg.index_count);
+	assert(indices[2] < t->num_indices);
 
 	GLuint **global_indices = get_shared_tri_tile_indices(t->num_rows);
 	
@@ -323,7 +270,7 @@ float tri_tile_raycast_depth(tri_tile *t, vec3 start, vec3 dir)
 	for (int i = 0; i < 3; i++) {
 		int pos_i = *global_indices[indices[i]];
 		assert(pos_i != PRIMITIVE_RESTART_INDEX);
-		positions[i] = t->positions[pos_i];
+		positions[i] = t->mesh[pos_i].position;
 		//vec3_print(positions[i]);
 	}
 	//printf("\n");
@@ -367,31 +314,14 @@ void tri_tile_raycast_test()
 	assert(result == 1);
 }
 
-void buffer_tri_tile(tri_tile *t)
+void tri_tile_buffer(tri_tile *t)
 {
-	GLfloat *positions = malloc(t->num_vertices * 3 * sizeof(GLfloat));
-	GLfloat *normals = malloc(t->num_vertices * 3 * sizeof(GLfloat));
-	GLfloat *colors = malloc(t->num_vertices * 3 * sizeof(GLfloat));
-
-	for (int i = 0; i < t->num_vertices; i++) {
-		vec3_unpack(&positions[i*3], t->positions[i]);
-		vec3_unpack(&normals[i*3], t->normals[i]);
-		vec3_unpack(&colors[i*3], t->colors[i]);
-	}
-
-	glBindVertexArray(t->bg.vao);
+	glBindVertexArray(t->vao);
 	glEnable(GL_PRIMITIVE_RESTART);
 	glPrimitiveRestartIndex(PRIMITIVE_RESTART_INDEX);
-	glBindBuffer(GL_ARRAY_BUFFER, t->bg.vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)*3*t->num_vertices, positions, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, t->bg.nbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)*3*t->num_vertices, normals, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, t->bg.cbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)*3*t->num_vertices, colors, GL_STATIC_DRAW);
 	//Bind buffer to current bound vao so it's used as the index buffer for draw calls.
-	glBindBuffer(GL_ARRAY_BUFFER, t->bg.ibo);
+	glBindBuffer(GL_ARRAY_BUFFER, t->mesh_buffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(struct tri_tile_vertex)*t->num_vertices, t->mesh, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, t->ibo);
 	t->buffered = true;
-	free(positions);
-	free(normals);
-	free(colors);
 }

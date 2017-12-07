@@ -24,9 +24,10 @@ typedef struct quadtree_node {
 //The visit function performs some operation on the quadtree_node and/or its data.
 //It returns true if the node's children should also be visited.
 typedef bool (*quadtree_visit_fn)(quadtree_node *, void *);
+typedef void (*quadtree_free_fn)(void *);
 
 quadtree_node * quadtree_new(void *tile, int depth);
-void quadtree_free(quadtree_node *tree, void (*free_data)(void *data));
+void quadtree_free(quadtree_node *tree, quadtree_free_fn free_data);
 void quadtree_preorder_visit(quadtree_node *tree, quadtree_visit_fn visit, void *context);
 void quadtree_postorder_visit(quadtree_node *tree, quadtree_visit_fn visit, void *context);
 void quadtree_node_add_children(quadtree_node *node, void *child_data[QUADTREE_NUM_CHILDREN]);

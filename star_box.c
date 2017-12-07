@@ -31,7 +31,6 @@ I guess I'll just try it and see?
 */
 
 extern float log_depth_intermediate_factor;
-extern GLfloat proj_view_mat[16];
 
 enum {
 	//TODO: Consider if I can just keep this small and multiply in the vertex shader.
@@ -180,7 +179,7 @@ void star_box_deinit()
 	glDeleteBuffers(NUM_BOXES, star_box.vbos);
 }
 
-void star_box_draw(bpos_origin camera_origin)
+void star_box_draw(bpos_origin camera_origin, float proj_view_mat[16])
 {
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glEnable(GL_BLEND); //We're going to blend the contribution from each individual star.

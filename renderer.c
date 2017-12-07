@@ -364,22 +364,8 @@ void render()
 
 		//glDisable(GL_CULL_FACE);
 
-		// //Draw procedural planets
-		// for (int i = 0; i < ssystem.num_planets; i++) {
-		// 	for (int j = 0; j < drawlist_count[i]; j++) {
-		// 		tri_tile *t = drawlist[i][j];
-		// 		if (!t->buffered) //Last resort "BUFFER RIGHT NOW", will cause hiccups.
-		// 			buffer_tri_tile(t);
-		// 		bpos tile_pos = ssystem.planet_positions[i];
-		// 		tile_pos.offset = bpos_remap((bpos){tile_pos.offset, tile_pos.origin + t->sector}, eye_sector);
-		// 		amat4 tile_frame = {tri_frame.a, tile_pos.offset};
-		// 		glUniform3fv(effects.forward.override_col, 1, (float *)&t->override_col);
-		// 		draw_forward(&effects.forward, t->bg, tile_frame);
-		// 		checkErrors("After drawing a tri_tile");
-		// 	}
-		// }
 		checkErrors("Before planets draw");
-		proc_planet_draw(&effects.forward, eye_frame, ssystem.planets, ssystem.planet_positions, ssystem.num_planets);
+		proc_planet_draw(eye_frame, proj_view_mat, ssystem.planets, ssystem.planet_positions, ssystem.num_planets);
 
 		glUniform3f(effects.forward.override_col, 1.0, 1.0, 1.0);
 
@@ -458,7 +444,7 @@ void render()
 	skybox_frame.t = eye_frame.t;
 	//draw_drawable(&d_skybox);
 	//stars_draw();
-	star_box_draw(eye_sector);
+	star_box_draw(eye_sector, proj_view_mat);
 
 	debug_graphics.lines.ship_to_planet.start = bpos_remap((bpos){ship_entity->Physical->position.t, ship_entity->Physical->origin}, eye_sector);
 	debug_graphics.lines.ship_to_planet.end   = bpos_remap(ssystem.planet_positions[0], eye_sector);
@@ -483,11 +469,12 @@ void update(float dt)
 	light_time += dt * 0.2;
 	point_lights.position[0] = (vec3){10*cos(light_time), 4, 10*sin(light_time)-8};
 
-	if (key_state[SDL_SCANCODE_Y]) {
-		printf("Skybox scale is %f, what would you like the scale to be?\n", skybox_scale);
-		scanf("%f", &skybox_scale);
-		skybox_frame.a = mat3_scalemat(skybox_scale, skybox_scale, skybox_scale);
-	}
+	//Commented out because I kept hitting y and getting annoyed.
+	// if (key_state[SDL_SCANCODE_Y]) {
+	// 	printf("Skybox scale is %f, what would you like the scale to be?\n", skybox_scale);
+	// 	scanf("%f", &skybox_scale);
+	// 	skybox_frame.a = mat3_scalemat(skybox_scale, skybox_scale, skybox_scale);
+	// }
 
 	entity_update_components();
 

@@ -52,13 +52,13 @@ solar_system solar_system_new(bpos_origin o)
 		//Is this deterministic?
 
 		int window_start = rand() % (SOLAR_SYSTEM_MAX_ELEMENTS - PROC_PLANET_MAX_NUM_ELEMENTS + 1);
-		s.planets[i] = proc_planet_new(radius, proc_planet_height, s.elements + window_start, PROC_PLANET_MAX_NUM_ELEMENTS);
+		s.planets[i] = proc_planet_new(radius, proc_planet_height, s.elements + window_start, 2);//PROC_PLANET_MAX_NUM_ELEMENTS);
 		qvec3 p;
 		//Find a point in the solar system bounding sphere.
 		do s.planet_positions[i].origin = p = rand_box_qvec3(c1, c2); while (qvec3_sum(p*p) > w*w);
 		//Later I might use this if I want the planets to actually move slowly following an orbit.
 		s.planet_positions[i].offset = (vec3){0,0,0};
-		qvec3_print(s.planet_positions[i].origin); puts(""); 
+		qvec3_print(s.planet_positions[i].origin); puts("");
 	}
 
 	//Determine the type/chemical makeup of each planet
