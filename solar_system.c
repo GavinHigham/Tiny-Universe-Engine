@@ -17,7 +17,7 @@ Distance between planets is like R * 50 for now
 enum {
 	MAX_PLANET_RADIUS = 6000000 * 50, //6000000 is Earth-like
 	MIN_PLANET_RADIUS = 6000000 / 50,
-	SOLAR_SYSTEM_MAX_RADIUS = MAX_PLANET_RADIUS * 50, //lol, scientifically chosen I'm sure
+	SOLAR_SYSTEM_MAX_RADIUS = 140000, //lol, scientifically chosen I'm sure
 };
 
 solar_system solar_system_new(bpos_origin o)
@@ -36,7 +36,7 @@ solar_system solar_system_new(bpos_origin o)
 	//int color_seed = seed;
 
 	//Choose solar system corners
-	int64_t w = SOLAR_SYSTEM_MAX_RADIUS / BPOS_CELL_SIZE;
+	int64_t w = SOLAR_SYSTEM_MAX_RADIUS;
 	qvec3 c1 = {w, w, w}, c2 = {-w, -w, -w};
 	_Static_assert(PROC_PLANET_MAX_NUM_ELEMENTS < SOLAR_SYSTEM_MAX_ELEMENTS, "Gavin did some stupid math in solar_system_new");
 
@@ -55,7 +55,8 @@ solar_system solar_system_new(bpos_origin o)
 		s.planets[i] = proc_planet_new(radius, proc_planet_height, s.elements + window_start, 2);//PROC_PLANET_MAX_NUM_ELEMENTS);
 		qvec3 p;
 		//Find a point in the solar system bounding sphere.
-		do s.planet_positions[i].origin = p = rand_box_qvec3(c1, c2); while (qvec3_sum(p*p) > w*w);
+		do p = rand_box_qvec3(c1, c2); while (qvec3_sum(p*p) > w*w);
+		s.planet_positions[i].origin = p;
 		//Later I might use this if I want the planets to actually move slowly following an orbit.
 		s.planet_positions[i].offset = (vec3){0,0,0};
 		qvec3_print(s.planet_positions[i].origin); puts("");

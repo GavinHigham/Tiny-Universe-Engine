@@ -23,3 +23,7 @@ SDL_Texture * load_texture(char *image_path) {
 	SDL_FreeSurface(loaded_surface);
 	return loaded_texture;
 }
+
+// SDL_Texture * new_checkerboard_texture() {
+
+// }

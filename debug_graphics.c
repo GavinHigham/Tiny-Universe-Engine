@@ -11,9 +11,7 @@
 
 //Externs that could be useful.
 extern amat4 inv_eye_frame;
-extern amat4 eye_frame;
 extern amat4 ship_frame;
-extern GLfloat proj_view_mat[16];
 extern float far_distance;
 extern float near_distance;
 extern bpos_origin eye_sector;
@@ -91,7 +89,7 @@ int buffer_points()
 	return 1; //Current number of vertices.
 }
 
-void debug_graphics_draw()
+void debug_graphics_draw(amat4 eye_frame, float proj_view_mat[16])
 {
 	if (!debug_graphics.is_init)
 		return;

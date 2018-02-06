@@ -33,7 +33,7 @@ enum {
 	//The more rows, the fewer draw calls, and the fewer primitive restart indices hurting memory locality.
 	//The fewer rows, the fewer overall vertices, and the better overall culling efficiency.
 	//If I keep it as a power-of-two, I can avoid using spherical linear interpolation, and it will be faster.
-	PROC_PLANET_NUM_TILE_ROWS = 128,
+	PROC_PLANET_NUM_TILE_ROWS = 64,
 	PROC_PLANET_TILE_PIXELS_PER_TRI = 5,
 	PROC_PLANET_TILE_MAX_SUBDIVISIONS = 7, //TODO(Gavin): Choose a number that sets the surface resolution to a nice number.
 };

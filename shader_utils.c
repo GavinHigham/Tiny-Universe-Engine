@@ -131,12 +131,12 @@ int compile_shader_program(GLuint program_handle, GLuint shaders[], int num_shad
 	if (success) {
 		glLinkProgram(program_handle);
 		glGetProgramiv(program_handle, GL_LINK_STATUS, &success);
-		if (success != true) {
+		if (!success) {
 			printf("Unable to link program %d!\n", program_handle);
 			printLog(program_handle, true);
 		}
 	}
-	return !success; //Success is 0.
+	return success;
 }
 
 

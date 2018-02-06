@@ -10,10 +10,6 @@
 #include "math/bpos.h"
 
 //Handy externs.
-extern amat4 inv_eye_frame;
-extern amat4 eye_frame;
-extern amat4 ship_frame;
-extern GLfloat proj_view_mat[16];
 extern bpos_origin eye_sector;
 extern float log_depth_intermediate_factor;
 
@@ -87,7 +83,7 @@ void stars_deinit()
 	glDeleteBuffers(1, &stars.vbo);
 }
 
-void stars_draw()
+void stars_draw(amat4 eye_frame, float proj_view_mat[16])
 {
 	glEnable(GL_BLEND); //We're going to blend the contribution from each individual star.
 	glBlendEquation(GL_FUNC_ADD); //The light contributions get blended additively.

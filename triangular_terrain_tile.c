@@ -5,7 +5,7 @@
 #include <assert.h>
 #include <GL/glew.h>
 #include "triangular_terrain_tile.h"
-#include "renderer.h"
+#include "space_scene.h"
 #include "macros.h"
 #include "mesh.h"
 #include "math/utility.h"
@@ -29,12 +29,9 @@ struct {
 	int num_rows;
 	int rows_buffered;
 } shared_tri_tile_ibo = {NULL, 0, 0, 0};
-//GLuint *shared_tri_tile_indices = NULL;
-//int shared_tri_tile_indices_num_rows = 0;
-//GLuint shared_tri_tile_indices_buffer_object = 0;
-//int shared_tri_tile_indices_buffer_object_rows_buffered = 0;
 
-static GLuint **get_shared_tri_tile_indices(int num_rows)
+//TODO(Gavin): Make thi static again.
+GLuint **get_shared_tri_tile_indices(int num_rows)
 {
 	GLuint *old = shared_tri_tile_ibo.indices;
 	if (num_rows > shared_tri_tile_ibo.num_rows)
@@ -50,7 +47,7 @@ static GLuint **get_shared_tri_tile_indices(int num_rows)
 	return &shared_tri_tile_ibo.indices;
 }
 
-static GLuint get_shared_tri_tile_indices_buffer_object(int num_rows)
+GLuint get_shared_tri_tile_indices_buffer_object(int num_rows)
 {
 	if (!shared_tri_tile_ibo.buffer_object)
 		glGenBuffers(1, &shared_tri_tile_ibo.buffer_object);
@@ -64,15 +61,24 @@ static GLuint get_shared_tri_tile_indices_buffer_object(int num_rows)
 }
 
 //Creates a terrain struct.
-tri_tile * tri_tile_new(vec3 vertices[3])
+tri_tile * tri_tile_new(const struct tri_tile_big_vertex big_vertices[3])
+//tri_tile * tri_tile_new(vec3 vertices[3])
 {
 	static int tile_index = 0;
 	//Could be replaced with a custom allocator in the future.
-	tri_tile *new = malloc(sizeof(tri_tile));
-	new->is_init = false;
-	new->tile_index = tile_index++;
+	tri_tile *t = malloc(sizeof(tri_tile));
+	assert(t);
+	t->is_init = false;
+	t->tile_index = tile_index++;
+	memcpy(t->big_vertices, big_vertices, 3*sizeof(struct tri_tile_big_vertex));
+	t->centroid = (t->big_vertices[0].position + t->big_vertices[1].position + t->big_vertices[2].position) / 3.0;
+	t->radius = fmax(fmax(
+		vec3_dist(t->centroid, t->big_vertices[0].position),
+		vec3_dist(t->centroid, t->big_vertices[1].position)),
+		vec3_dist(t->centroid, t->big_vertices[2].position)
+	);
 
-	return new;
+	return t;
 }
 
 //Creates storage for the positions, normals, and colors, as well as OpenGL handles.
@@ -111,18 +117,15 @@ tri_tile * tri_tile_init(tri_tile *t, bpos_origin sector, int num_rows, void (fi
 	t->ibo = get_shared_tri_tile_indices_buffer_object(num_rows);
 
 	t->override_col = (vec3){1.0, 1.0, 1.0};
-
-	//The new tile origin will be the centroid of the three tile vertices.
-	t->centroid = (t->vertices[0] + t->vertices[1] + t->vertices[2]) / 3.0;
 	t->sector = sector;
 	bpos_split_fix(&t->centroid, &t->sector);
 
 	//Recalculate vertex positions relative to new sector.
 	for (int i = 0; i < 3; i++)
-		t->vertices[i] = bpos_remap((bpos){t->vertices[i], sector}, t->sector);
+		t->big_vertices[i].position = bpos_remap((bpos){t->big_vertices[i].position, sector}, t->sector);
 
-	//Generate the initial vertex positions, coplanar points on the triangle formed by vertices[3].
-	int numverts = tri_tile_mesh_positions(t->mesh, num_rows, t->vertices);
+	//Generate the initial vertex positions and texture coordinates, spaced along the triangle formed by big_vertices[3].
+	int numverts = tri_tile_mesh_init(t->mesh, num_rows, t->big_vertices);
 
 	assert(t->num_vertices == numverts);
 
@@ -202,20 +205,40 @@ int tri_tile_indices(GLuint indices[], int num_rows, int start_row)
 	return written - num_tri_tile_indices(start_row);
 }
 
-int tri_tile_mesh_positions(struct tri_tile_vertex mesh[], int num_rows, vec3 vertices[3])
+int tri_tile_mesh_init(struct tri_tile_vertex mesh[], int num_rows, struct tri_tile_big_vertex big_vertices[3])
 {
+	#define LERP(a, b, alpha) (((1 - alpha) * a) + (alpha * b))
 	int written = 0;
-	mesh[written++].position = vertices[0];
+	mesh[written].position = big_vertices[0].position;
+	memcpy(mesh[written].tx, big_vertices[0].tx, 2*sizeof(float));
+	written++;
+	//Row by row, from top to bottom.
 	for (int i = 1; i <= num_rows; i++) {
 		float f1 = (float)i/(num_rows);
-		vec3 left = vec3_lerp(vertices[0], vertices[1], f1);
-		vec3 right = vec3_lerp(vertices[0], vertices[2], f1);
+		vec3 left = vec3_lerp(big_vertices[0].position, big_vertices[1].position, f1);
+		vec3 right = vec3_lerp(big_vertices[0].position, big_vertices[2].position, f1);
+		//Along each row, from left to right.
 		for (int j = 0; j <= i; j++) {
-			float f2 = (float)j/(i);
-			mesh[written++].position = vec3_lerp(left, right, f2); 
+			float f2 = (float)j/i;
+			float f3 = (float)j/num_rows;
+			mesh[written].position = vec3_lerp(left, right, f2);
+			mesh[written].tx[0] = LERP(big_vertices[0].tx[1], big_vertices[2].tx[1], f3);
+			mesh[written].tx[1] = LERP(big_vertices[0].tx[1], big_vertices[2].tx[1], 1-f1);
+			written++;
 		}
 	}
 	return written;
+}
+
+struct tri_tile_big_vertex tri_tile_get_big_vert_average(tri_tile *t, int v1, int v2)
+{
+	return (struct tri_tile_big_vertex){
+		(t->big_vertices[v1].position + t->big_vertices[v2].position)/2,
+		{
+			(t->big_vertices[v1].tx[0] + t->big_vertices[v2].tx[0])/2,
+			(t->big_vertices[v1].tx[1] + t->big_vertices[v2].tx[1])/2
+		}
+	};
 }
 
 //Given a particular tri tile row, and point coordinates (x, y),
@@ -255,10 +278,11 @@ float tri_tile_raycast_depth(tri_tile *t, vec3 start, vec3 dir)
 {
 	int indices[3];
 	vec3 positions[3];
+	vec3 vertices[3] = {t->big_vertices[0].position, t->big_vertices[1].position, t->big_vertices[2].position};
 	vec3 intersection = {0, 0, 0};
 	vec3 tile_intersection = {0, 0, 0};
 
-	int result = tri_tile_raycast(t->vertices, t->num_rows, start, dir, &tile_intersection, indices);
+	int result = tri_tile_raycast(vertices, t->num_rows, start, dir, &tile_intersection, indices);
 
 	assert(result == 1);
 	assert(indices[0] >= 0);

@@ -3,7 +3,8 @@
 #include "input_event.h"
 #include "init.h"
 #include "shader_utils.h"
-#include "renderer.h"
+#include "scene.h"
+#include "space_scene.h"
 #include "macros.h"
 
 extern SDL_Window *window;
@@ -87,7 +88,7 @@ void keyevent(SDL_Keysym keysym, SDL_EventType type)
 		break;
 	case SDL_SCANCODE_1:
 		if (!keydown) {
-			renderer_queue_reload();
+			scene_reload();
 		}
 		break;
 	default:

@@ -13,12 +13,11 @@
 #include "init.h"
 #include "image_load.h"
 #include "input_event.h"
-#include "renderer.h"
+#include "space_scene.h"
+#include "icosphere_scene.h"
+#include "proctri_scene.h"
 #include "default_settings.h"
 #include "configuration/lua_configuration.h"
-
-extern float screen_width;
-extern float screen_height;
 
 static const int MS_PER_SECOND = 1000;
 static const int FRAMES_PER_SECOND = 60; //Frames per second.
@@ -57,12 +56,18 @@ void drain_event_queue()
 			if (e.window.windowID == windowID) {
 				switch (e.window.event)  {
 				case SDL_WINDOWEVENT_SIZE_CHANGED:
-					handle_resize(e.window.data1, e.window.data2);
+					scene_resize(e.window.data1, e.window.data2);
 					break;
 				}
 			}
 		}
 	}
+}
+
+//Signal handler that tells the renderer module to reload itself.
+static void reload_signal_handler(int signo) {
+	printf("Received SIGUSR1! Reloading shaders!\n");
+	scene_reload();
 }
 
 int main()
@@ -85,8 +90,10 @@ int main()
 	}
 	char *screen_title = getglob(L, "screen_title", "Creative Title");
 	bool fullscreen = getglobbool(L, "fullscreen", false);
-	screen_width = getglob(L, "screen_width", 800);
-	screen_height = getglob(L, "screen_height", 600);
+	SDL_SetRelativeMouseMode(getglobbool(L, "grab_mouse", false));
+	float screen_width = getglob(L, "screen_width", 800);
+	float screen_height = getglob(L, "screen_height", 600);
+	char *default_scene = getglob(L, "default_scene", "icosphere_scene");
 
 	window = SDL_CreateWindow(
 		screen_title,
@@ -108,7 +115,17 @@ int main()
 		printf("Something went wrong in init_engine! Aborting.\n");
 		return -1;
 	}
-	renderer_init();
+	
+	//When we receive SIGUSR1, reload the scene.
+	if (signal(SIGUSR1, reload_signal_handler) == SIG_ERR) {
+		printf("An error occurred while setting a signal handler.\n");
+	}
+
+	if (!strcmp(default_scene, "space_scene"))
+		scene_set(&space_scene);
+	else
+		scene_set(&proctri_scene);
+	scene_resize(screen_width, screen_height);
 
 	SDL_AddEventWatch(quit_event, &quit);
 
@@ -130,8 +147,8 @@ int main()
 				//Since user input is handled above, game state is "locked" when we enter this block.
 				last_swap_timestamp = SDL_GetTicks();
 		 		SDL_GL_SwapWindow(window); //Display a new screen to the user every 16 ms, on the dot.
-				update(1.0/FRAMES_PER_SECOND); //At 16 ms intervals, begin an update. HOPEFULLY DOESN'T TAKE MORE THAN 16 MS.
-				render(); //This will be a picture of the state as of (hopefully exactly) 16 ms ago.
+				scene_update(1.0/FRAMES_PER_SECOND); //At 16 ms intervals, begin an update. HOPEFULLY DOESN'T TAKE MORE THAN 16 MS.
+				scene_render(); //This will be a picture of the state as of (hopefully exactly) 16 ms ago.
 				//Get a rolling average of the number of tight loop iterations per frame.
 				loop_iter_ave = (loop_iter_ave + loop_iter)/2; //Average the current number of loop iterations with the average.
 				loop_iter = 0;
@@ -161,7 +178,7 @@ int main()
 	// 	SDL_GL_SwapWindow(window);
 	// }
 
-	renderer_deinit();
+	scene_set(NULL);
 	SDL_GL_DeleteContext(context);
 	SDL_DestroyWindow(window);
 	engine_deinit();

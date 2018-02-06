@@ -1,7 +1,7 @@
 CC = gcc
 SDL = -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW
 MODULE_PATHS = -Iglla
-CFLAGS = $(MODULE_PATHS) -Wall -c -std=c11 -g -pthread -Iglla -march=native
+CFLAGS = $(MODULE_PATHS) -Wall -c -std=c11 -g -pthread -Iglla -march=native #-O3
 LDFLAGS = $(SDL) -llua
 SHADERS = shaders/*.vs shaders/*.fs shaders/*.gs
 EXE = sock
@@ -12,7 +12,7 @@ OBJECTS = \
 	init.o \
 	image_load.o \
 	input_event.o \
-	renderer.o \
+	space_scene.o \
 	buffer_group.o \
 	deferred_framebuffer.o \
 	lights.o \
@@ -36,6 +36,9 @@ OBJECTS = \
 	mesh.o \
 	state_machine.o \
 	glsw_shaders.o \
+	scene.o \
+	icosphere_scene.o \
+	proctri_scene.o \
 
 
 #Module includes append to OBJECTS and define other custom rules.

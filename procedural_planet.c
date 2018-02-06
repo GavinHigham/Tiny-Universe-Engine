@@ -30,16 +30,22 @@ extern bpos_origin tri_sector;
 static const float x = 0.525731112119133606;
 static const float z = 0.850650808352039932;
 static const vec3 ico_v[] = {    
-	{-x, 0, z}, { x, 0,  z}, {-x,  0,-z}, { x,  0, -z},
-	{ 0, z, x}, { 0, z, -x}, { 0, -z, x}, { 0, -z, -x},
-	{ z, x, 0}, {-z, x,  0}, { z, -x, 0}, {-z, -x,  0}
+	{-x,  0, z}, { x,  0,  z}, {-x, 0, -z}, { x, 0, -z}, {0,  z, x}, { 0,  z, -x},
+	{ 0, -z, x}, { 0, -z, -x}, { z, x,  0}, {-z, x,  0}, {z, -x, 0}, {-z, -x,  0}
 };
 
-static const GLuint ico_i[] = { 
-	0,4,1,   0,9,4,   9,5,4,   4,5,8,   4,8,1,    
-	8,10,1,  8,3,10,  5,3,8,   5,2,3,   2,7,3,    
-	7,10,3,  7,6,10,  7,11,6,  11,0,6,  0,1,6, 
-	6,1,10,  9,0,11,  9,11,2,  9,2,5,   7,2,11
+static const int ico_i[] = {
+	1,0,4,   9,4,0,   9,5,4,   8,4,5,   4,8,1,  10,1,8,  10,8,3,  5,3,8,   3,5,2,  9,2,5,  
+	3,7,10,  6,10,7,  7,11,6,  0,6,11,  0,1,6,  10,6,1,  0,11,9,  2,9,11,  3,2,7,  11,7,2,
+};
+
+//Texture coordinates for each vertex of a face. Pairs of faces share a texture.
+static const float ico_tx[] = {
+	0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0,  0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0, 
+	0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0,  0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0, 
+	0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0,  0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0, 
+	0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0,  0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0, 
+	0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0,  0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0,
 };
 
 //In my debug view, these colors are applied to tiles based on the number of times they've been split.
@@ -71,22 +77,21 @@ static int splits_per_distance(float distance, float scale)
 	return fmax(fmin(log2(scale/distance), PROC_PLANET_TILE_MAX_SUBDIVISIONS), 0);
 }
 
-static float split_tile_radius(int depth, float base_length)
-{
-	return base_length / pow(2, depth);
-}
-
 static void tri_tile_split(tri_tile *t, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS]);
 
 static bool above_horizon(tri_tile *tile, int depth, struct planet_terrain_context ctx)
 {
 	ctx.cam_pos.offset = bpos_remap(ctx.cam_pos, (bpos_origin){0});
 	vec3 tile_pos = bpos_remap((bpos){tile->centroid, tile->sector}, (bpos_origin){0});
-	float tile_radius = split_tile_radius(depth, ctx.planet->edge_len);
-	float altitude = vec3_mag(ctx.cam_pos.offset) - ctx.planet->radius;
+	float altitude = fmax(vec3_mag(ctx.cam_pos.offset) - ctx.planet->radius, 0);
 	return nes30_buttons[INPUT_BUTTON_START] || 
-		distance_to_horizon(ctx.planet->radius, fmax(altitude, 0)) > (vec3_dist(ctx.cam_pos.offset, tile_pos) - tile_radius);
+		distance_to_horizon(ctx.planet->radius, altitude) > (vec3_dist(ctx.cam_pos.offset, tile_pos) - tile->radius);
 }
+
+struct tile_cull_data {
+	vec3 tile_pos;
+	float tile_dist, altitude;
+};
 
 //TODO: See if I can factor out depth somehow.
 static int proc_planet_subdiv_depth(proc_planet *planet, tri_tile *tile, int depth, bpos cam_pos)
@@ -98,13 +103,15 @@ static int proc_planet_subdiv_depth(proc_planet *planet, tri_tile *tile, int dep
 	vec3 surface_pos = cam_pos.offset * planet->radius/vec3_mag(cam_pos.offset);
 
 	float altitude = vec3_mag(cam_pos.offset) - planet->radius;
-	float tile_radius = split_tile_radius(depth, planet->edge_len);
-	float tile_dist = vec3_dist(surface_pos, tile_pos) - tile_radius;
+	float tile_dist = vec3_dist(surface_pos, tile_pos) - tile->radius;
 	float subdiv_dist = fmax(altitude, tile_dist);
 	float scale_factor = (screen_width * planet->edge_len) / (2 * PROC_PLANET_TILE_PIXELS_PER_TRI * PROC_PLANET_NUM_TILE_ROWS);
 
-	// //Maybe I can handle this when preparing the drawlist, instead?
-	if (distance_to_horizon(planet->radius, fmax(altitude, 0)) < (vec3_dist(cam_pos.offset, tile_pos) - tile_radius) && !nes30_buttons[INPUT_BUTTON_START])
+	//Maybe I can handle this when preparing the drawlist, instead?
+	//TODO(Gavin): Some of this effort is duplicated in "above_horizon". See if I can refactor.
+	float horizon_dist = distance_to_horizon(planet->radius, fmax(altitude, 0));
+	float direct_dist = vec3_dist(cam_pos.offset, tile_pos) - tile->radius;
+	if (horizon_dist < direct_dist && !nes30_buttons[INPUT_BUTTON_START])
 		return 0; //Tiles beyond the horizon should not be split.
 
 	return splits_per_distance(subdiv_dist, scale_factor);
@@ -148,7 +155,9 @@ static tri_tile * proc_planet_vertices_and_normals(struct element_properties *el
 	//vec3 whiteish = {0.96, .94, 0.96};
 	//vec3 orangeish = (vec3){255, 181, 112} / 255;
 
-	float epsilon = vec3_dist(t->vertices[0], t->vertices[2]) * (noise_radius / planet_radius / t->num_rows / 5);//noise_radius / 100000; //TODO: Check this value or make it empirical somehow.
+	//TODO: Check this value or make it empirical somehow.
+	float epsilon = vec3_dist(t->big_vertices[0].position, t->big_vertices[2].position) * (noise_radius / planet_radius / t->num_rows / 5);
+
 	for (int i = 0; i < t->num_vertices; i++) {
 		//Points towards vertex from planet origin
 		vec3 pos = t->mesh[i].position - planet_pos;
@@ -186,10 +195,6 @@ static tri_tile * proc_planet_vertices_and_normals(struct element_properties *el
 		cmyk_to_rgb(cmy, k, &t->mesh[i].color);
 		t->mesh[i].color /= 255;
 
-		//Find procedural heights, and add them.
-		// pos1      = y * height(pos1, &color1) + pos1;
-		// pos2      = y * height(pos2, &color2) + pos2;
-		// noise_surface = y * height(noise_surface, &c) + noise_surface;
 		pos1          = y * amplitude * ys[1] + pos1;
 		pos2          = y * amplitude * ys[2] + pos2;
 		noise_surface = y * amplitude * ys[0] + noise_surface;
@@ -204,25 +209,18 @@ static tri_tile * proc_planet_vertices_and_normals(struct element_properties *el
 	return t;
 }
 
-static void reproject_vertices_to_spherical(vec3 vertices[], int num_vertices, vec3 pos, float radius)
-{
-	for (int i = 0; i < num_vertices; i++) {
-		vec3 d = vertices[i] - pos;
-		vertices[i] = d * radius/vec3_mag(d) + pos;
-	}
-}
-
 static void proc_planet_finishing_touches(tri_tile *t, void *finishing_touches_context)
 {
 	//Retrieve tile's planet from finishing_touches_context.
 	proc_planet *p = (proc_planet *)finishing_touches_context;
 	vec3 planet_pos = bpos_remap((bpos){0}, t->sector);
+
 	//Curve the tile around planet by normalizing each vertex's distance to the planet and scaling by planet radius.
 	for (int i = 0; i < t->num_vertices; i++) {
 		vec3 d = t->mesh[i].position - planet_pos;
 		t->mesh[i].position = d * p->radius/vec3_mag(d) + planet_pos;
 	}
-	//reproject_vertices_to_spherical(t->positions, sizeof(struct tri_tile_vertex), t->num_vertices, planet_pos, p->radius);
+
 	//Apply perturbations to the surface and calculate normals.
 	//Since noise doesn't compute well on huge planets, noise is calculated on a simulated smaller planet and scaled up.
 	struct element_properties props[p->num_elements];
@@ -233,26 +231,32 @@ static void proc_planet_finishing_touches(tri_tile *t, void *finishing_touches_c
 
 static void tri_tile_split(tri_tile *t, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS])
 {
-	vec3 new_vertices[] = {
-		vec3_lerp(t->vertices[0], t->vertices[1], 0.5),
-		vec3_lerp(t->vertices[0], t->vertices[2], 0.5),
-		vec3_lerp(t->vertices[1], t->vertices[2], 0.5)
+	struct tri_tile_big_vertex new_vertices[] = {
+		tri_tile_get_big_vert_average(t, 0, 1),
+		tri_tile_get_big_vert_average(t, 0, 2),
+		tri_tile_get_big_vert_average(t, 1, 2)
 	};
 
 	proc_planet *planet = (proc_planet *)t->finishing_touches_context;
 	vec3 planet_pos = bpos_remap((bpos){0}, t->sector);
-	reproject_vertices_to_spherical(new_vertices, 3, planet_pos, planet->radius);
+	for (int i = 0; i < 3; i++) {
+		vec3 d = new_vertices[i].position - planet_pos;
+		new_vertices[i].position = d * planet->radius/vec3_mag(d) + planet_pos;
+	}
 
-	vec3 new_tile_vertices[DEFAULT_NUM_TRI_TILE_DIVS][3] = {
-		{t->vertices[0],  new_vertices[0], new_vertices[1]},
-		{new_vertices[0], t->vertices[1],  new_vertices[2]},
-		{new_vertices[0], new_vertices[2], new_vertices[1]},
-		{new_vertices[1], new_vertices[2], t->vertices[2]}
+	struct tri_tile_big_vertex new_tile_vertices[DEFAULT_NUM_TRI_TILE_DIVS][3] = {
+		{t->big_vertices[0], new_vertices[0],    new_vertices[1]},
+		{new_vertices[0],    t->big_vertices[1], new_vertices[2]},
+		{new_vertices[0],    new_vertices[2],    new_vertices[1]},
+		{new_vertices[1],    new_vertices[2],    t->big_vertices[2]}
 	};
 
-	for (int i = 0; i < DEFAULT_NUM_TRI_TILE_DIVS; i++)
-		tri_tile_init(tri_tile_new(new_tile_vertices[i]), t->sector, PROC_PLANET_NUM_TILE_ROWS, t->finishing_touches, t->finishing_touches_context);
-	
+	for (int i = 0; i < DEFAULT_NUM_TRI_TILE_DIVS; i++) {
+		out[i] = tri_tile_new(new_tile_vertices[i]);
+		tri_tile_init(out[i], t->sector, PROC_PLANET_NUM_TILE_ROWS, t->finishing_touches, t->finishing_touches_context);
+		tri_tile_buffer(out[i]);
+	}
+
 	printf("Dividing %p.\n", t);
 }
 
@@ -321,26 +325,25 @@ void proc_planet_deinit()
 proc_planet * proc_planet_new(float radius, height_map_func height, int *elements, int num_elements)
 {
 	proc_planet *p = malloc(sizeof(proc_planet));
-	p->radius = radius;
+	*p = (proc_planet) {
+		.radius       = radius,
+		.num_elements = num_elements,
+		.noise_radius = radius/1000, //TODO: Determine the largest reasonable noise radius, map input radius to a good range.
+		.amplitude = TERRAIN_AMPLITUDE,
+		.edge_len = radius / sin(2.0*M_PI/5.0),
+		.height = height
+	};
 	for (int i = 0; i < num_elements; i++)
 		p->elements[i] = elements[i];
-	p->num_elements = num_elements;
-	//p->color_family = color_family; //TODO: Will eventually choose from a palette of good color combos.
-	p->noise_radius = radius/1000; //TODO: Determine the largest reasonable noise radius, map input radius to a good range.
-	p->amplitude = TERRAIN_AMPLITUDE; //TODO: Choose a good number, pass this through the chain of calls.
-	p->edge_len = radius / sin(2.0*M_PI/5.0);
 	printf("Edge len: %f\n", p->edge_len);
-	p->height = height;
 
 	uint32_t ticks = SDL_GetTicks();
 
 	//Initialize the planet terrain
 	for (int i = 0; i < NUM_ICOSPHERE_FACES; i++) {
-		vec3 verts[] = {
-			ico_v[ico_i[3*i]]   * radius,
-			ico_v[ico_i[3*i+1]] * radius,
-			ico_v[ico_i[3*i+2]] * radius
-		};
+		struct tri_tile_big_vertex verts[3];
+		for (int j = 0; j < 3; j++)
+			verts[j] = (struct tri_tile_big_vertex){ico_v[ico_i[3*i+j]] * radius, {ico_tx[(6*i)+(2*j)], ico_tx[(6*i)+(2*j)+1]}};
 
 		p->tiles[i] = quadtree_new(tri_tile_new(verts), 0);
 		//Initialize tile with verts expressed relative to p->sector.
@@ -349,13 +352,14 @@ proc_planet * proc_planet_new(float radius, height_map_func height, int *element
 
 	uint32_t ticks2 = SDL_GetTicks();
 
-	//for (int i = 0; i < NUM_ICOSPHERE_FACES; i++)
-	//	tri_tile_buffer(p->tiles[i]->data);
+	for (int i = 0; i < NUM_ICOSPHERE_FACES; i++)
+		tri_tile_buffer(p->tiles[i]->data);
 
-	//uint32_t ticks3 = SDL_GetTicks();
+	uint32_t ticks3 = SDL_GetTicks();
 
 	p->ms_per_tile_gen    = (ticks2 - ticks)  / (float)NUM_ICOSPHERE_FACES;
-	p->ms_per_tile_buffer = 0;//(ticks3 - ticks2) / (float)NUM_ICOSPHERE_FACES;
+	p->ms_per_tile_buffer = (ticks3 - ticks2) / (float)NUM_ICOSPHERE_FACES;
+	printf("Planet took %f, %f ms to generate.\n", p->ms_per_tile_gen, p->ms_per_tile_buffer);
 
 	return p;
 }
@@ -376,7 +380,7 @@ static bool proc_planet_drawlist_visit(quadtree_node *node, void *context)
 	if (depth == node->depth || !quadtree_node_has_children(node)) {
 		if (ctx->num_tiles < ctx->max_tiles && above_horizon(tile, depth, *ctx))
 			ctx->tiles[ctx->num_tiles++] = tile;
-		// else
+		//else
 		// 	ctx->excess_tiles = true;
 	}
 
@@ -386,7 +390,7 @@ static bool proc_planet_drawlist_visit(quadtree_node *node, void *context)
 int proc_planet_drawlist(proc_planet *p, tri_tile **tiles, int max_tiles, bpos cam_pos)
 {
 	struct planet_terrain_context context = {
-		.splits_max = 50,//15.0 / (4 * (p->ms_per_tile_gen + p->ms_per_tile_buffer)), //Total number of splits for this call of drawlist.
+		.splits_max = fmax(15.0 / (4 * (p->ms_per_tile_gen + p->ms_per_tile_buffer)), 1), //Total number of splits for this call of drawlist.
 		.cam_pos = cam_pos,
 		.planet = p,
 		.tiles = tiles,
@@ -397,8 +401,8 @@ int proc_planet_drawlist(proc_planet *p, tri_tile **tiles, int max_tiles, bpos c
 	for (int i = 0; i < NUM_ICOSPHERE_FACES; i++) {
 		quadtree_preorder_visit(p->tiles[i], proc_planet_split_visit, &context);
 		quadtree_preorder_visit(p->tiles[i], proc_planet_drawlist_visit, &context);
-		if (context.excess_tiles)
-			printf("Excess tiles.\n");
+		//if (context.excess_tiles)
+		//	printf("Excess tiles.\n");
 		//TODO: Find a good way to implement prune with hysteresis.
 		//terrain_tree_prune(p->tiles[i], proc_planet_split_depth, &context, (terrain_tree_free_fn)tri_tile_free);
 	}
@@ -420,7 +424,7 @@ void proc_planet_draw(amat4 eye_frame, float proj_view_mat[16], proc_planet *pla
 	// glBindVertexArray(proc_planets.vao);
 	//Create a list of planet tiles to draw.
 	amat4 tri_frame  = {.a = MAT3_IDENT, .t = {0, 0, 0}};
-	int drawlist_max = 3000 * num_planets; //TODO(Gavin): Get a good estimate of this from actual number of runtime tiles.
+	int drawlist_max = 5000 * num_planets; //TODO(Gavin): Get a good estimate of this from actual number of runtime tiles.
 	tri_tile *drawlist[drawlist_max];
 	int planet_tiles_start[num_planets + 1] __attribute__((aligned(64))); //Compiler bug!
 	int drawlist_count = 0;
@@ -474,7 +478,8 @@ bool proc_planet_tile_raycast(quadtree_node *node, void *context)
 	vec3 intersection;
 	vec3 local_start = bpos_remap(ctx->pos, t->sector);
 	vec3 local_end = bpos_remap((bpos){0}, t->sector);
-	int result = ray_tri_intersect(local_start, local_end, tree_tile(node)->vertices, &intersection);
+	vec3 vertices[3] = {t->big_vertices[0].position, t->big_vertices[1].position, t->big_vertices[2].position};
+	int result = ray_tri_intersect(local_start, local_end, vertices, &intersection);
 	if (result == 1) {
 		//t->override_col *= (vec3){0.1, 1.0, 1.0};
 		//printf("Tile intersection found! Tile: %i\n", t->tile_index);

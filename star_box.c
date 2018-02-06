@@ -34,7 +34,7 @@ extern float log_depth_intermediate_factor;
 
 enum {
 	//TODO: Consider if I can just keep this small and multiply in the vertex shader.
-	STAR_BOX_SIZE = 16777216, //The width of one edge of a star box, in bpos cell widths.
+	STAR_BOX_SIZE = 67108864, //The width of one edge of a star box, in bpos cell widths.
 	STARS_PER_BOX = 10000, //The number of stars per "star box", of which there are NUM_BOXES.
 	NUM_BOXES = 27,
 	BUCKET_DIVS_PER_AXIS = 16,

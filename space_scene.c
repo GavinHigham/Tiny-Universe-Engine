@@ -3,7 +3,8 @@
 #include <assert.h>
 #include <string.h>
 #include "glla.h"
-#include "renderer.h"
+#include "space_scene.h"
+#include "scene.h"
 #include "models/models.h"
 #include "input_event.h"
 #include "default_settings.h"
@@ -25,20 +26,18 @@
 #include "solar_system.h"
 #include "glsw_shaders.h"
 
-static bool renderer_is_init = false;
-static bool renderer_should_reload = false;
+SCENE_VTABLE(space);
 float FOV = M_PI/2.7;
 float far_distance = 10000000;
 float near_distance = 1;
 float log_depth_intermediate_factor = NAN; //Needs to be set in init.
 int PRIMITIVE_RESTART_INDEX = 0xFFFFFFFF;
 
-float screen_width = SCREEN_WIDTH;
-float screen_height = SCREEN_HEIGHT;
+float screen_width, screen_height;
 
 GLuint gVAO = 0;
 amat4 inv_eye_frame;
-amat4 eye_frame = {.a = MAT3_IDENT,  .t = {6, 0, 0}};
+static amat4 eye_frame = {.a = MAT3_IDENT,  .t = {6, 0, 0}};
 bpos_origin eye_sector = {0, 0, 0};
 //Object frames. Need a better system for this.
 amat4 room_frame = {.a = MAT3_IDENT, .t = {0, -4, -8}};
@@ -56,24 +55,6 @@ struct point_light_attributes point_lights = {.num_lights = 0};
 
 const float planet_radius = 6000000;
 
-//This is awful and I should change it.
-// struct {
-// 	bpos pos;
-// 	proc_planet *planet;
-// 	vec3 col;
-// } test_planets[] = {
-// 	{
-// 		{0},
-// 		NULL,
-// 		{1.0, 0.7, 0.7},
-// 	},
-// 	{
-// 		{{0, 0, 0},{-350, 88, -13800}},
-// 		NULL,
-// 		{0.5, 0.7, 0.9},
-// 	},
-// };
-
 solar_system ssystem;
 
 Entity *ship_entity = NULL;
@@ -87,21 +68,24 @@ Drawable d_ship, d_newship, d_teardropship, d_room, d_skybox;
 Entity *entities;
 int16_t nentities;
 
+/*
 //Just a hacky record so that I allocate/free all these properly as I develop this.
-// struct drawable_rec {
-// 	Drawable *drawable;
-// 	Draw_func draw;
-// 	EFFECT *effect;
-// 	amat4 *frame;
-// 	bpos_origin *sector;
-// 	int (*buffering_function)(struct buffer_group);
-// } drawables[] = {
-// 	{&d_ship,         draw_forward,        &effects.forward, &ship->Physical->position, &ship->Physical->origin,   buffer_teardropship},
-// 	{&d_newship,      draw_forward,        &effects.forward, &ship->Physical->position, &ship->Physical->origin,   buffer_newship     },
-// 	{&d_teardropship, draw_forward,        &effects.forward, &ship->Physical->position, &ship->Physical->origin,   buffer_teardropship},
-// 	{&d_room,         draw_forward,        &effects.forward, &room_frame,    &room_sector,   buffer_newroom     },
-// 	{&d_skybox,       draw_skybox_forward, &effects.skybox,  &skybox_frame,  &eye_sector,    buffer_cube        }
-// };
+struct drawable_rec {
+	Drawable *drawable;
+	Draw_func draw;
+	EFFECT *effect;
+	amat4 *frame;
+	bpos_origin *sector;
+	int (*buffering_function)(struct buffer_group);
+} drawables[] = {
+	{&d_ship,         draw_forward,        &effects.forward, &ship->Physical->position, &ship->Physical->origin,   buffer_teardropship},
+	{&d_newship,      draw_forward,        &effects.forward, &ship->Physical->position, &ship->Physical->origin,   buffer_newship     },
+	{&d_teardropship, draw_forward,        &effects.forward, &ship->Physical->position, &ship->Physical->origin,   buffer_teardropship},
+	{&d_room,         draw_forward,        &effects.forward, &room_frame,    &room_sector,   buffer_newroom     },
+	{&d_skybox,       draw_skybox_forward, &effects.skybox,  &skybox_frame,  &eye_sector,    buffer_cube        }
+};
+*/
+
 
 static void init_models()
 {
@@ -173,7 +157,7 @@ static void init_lights()
 	//point_lights.shadowing[3] = true;
 }
 
-void handle_resize(int width, int height)
+void space_scene_resize(float width, float height)
 {
 	glViewport(0, 0, width, height);
 	screen_width = width;
@@ -181,17 +165,9 @@ void handle_resize(int width, int height)
 	make_projection_matrix(FOV, screen_width/screen_height, -near_distance, -far_distance, proj_mat);	
 }
 
-//Signal handler that tells the renderer module to reload itself.
-static void reload_signal_handler(int signo) {
-	printf("Received SIGUSR1! Reloading shaders!\n");
-	renderer_queue_reload();
-}
-
 //Set up everything needed to start rendering frames.
-void renderer_init()
+int space_scene_init()
 {
-	if (renderer_is_init)
-		return;
 	checkErrors("Function enter");
 
 	glsw_shaders_init();
@@ -206,11 +182,6 @@ void renderer_init()
 
 	glGenVertexArrays(1, &gVAO);
 
-	//When we receive SIGUSR1, reload the renderer module.
-	if (signal(SIGUSR1, reload_signal_handler) == SIG_ERR) {
-		printf("An error occurred while setting a signal handler.\n");
-	}
-
 	glUseProgram(0);
 	glClearDepth(1);
 	glEnable(GL_DEPTH_TEST);
@@ -218,7 +189,6 @@ void renderer_init()
 	glClearColor(0.01f, 0.02f, 0.03f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 	checkErrors("glClear");
-	make_projection_matrix(FOV, screen_width/screen_height, -1, -far_distance, proj_mat);
 	log_depth_intermediate_factor = 2.0/log2(far_distance + 1.0);
 
 	entities_init();
@@ -258,24 +228,17 @@ void renderer_init()
 
 	glUseProgram(0);
 	checkErrors("After init_render");
-	renderer_is_init = true;
+
+	return 0;
 }
 
-void renderer_deinit()
+void space_scene_deinit()
 {
-	if (!renderer_is_init)
-		return;
 	deinit_models();
 	//stars_deinit();
 	proc_planet_deinit();
 	point_lights.num_lights = 0;
-	renderer_is_init = false;
 	entities_deinit();
-}
-
-void renderer_queue_reload()
-{
-	renderer_should_reload = true;
 }
 
 static void forward_update_point_light(EFFECT *effect, struct point_light_attributes *lights, int i)
@@ -290,7 +253,7 @@ static void forward_update_point_light(EFFECT *effect, struct point_light_attrib
 //static Drawable *pvs[] = {&d_newship, &d_room};
 static Drawable *pvs[] = {};//{&d_ship};
 
-void render()
+void space_scene_render()
 {
 	// //Create a list of planet tiles to draw.
 	// int drawlist_max = 3000;
@@ -443,7 +406,7 @@ void render()
 	glUniform3f(effects.skybox.sun_color, VEC3_COORDS(sun_color));
 	skybox_frame.t = eye_frame.t;
 	//draw_drawable(&d_skybox);
-	//stars_draw();
+	//stars_draw(eye_frame, proj_view_mat);
 	star_box_draw(eye_sector, proj_view_mat);
 
 	debug_graphics.lines.ship_to_planet.start = bpos_remap((bpos){ship_entity->Physical->position.t, ship_entity->Physical->origin}, eye_sector);
@@ -451,20 +414,14 @@ void render()
 	debug_graphics.lines.ship_to_planet.enabled = true;
 	//debug_graphics.points.ship_to_planet_intersection.pos = bpos_remap(intersection, eye_sector);
 	//debug_graphics.points.ship_to_planet_intersection.enabled = true;
-	//debug_graphics_draw();
+	//debug_graphics_draw(eye_frame, proj_view_mat);
 
 	checkErrors("After forward junk");
 }
 
 //TODO: Move the update function out of the renderer module, come up with a good interface for things that need to be accessed in both.
-void update(float dt)
+void space_scene_update(float dt)
 {
-	if (renderer_should_reload) {
-		renderer_deinit();
-		renderer_init();
-		renderer_should_reload = false;
-	}
-
 	static float light_time = 0;
 	light_time += dt * 0.2;
 	point_lights.position[0] = (vec3){10*cos(light_time), 4, 10*sin(light_time)-8};

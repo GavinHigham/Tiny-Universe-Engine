@@ -8,16 +8,13 @@
 enum {MAX_NUM_KEYS = 5};
 struct glsw_shaders glsw = {0};
 
-GLuint shader_from_text(GLenum type, const char **texts)
+GLuint shader_from_strs(GLenum type, const char **strs, int count)
 {
-	int num_texts;
-	for (int i = 0; texts[i] != NULL; num_texts = ++i);
-
 	//Create and compile the shader.
 	GLint success = GL_FALSE;
 	const GLuint shader = glCreateShader(type);
 
-	glShaderSource(shader, num_texts, texts, NULL);
+	glShaderSource(shader, count, strs, NULL);
 	glCompileShader(shader);
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
 
@@ -27,21 +24,31 @@ GLuint shader_from_text(GLenum type, const char **texts)
 		printLog(shader, GL_FALSE);
 		glDeleteShader(shader);
 		//BUG(Gavin): This returns a negative value, but GLuint is unsigned...
-		return -1; //Means compilation failure.
+		return 0; //Means compilation failure.
 	}
 	return shader;
 }
 
-GLuint glsw_shader_from_keys(GLenum type, const char **keys)
+GLuint glsw_shader_from_keys_num(GLenum type, const char **keys, int num)
 {
-	int num_texts;
-	for (int i = 0; keys[i] != NULL; num_texts = ++i);
+	const char *strs[num];
+	for (int i = 0; i < num; i++)
+		strs[i] = glswGetShader(keys[i]);
+	return shader_from_strs(type, strs, num);
+}
 
-	const char *texts[num_texts + 1];
-	for (int i = 0; i < num_texts; i++)
-		texts[i] = glswGetShader(keys[i]);
-	texts[num_texts] = NULL;
-	return shader_from_text(type, texts);
+GLuint glsw_new_shader_program(GLuint shaders[], int num)
+{
+	GLuint program = glCreateProgram();
+	if (!compile_shader_program(program, shaders, num)) {
+		glDeleteProgram(program);
+		program = 0;
+	}
+
+	for (int i = 0; i < num; i++)
+		glDeleteShader(shaders[i]);
+
+	return program;
 }
 
 void glsw_shaders_init()
@@ -53,20 +60,14 @@ void glsw_shaders_init()
 	//TODO(Gavin): Have some form of error handling.
 
 	GLuint forward_shader[] = {
-		glsw_shader_from_keys(GL_VERTEX_SHADER,   (const char *[]){"forward.vertex.GL33", NULL}),
-		glsw_shader_from_keys(GL_FRAGMENT_SHADER, (const char *[]){"forward.fragment.GL33", "common.lighting", NULL}),
+		glsw_shader_from_keys(GL_VERTEX_SHADER, "forward.vertex.GL33"),
+		glsw_shader_from_keys(GL_FRAGMENT_SHADER, "forward.fragment.GL33", "common.lighting"),
 	};
-
-	GLuint forward_program = glCreateProgram();
-	if (compile_shader_program(forward_program, forward_shader, LENGTH(forward_shader)) == 0) {
+	GLuint forward_program = glsw_new_shader_program(forward_shader, LENGTH(forward_shader));
+	if (forward_program) {
 		glDeleteProgram(glsw.forward);
 		glsw.forward = forward_program;
-	} else {
-		glDeleteProgram(forward_program);
 	}
-
-	for (int i = 0; i < LENGTH(forward_shader); i++)
-		glDeleteShader(forward_shader[i]);
 
 	glswShutdown();
 }
