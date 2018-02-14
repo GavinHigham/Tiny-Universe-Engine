@@ -1,3 +1,3 @@
 OBJECTS += \
 	glsw/bstrlib.o \
-	glsw/glsw.o \
+	glsw/glsw.o

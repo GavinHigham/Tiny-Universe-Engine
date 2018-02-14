@@ -13,9 +13,9 @@
 #include "init.h"
 #include "image_load.h"
 #include "input_event.h"
-#include "space_scene.h"
-#include "icosphere_scene.h"
-#include "proctri_scene.h"
+#include "space/space_scene.h"
+#include "experiments/icosphere_scene.h"
+#include "experiments/proctri_scene.h"
 #include "default_settings.h"
 #include "configuration/lua_configuration.h"
 

@@ -10,7 +10,6 @@
 #include "effects.h"
 #include "shader_utils.h"
 #include "gl_utils.h"
-#include "space_scene.h"
 #include "macros.h"
 #include "input_event.h"
 #include "open-simplex-noise-in-c/open-simplex-noise.h"

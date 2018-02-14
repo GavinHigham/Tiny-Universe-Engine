@@ -2,7 +2,7 @@
 #define PROCEDURAL_TERRAIN_H
 #include <stdbool.h>
 #include "glla.h"
-#include "buffer_group.h"
+#include "../buffer_group.h"
 
 struct terrain {
 	struct buffer_group bg;

@@ -4,7 +4,6 @@
 #include "init.h"
 #include "shader_utils.h"
 #include "scene.h"
-#include "space_scene.h"
 #include "macros.h"
 
 extern SDL_Window *window;

@@ -1,19 +1,19 @@
+#include "star_box.h"
+#include "../math/bpos.h"
+#include "../math/utility.h"
+#include "../effects.h"
+#include "../entity/scriptable.h"
+#include "../entity/physical.h"
+#include "../gl_utils.h"
+#include "../macros.h"
+#include "../open-simplex-noise-in-c/open-simplex-noise.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <math.h>
 #include <stdbool.h>
-#include "star_box.h"
-#include "math/bpos.h"
-#include "math/utility.h"
-#include "effects.h"
-#include "entity/scriptable.h"
-#include "entity/physical.h"
-#include "gl_utils.h"
-#include "gl/glew.h"
-#include "macros.h"
-#include "open-simplex-noise-in-c/open-simplex-noise.h"
+#include <gl/glew.h>
 
 /*
 Since each box has a bpos_origin, each star only needs to store its offset from that origin;

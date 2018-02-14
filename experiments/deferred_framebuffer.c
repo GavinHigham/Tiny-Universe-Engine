@@ -1,6 +1,6 @@
-#include <GL/glew.h>
 #include "deferred_framebuffer.h"
-#include "macros.h"
+#include "../macros.h"
+#include <GL/glew.h>
 
 struct deferred_framebuffer new_deferred_framebuffer(int width, int height)
 {

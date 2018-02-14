@@ -1,12 +1,12 @@
 #include "icosphere_scene.h"
-#include "scene.h"
-#include "glsw/glsw.h"
-#include "glsw_shaders.h"
-#include "macros.h"
-#include "math/utility.h"
-#include "drawf.h"
-#include "gl_utils.h"
-#include "input_event.h"
+#include "../scene.h"
+#include "../glsw/glsw.h"
+#include "../glsw_shaders.h"
+#include "../macros.h"
+#include "../math/utility.h"
+#include "../drawf.h"
+#include "../gl_utils.h"
+#include "../input_event.h"
 
 #include <glla.h>
 #include <GL/glew.h>

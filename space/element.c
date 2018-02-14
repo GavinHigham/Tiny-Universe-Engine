@@ -1,8 +1,8 @@
 #include <string.h>
 #include <assert.h>
 #include "element.h"
-#include "macros.h"
-#include "math/utility.h"
+#include "../macros.h"
+#include "../math/utility.h"
 
 struct element_properties all_element_properties[] = {
 	{{203, 123, 78}}, //Default element if there are no others defined.

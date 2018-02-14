@@ -1,13 +1,13 @@
 #include "proctri_scene.h"
-#include "scene.h"
-#include "glsw/glsw.h"
-#include "glsw_shaders.h"
-#include "macros.h"
-#include "math/utility.h"
-#include "drawf.h"
-#include "gl_utils.h"
-#include "input_event.h"
-#include "triangular_terrain_tile.h"
+#include "../scene.h"
+#include "../glsw/glsw.h"
+#include "../glsw_shaders.h"
+#include "../macros.h"
+#include "../math/utility.h"
+#include "../drawf.h"
+#include "../gl_utils.h"
+#include "../input_event.h"
+#include "../space/triangular_terrain_tile.h"
 
 #include <glla.h>
 #include <GL/glew.h>
@@ -34,7 +34,7 @@ static float proj_mat[16];
 float positions[] = {0.5,0,0, -.5,1,0, 0.5,0,1};
 float tx_coords[] = {0.5,0, 0,1, 1,1};
 
-#define NUM_ROWS 200
+#define NUM_ROWS 128
 #define VERTS_PER_ROW(rows) ((rows+2)*(rows+1)/2)
 static const int rows = NUM_ROWS;
 extern int PRIMITIVE_RESTART_INDEX;
@@ -45,6 +45,28 @@ static GLuint ROWS;
 static GLuint SHADER, VAO, VBO, MM, MVPM, VPOS, VTX;
 static GLint SAMPLER0, VLERPS_ATTR;
 static GLuint test_gl_tx = 0;
+
+//Adapted from http://www.glprogramming.com/red/chapter02.html
+static const float x = 0.525731112119133606;
+static const float z = 0.850650808352039932;
+static const float ico_v[] = {    
+	-x,  0, z,  x,  0,  z, -x, 0, -z,  x, 0, -z, 0,  z, x,  0,  z, -x,
+	 0, -z, x,  0, -z, -x,  z, x,  0, -z, x,  0, z, -x, 0, -z, -x,  0
+};
+
+static const unsigned int ico_i[] = {
+	1,0,4,   9,4,0,   9,5,4,   8,4,5,   4,8,1,  10,1,8,  10,8,3,  5,3,8,   3,5,2,  9,2,5,  
+	3,7,10,  6,10,7,  7,11,6,  0,6,11,  0,1,6,  10,6,1,  0,11,9,  2,9,11,  3,2,7,  11,7,2,
+};
+
+//Texture coordinates for each vertex of a face. Pairs of faces share a texture.
+static const float ico_tx[] = {
+	0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0,  0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0, 
+	0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0,  0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0, 
+	0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0,  0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0, 
+	0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0,  0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0, 
+	0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0,  0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0,
+};
 
 int proctri_scene_init()
 {
@@ -95,7 +117,7 @@ int proctri_scene_init()
 	/* Misc. OpenGL bits */
 
 	glClearDepth(1);
-	//glEnable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
 	glDepthFunc(GL_LESS);
 	glEnable(GL_PRIMITIVE_RESTART);
@@ -105,7 +127,7 @@ int proctri_scene_init()
 	/* For rotating the icosahedron */
 	SDL_SetRelativeMouseMode(true);
 
-	test_gl_tx = load_gl_texture("test.jpg");
+	test_gl_tx = load_gl_texture("pizza.png");
 
 	return 0;
 
@@ -183,13 +205,21 @@ void proctri_scene_render()
 
 	glUniformMatrix4fv(MM, 1, true, model_mat);
 	glUniformMatrix4fv(MVPM, 1, true, model_view_proj_mat);
-	glUniform3fv(VPOS, 3, positions);
-	glUniform2fv(VTX, 3, tx_coords);
 	glUniform1i(ROWS, rows);
 	//glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	//glDrawArrays(GL_TRIANGLES, 0, 3);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, get_shared_tri_tile_indices_buffer_object(rows));
-	glDrawElements(GL_TRIANGLE_STRIP, num_tri_tile_indices(rows), GL_UNSIGNED_INT, NULL);
+
+	for (int i = 0; i < 20; i++) {
+		float pos[9] = {x,  0,  z, -x,  0, z, 0,  z, x};
+		float tx[6] = {0};
+		for (int j = 0; j < 3; j++)
+			memcpy(pos + j*3, &ico_v[ico_i[i*3 + j]*3], 3*sizeof(float));
+		memcpy(tx, &ico_tx[i*6], 6*sizeof(float));
+		glUniform3fv(VPOS, 3, pos);
+		glUniform2fv(VTX, 3, tx);
+		glDrawElements(GL_TRIANGLE_STRIP, num_tri_tile_indices(rows), GL_UNSIGNED_INT, NULL);
+	}
 
 	glBindVertexArray(0);
 }

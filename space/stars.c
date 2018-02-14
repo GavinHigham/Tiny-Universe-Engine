@@ -1,13 +1,13 @@
+#include "glla.h"
+#include "../macros.h"
+#include "../effects.h"
+#include "../math/utility.h"
+#include "../math/bpos.h"
 #include <gl/glew.h>
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <inttypes.h>
-#include "glla.h"
-#include "macros.h"
-#include "effects.h"
-#include "math/utility.h"
-#include "math/bpos.h"
 
 //Handy externs.
 extern bpos_origin eye_sector;

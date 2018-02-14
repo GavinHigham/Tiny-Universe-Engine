@@ -1,11 +1,11 @@
 #ifndef TRIANGULAR_TERRAIN_TILE_H
 #define TRIANGULAR_TERRAIN_TILE_H
-#include <stdbool.h>
 #include "glla.h"
-#include "buffer_group.h"
-#include "math/bpos.h"
-#include "open-simplex-noise-in-c/open-simplex-noise.h"
-#include "mesh.h"
+#include "../buffer_group.h"
+#include "../math/bpos.h"
+#include "../open-simplex-noise-in-c/open-simplex-noise.h"
+#include "../mesh.h"
+#include <stdbool.h>
 
 //Heightmap function pointers.
 typedef float (*height_map_func)(vec3, vec3 *);

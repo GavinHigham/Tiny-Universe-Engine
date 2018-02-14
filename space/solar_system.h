@@ -1,6 +1,6 @@
 #ifndef SOLAR_SYSTEM_H
 #define SOLAR_SYSTEM_H
-#include "math/bpos.h"
+#include "../math/bpos.h"
 #include "procedural_planet.h"
 #include "element.h"
 
