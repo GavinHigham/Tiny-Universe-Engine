@@ -3,7 +3,7 @@
  
 Sock is a free 3D game engine that I'm making in my free time as a hobby and learning project. Sock sort of stands for Simple OpenGL C. The 'k' is silent.
 
-I'm using the project as a means to learn OpenGL, to develop my C style and practices on a large-ish project, and to learn computer graphics techniques such as deferred rendering, stencil-buffer shadows, procedural generation, physically-based rendering, and more. Eventually I hope to turn it into a nice lightweight space exploration game.
+I'm using the project as a means to learn OpenGL, to develop my C style and practices on a large-ish project, and to learn computer graphics techniques such as deferred rendering, stencil-buffer shadows, procedural generation, erosion simulation, physically-based rendering, and more. Eventually I hope to turn it into a nice lightweight space exploration game.
 
 Currently the project is only maintained for OSX, as I develop on a somewhat-dated but still adequate 2011 MacBook Pro 13".
 
