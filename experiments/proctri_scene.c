@@ -5,9 +5,10 @@
 #include "../macros.h"
 #include "../math/utility.h"
 #include "../drawf.h"
-#include "../gl_utils.h"
+#include "../math/utility.h"
 #include "../input_event.h"
 #include "../space/triangular_terrain_tile.h"
+#include "../configuration/lua_configuration.h"
 
 #include <glla.h>
 #include <GL/glew.h>
@@ -20,30 +21,30 @@
 /* Implementing scene "interface" */
 
 SCENE_IMPLEMENT(proctri);
-static GLuint load_gl_texture(char *path);
-int tri_lerp_vals(float *lerps, int num_rows);
+GLuint load_gl_texture(char *path);
+int get_tri_lerp_vals(float *lerps, int num_rows);
 
-static SDL_Surface *test_surface = NULL;
 static float screen_width = 640, screen_height = 480;
 static int mouse_x = 0, mouse_y = 0;
-
 
 static amat4 eye_frame = {.a = MAT3_IDENT, .t = {0, 0, 5}}; 
 static amat4 tri_frame = {.a = MAT3_IDENT, .t = {0, 0, 0}};
 static float proj_mat[16];
-float positions[] = {0.5,0,0, -.5,1,0, 0.5,0,1};
-float tx_coords[] = {0.5,0, 0,1, 1,1};
 
-#define NUM_ROWS 128
+#define NUM_ROWS 16
 #define VERTS_PER_ROW(rows) ((rows+2)*(rows+1)/2)
 static const int rows = NUM_ROWS;
 extern int PRIMITIVE_RESTART_INDEX;
 
+/* Lua Config */
+extern lua_State *L;
+
 /* OpenGL Variables */
 
 static GLuint ROWS;
-static GLuint SHADER, VAO, VBO, MM, MVPM, VPOS, VTX;
+static GLuint SHADER, VAO, MM, MVPM, TEXSCALE, VBO, INBO;
 static GLint SAMPLER0, VLERPS_ATTR;
+static GLint POS_ATTR[3] = {1,2,3}, TX_ATTR[3] = {4,5,6};
 static GLuint test_gl_tx = 0;
 
 //Adapted from http://www.glprogramming.com/red/chapter02.html
@@ -68,6 +69,13 @@ static const float ico_tx[] = {
 	0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0,  0.0,0.0, 1.0,0.0, 0.0,1.0,  1.0,1.0, 0.0,1.0, 1.0,0.0,
 };
 
+//times three vertices, times 20 tiles.
+static struct instance_attributes {
+	float pos[9];
+	float tx[6];
+} instance_data[20];
+//float uniform_data[tu_len * 3 * 20];
+
 int proctri_scene_init()
 {
 	glGenVertexArrays(1, &VAO);
@@ -76,43 +84,83 @@ int proctri_scene_init()
 	/* Shader initialization */
 	glswInit();
 	glswSetPath("shaders/glsw/", ".glsl");
-	glswAddDirectiveToken("GL33", "#version 330");
+	glswAddDirectiveToken("glsl330", "#version 330");
 
 	GLuint shader[] = {
-		glsw_shader_from_keys(GL_VERTEX_SHADER, "experimental.vertex.GL33"),
-		glsw_shader_from_keys(GL_FRAGMENT_SHADER, "experimental.fragment.GL33"),
+		glsw_shader_from_keys(GL_VERTEX_SHADER, "versions.glsl330", "common.noise.GL33", "experimental.vertex.GL33"),
+		glsw_shader_from_keys(GL_FRAGMENT_SHADER, "versions.glsl330", "common.noise.GL33", "experimental.fragment.GL33"),
 	};
 	SHADER = glsw_new_shader_program(shader, LENGTH(shader));
 	glswShutdown();
 
-	if (!SHADER)
-		goto error;
+	if (!SHADER) {
+		proctri_scene_deinit();
+		return -1;
+	}
+
+	/* Retrieve uniform variable handles */
 
 	MM       = glGetUniformLocation(SHADER, "model_matrix");
 	MVPM     = glGetUniformLocation(SHADER, "model_view_projection_matrix");
 	SAMPLER0 = glGetUniformLocation(SHADER, "diffuse_tx");
-	VPOS     = glGetUniformLocation(SHADER, "vpos");
-	VTX      = glGetUniformLocation(SHADER, "vtx");
 	ROWS     = glGetUniformLocation(SHADER, "rows");
+	TEXSCALE = glGetUniformLocation(SHADER, "tex_scale");
+	checkErrors("After getting uniform handles");
 
 	/* Vertex data */
 
 	float tri_lerps[2 * VERTS_PER_ROW(NUM_ROWS)];
-	tri_lerp_vals(tri_lerps, rows);
+	get_tri_lerp_vals(tri_lerps, rows);
 	glGenBuffers(1, &VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(tri_lerps), tri_lerps, GL_STATIC_DRAW);
 
+	glGenBuffers(1, &INBO);
+	glBindBuffer(GL_ARRAY_BUFFER, INBO);
+	checkErrors("After gen indexed array buffer");
+
 	/* Vertex attributes */
 
-	VLERPS_ATTR = glGetAttribLocation(SHADER, "vlerp"); 
-	if (VLERPS_ATTR == -1) {
-		printf("Vertex attributes were not retrieved successfully.\n");
-		goto error;
+	int attr_div = 1;
+	for (int i = 0; i < 3; i++)
+	{
+		glEnableVertexAttribArray(POS_ATTR[i]);
+		glVertexAttribPointer(POS_ATTR[i], 3, GL_FLOAT, GL_FALSE,
+			sizeof(struct instance_attributes), (void *)(offsetof(struct instance_attributes, pos) + i*3*sizeof(float)));
+		glVertexAttribDivisor(POS_ATTR[i], attr_div);
+		checkErrors("After attr divisor for pos");
 	}
 
+	for (int i = 0; i < 3; i++)
+	{
+		glEnableVertexAttribArray(TX_ATTR[i]);
+		glVertexAttribPointer(TX_ATTR[i], 2, GL_FLOAT, GL_FALSE,
+			sizeof(struct instance_attributes), (void *)(offsetof(struct instance_attributes, tx) + i*2*sizeof(float)));
+		glVertexAttribDivisor(TX_ATTR[i], attr_div);
+		checkErrors("After attr divisor for attr");
+	}
+
+	VLERPS_ATTR = 7; //glGetAttribLocation(SHADER, "vlerp"); 
 	glEnableVertexAttribArray(VLERPS_ATTR);
+
+	checkErrors("After setting attrib divisors");
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	checkErrors("After binding VBO");
 	glVertexAttribPointer(VLERPS_ATTR, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	checkErrors("After setting VBO attrib pointer");
+
+	/* Uniform Buffer */
+
+	for (int i = 0; i < 20; i++) {
+		for (int j = 0; j < 3; j++) {
+			memcpy(&instance_data[i].pos[3*j], &ico_v[ico_i[i*3 + j]*3], 3*sizeof(float));
+			memcpy(&instance_data[i].tx[2*j],  &ico_tx[i*6 + j*2],       2*sizeof(float));
+		}
+	}
+
+	glBindBuffer(GL_ARRAY_BUFFER, INBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(instance_data), instance_data, GL_DYNAMIC_DRAW);
+	checkErrors("After upload indexed array data");
 
 	/* Misc. OpenGL bits */
 
@@ -125,15 +173,16 @@ int proctri_scene_init()
 	glBindVertexArray(0);
 
 	/* For rotating the icosahedron */
-	SDL_SetRelativeMouseMode(true);
+	//SDL_SetRelativeMouseMode(true);
 
-	test_gl_tx = load_gl_texture("pizza.png");
+	char texture_path[gettmpglobstr(L, "proctri_tex", "grass.png", NULL)];
+	                  gettmpglobstr(L, "proctri_tex", "grass.png", texture_path);
+	test_gl_tx = load_gl_texture(texture_path);
+	glUseProgram(SHADER);
+	glUniform1f(TEXSCALE, getglob(L, "tex_scale", 1.0));
+	glUseProgram(0);
 
 	return 0;
-
-error:
-	proctri_scene_deinit();
-	return -1;
 }
 
 void proctri_scene_resize(float width, float height)
@@ -149,7 +198,6 @@ void proctri_scene_deinit()
 	glDeleteVertexArrays(1, &VAO);
 	glDeleteBuffers(1, &VBO);
 	glDeleteProgram(SHADER);
-	SDL_FreeSurface(test_surface);
 }
 
 void proctri_scene_update(float dt)
@@ -206,25 +254,15 @@ void proctri_scene_render()
 	glUniformMatrix4fv(MM, 1, true, model_mat);
 	glUniformMatrix4fv(MVPM, 1, true, model_view_proj_mat);
 	glUniform1i(ROWS, rows);
-	//glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	//glDrawArrays(GL_TRIANGLES, 0, 3);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, get_shared_tri_tile_indices_buffer_object(rows));
-
-	for (int i = 0; i < 20; i++) {
-		float pos[9] = {x,  0,  z, -x,  0, z, 0,  z, x};
-		float tx[6] = {0};
-		for (int j = 0; j < 3; j++)
-			memcpy(pos + j*3, &ico_v[ico_i[i*3 + j]*3], 3*sizeof(float));
-		memcpy(tx, &ico_tx[i*6], 6*sizeof(float));
-		glUniform3fv(VPOS, 3, pos);
-		glUniform2fv(VTX, 3, tx);
-		glDrawElements(GL_TRIANGLE_STRIP, num_tri_tile_indices(rows), GL_UNSIGNED_INT, NULL);
-	}
+	checkErrors("After binding INBO");
+	glDrawElementsInstanced(GL_TRIANGLE_STRIP, num_tri_tile_indices(rows), GL_UNSIGNED_INT, NULL, 20);
+	checkErrors("After instanced draw");
 
 	glBindVertexArray(0);
 }
 
-static GLuint load_gl_texture(char *path)
+GLuint load_gl_texture(char *path)
 {
 	GLuint texture = 0;
 	SDL_Surface *surface = IMG_Load(path);
@@ -259,7 +297,7 @@ error:
 	return texture;
 }
 
-int tri_lerp_vals(float *lerps, int num_rows)
+int get_tri_lerp_vals(float *lerps, int num_rows)
 {
 	int written = 0;
 	//Avoid divide-by-zero for 0th row.

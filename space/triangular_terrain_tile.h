@@ -37,7 +37,9 @@ struct triangular_terrain_tile {
 	vec3 centroid;
 	//Max of distance of each vertex to centroid, for culling.
 	float radius;
-	bpos_origin sector;
+	//Offset from planet bpos.
+	//This is really confusing, I need a better name for it.
+	qvec3 offset;
 	//Called at the end of init, passing the new tile and the provided context.
 	void (*finishing_touches)(tri_tile *, void *);
 	void  *finishing_touches_context;

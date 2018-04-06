@@ -2,7 +2,7 @@
 #define DEBUG_GRAPHICS_H
 #include "glla.h"
 #include <stdbool.h>
-#include <gl/glew.h>
+#include <GL/glew.h>
 
 struct debug_graphics_line {
 	vec3 start;

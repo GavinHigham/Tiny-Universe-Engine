@@ -11,7 +11,7 @@
 #include <lualib.h>
 //Project headers.
 #include "init.h"
-#include "image_load.h"
+#include "math/utility.h"
 #include "input_event.h"
 #include "space/space_scene.h"
 #include "experiments/icosphere_scene.h"
@@ -29,6 +29,8 @@ int loop_iter_ave = 0;
 SDL_Renderer *renderer = NULL;
 SDL_Window *window = NULL;
 Uint32 windowID = 0;
+lua_State *L = NULL;
+const char *luaconf_path = "conf.lua";
 
 //Callback for close button event.
 int SDLCALL quit_event(void *userdata, SDL_Event *e)
@@ -68,6 +70,7 @@ void drain_event_queue()
 static void reload_signal_handler(int signo) {
 	printf("Received SIGUSR1! Reloading shaders!\n");
 	scene_reload();
+	luaconf_run(L, luaconf_path);
 }
 
 int main()
@@ -82,12 +85,9 @@ int main()
 		return result;
 	}
 
-	lua_State *L = luaL_newstate();
+	L = luaL_newstate();
 	luaL_openlibs(L);
-	if (luaL_dofile(L, "conf.lua")) {
-		luaconf_error(L, "cannot run config. file: %s", lua_tostring(L, -1));
-		lua_pop(L, 1);
-	}
+	luaconf_run(L, luaconf_path);
 	char *screen_title = getglob(L, "screen_title", "Creative Title");
 	bool fullscreen = getglobbool(L, "fullscreen", false);
 	SDL_SetRelativeMouseMode(getglobbool(L, "grab_mouse", false));

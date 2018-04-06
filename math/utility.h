@@ -1,7 +1,9 @@
 #ifndef UTILITY_H
 #define UTILITY_H
-#include <stdlib.h>
 #include "glla.h"
+#include <stdlib.h>
+#include <SDL2/SDL.h>
+#include <SDL2_image/SDL_image.h>
 
 // Random numbers
 
@@ -66,5 +68,10 @@ lldiv_t lldiv_floor(int64_t a, int64_t b);
 //Create a projection matrix with "fov" field of view, "a" aspect ratio, n and f near and far planes.
 //Stick it into buffer buf, ready to send to OpenGL.
 void make_projection_matrix(float fov, float a, float n, float f, float *buf);
+
+
+int checkErrors(char *label);
+
+SDL_Texture * load_texture(char *image_path);
 
 #endif

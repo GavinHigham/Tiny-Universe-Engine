@@ -67,7 +67,7 @@ struct planet_terrain_context {
 	bool excess_tiles;
 };
 
-void proc_planet_init();
+int proc_planet_init();
 void proc_planet_deinit();
 proc_planet * proc_planet_new(float radius, height_map_func height, int *elements, int num_elements);
 

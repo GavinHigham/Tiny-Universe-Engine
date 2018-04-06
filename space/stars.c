@@ -3,7 +3,7 @@
 #include "../effects.h"
 #include "../math/utility.h"
 #include "../math/bpos.h"
-#include <gl/glew.h>
+#include <GL/glew.h>
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>

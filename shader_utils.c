@@ -6,7 +6,7 @@
 #include <sys/stat.h>
 #include <GL/glew.h>
 #include "effects.h"
-#include "gl_utils.h"
+#include "math/utility.h"
 
 #ifndef LENGTH
 	#define LENGTH(array) (sizeof(array)/sizeof(array[0]))

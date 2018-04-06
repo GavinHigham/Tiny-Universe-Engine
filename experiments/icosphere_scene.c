@@ -5,7 +5,6 @@
 #include "../macros.h"
 #include "../math/utility.h"
 #include "../drawf.h"
-#include "../gl_utils.h"
 #include "../input_event.h"
 
 #include <glla.h>
@@ -124,7 +123,7 @@ int icosphere_scene_init()
 	/* For rotating the icosahedron */
 	SDL_SetRelativeMouseMode(true);
 
-	test_gl_tx = load_gl_texture("test.jpg");
+	test_gl_tx = load_gl_texture("grass.png");
 
 	return 0;
 

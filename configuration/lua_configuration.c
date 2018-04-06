@@ -6,6 +6,14 @@
 #include <lauxlib.h>
 #include "lua_configuration.h"
 
+void luaconf_run(lua_State *L, const char *filepath)
+{
+	if (luaL_dofile(L, filepath)) {
+		luaconf_error(L, "cannot run config. file: %s", lua_tostring(L, -1));
+		lua_pop(L, 1);
+	}
+}
+
 //From the examples in "Programming in Lua: Fourth edition"
 
 void luaconf_error(lua_State *L, const char *fmt, ...)
@@ -49,4 +57,14 @@ char * getglobstr(lua_State *L, const char *var, const char *d)
 	result = result ? strdup(result) : NULL;
 	lua_pop(L, 1);
 	return result;
+}
+
+size_t gettmpglobstr(lua_State *L, const char *var, const char *d, char *buf)
+{
+	lua_getglobal(L, var);
+	char *result = (char *)luaL_optstring(L, -1, d);
+	if (buf && result)
+		strcpy(buf, result);
+	lua_pop(L, 1);
+	return result ? 0 : strlen(result) + 1;
 }

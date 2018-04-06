@@ -2,7 +2,7 @@
 #include "draw.h"
 #include "entity/drawable.h"
 #include "drawf.h"
-#include "gl_utils.h"
+#include "math/utility.h"
 
 extern GLfloat proj_view_mat[16];
 extern vec3 sun_direction;

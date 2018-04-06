@@ -32,7 +32,7 @@ GLuint shader_from_strs(GLenum type, const char **strs, int count)
 GLuint glsw_shader_from_keys_num(GLenum type, const char **keys, int num)
 {
 	const char *strs[num];
-	for (int i = 0; i < num; i++)
+	for (int i = 0; i < num; i++) 
 		strs[i] = glswGetShader(keys[i]);
 	return shader_from_strs(type, strs, num);
 }

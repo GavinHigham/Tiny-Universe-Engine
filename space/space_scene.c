@@ -13,7 +13,7 @@
 #include "../lights.h"
 #include "../macros.h"
 #include "../shader_utils.h"
-#include "../gl_utils.h"
+#include "../math/utility.h"
 #include "../space/stars.h"
 #include "../space/star_box.h"
 #include "../draw.h"

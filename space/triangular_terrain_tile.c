@@ -83,7 +83,7 @@ tri_tile * tri_tile_new(const struct tri_tile_big_vertex big_vertices[3])
 
 //Creates storage for the positions, normals, and colors, as well as OpenGL handles.
 //Should be freed by the caller, using tri_tile_free.
-tri_tile * tri_tile_init(tri_tile *t, bpos_origin sector, int num_rows, void (finishing_touches)(tri_tile *, void *), void *finishing_touches_context)
+tri_tile * tri_tile_init(tri_tile *t, qvec3 offset, int num_rows, void (finishing_touches)(tri_tile *, void *), void *finishing_touches_context)
 {
 	assert(!t->is_init);
 	if (t->is_init) return t;
@@ -117,12 +117,12 @@ tri_tile * tri_tile_init(tri_tile *t, bpos_origin sector, int num_rows, void (fi
 	t->ibo = get_shared_tri_tile_indices_buffer_object(num_rows);
 
 	t->override_col = (vec3){1.0, 1.0, 1.0};
-	t->sector = sector;
-	bpos_split_fix(&t->centroid, &t->sector);
+	t->offset = offset;
+	bpos_split_fix(&t->centroid, &t->offset);
 
-	//Recalculate vertex positions relative to new sector.
+	//Recalculate vertex positions relative to new offset.
 	for (int i = 0; i < 3; i++)
-		t->big_vertices[i].position = bpos_remap((bpos){t->big_vertices[i].position, sector}, t->sector);
+		t->big_vertices[i].position = bpos_remap((bpos){t->big_vertices[i].position, offset}, t->offset);
 
 	//Generate the initial vertex positions and texture coordinates, spaced along the triangle formed by big_vertices[3].
 	int numverts = tri_tile_mesh_init(t->mesh, num_rows, t->big_vertices);

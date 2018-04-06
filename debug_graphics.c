@@ -7,7 +7,6 @@
 #include "effects.h"
 #include "math/utility.h"
 #include "math/bpos.h"
-#include "gl_utils.h"
 
 //Externs that could be useful.
 extern amat4 inv_eye_frame;

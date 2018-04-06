@@ -1,8 +1,12 @@
 #include "utility.h"
 #include "glla.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <GL/glew.h>
+#include <SDL2/SDL.h>
+#include <SDL2_image/SDL_image.h>
 
 #define RANDOM_SEED 42 * 1337 + 0xBAE + 'G'+'r'+'e'+'e'+'n' //An excellent random seed
 static int seed = RANDOM_SEED;
@@ -163,4 +167,33 @@ void make_projection_matrix(float fov, float a, float n, float f, float *buf)
 	else
 		tmp[5] *= a;
 	memcpy(buf, tmp, sizeof(tmp));
+}
+
+int checkErrors(char *label)
+{
+	int error = glGetError();
+	if (error != GL_NO_ERROR) {
+		printf("%s: %d\n", label, error);
+	}
+	return error;
+}
+
+extern SDL_Renderer *renderer;
+SDL_Texture * load_texture(char *image_path) {
+	SDL_Surface *loaded_surface = NULL;
+	SDL_Texture *loaded_texture = NULL;
+
+	loaded_surface = IMG_Load(image_path);
+	if (loaded_surface == NULL) {
+		printf("Unable to load image %s! SDL_image Error: %s\n", image_path, IMG_GetError());
+		return NULL;
+	}
+	
+	loaded_texture = SDL_CreateTextureFromSurface(renderer, loaded_surface);
+	if (loaded_texture == NULL) {
+		printf("Unable to create texture from %s! SDL Error: %s\n", image_path, SDL_GetError());
+	}
+
+	SDL_FreeSurface(loaded_surface);
+	return loaded_texture;
 }

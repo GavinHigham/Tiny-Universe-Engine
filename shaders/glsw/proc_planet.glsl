@@ -4,6 +4,7 @@ uniform mat4 model_matrix;
 uniform mat4 model_view_projection_matrix;
 uniform int rows;
 uniform sampler2D diffuse_tx;
+uniform float log_depth_intermediate_factor;
 
 const int octaves = 5;
 
@@ -49,6 +50,7 @@ void main()
 	ftx = mix(ltx, rtx, vlerp.x);
 
 	gl_Position = model_view_projection_matrix * vec4(p,1);//vec4(normalize(position) * pow(tex.r-tex.g, 0.03), 1);
+	gl_Position.z = (log2(max(1e-6, 1.0 + gl_Position.z)) * log_depth_intermediate_factor - 1.0) * gl_Position.w;
 	//TODO: Model-view normal matrix
 	fposition = vec3(model_matrix * vec4(p, 1));
 	fobj_position = p + vec3(2);

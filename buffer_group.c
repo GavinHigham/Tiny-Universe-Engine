@@ -3,7 +3,7 @@
 #include <string.h>
 #include "buffer_group.h"
 #include "shader_utils.h"
-#include "gl_utils.h"
+#include "math/utility.h"
 #include "macros.h"
 
 void setup_attrib_for_draw(GLuint attr_handle, GLuint buffer, GLenum attr_type, int attr_size)
