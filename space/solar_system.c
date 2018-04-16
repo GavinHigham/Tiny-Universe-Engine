@@ -29,7 +29,7 @@ solar_system solar_system_new(bpos_origin o)
 	solar_system s = {
 		.seed = seed,
 		.origin = o,
-		.num_planets = frand(&seed) * SOLAR_SYSTEM_MAX_PLANETS,
+		.num_planets = 1,//frand(&seed) * SOLAR_SYSTEM_MAX_PLANETS,
 	};
 	element_get_random_set(s.elements, SOLAR_SYSTEM_MAX_ELEMENTS);
 

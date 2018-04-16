@@ -34,14 +34,15 @@ struct {
 GLuint **get_shared_tri_tile_indices(int num_rows)
 {
 	GLuint *old = shared_tri_tile_ibo.indices;
-	if (num_rows > shared_tri_tile_ibo.num_rows)
+	if (num_rows > shared_tri_tile_ibo.num_rows) {
 		shared_tri_tile_ibo.indices = realloc(old, sizeof(GLuint)*num_tri_tile_indices(num_rows));
-	if (shared_tri_tile_ibo.indices) {
-		tri_tile_indices(shared_tri_tile_ibo.indices, num_rows, shared_tri_tile_ibo.num_rows);
-		shared_tri_tile_ibo.num_rows = num_rows;
-	} else {
-		free(old);
-		shared_tri_tile_ibo.num_rows = 0;
+		if (shared_tri_tile_ibo.indices) {
+			tri_tile_indices(shared_tri_tile_ibo.indices, num_rows, shared_tri_tile_ibo.num_rows);
+			shared_tri_tile_ibo.num_rows = num_rows;
+		} else {
+			free(old);
+			shared_tri_tile_ibo.num_rows = 0;
+		}
 	}
 
 	return &shared_tri_tile_ibo.indices;
@@ -53,8 +54,12 @@ GLuint get_shared_tri_tile_indices_buffer_object(int num_rows)
 		glGenBuffers(1, &shared_tri_tile_ibo.buffer_object);
 
 	if (num_rows > shared_tri_tile_ibo.rows_buffered) {
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shared_tri_tile_ibo.buffer_object);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLuint)*num_tri_tile_indices(num_rows), *get_shared_tri_tile_indices(num_rows), GL_STATIC_DRAW);
+		GLuint *indices = *get_shared_tri_tile_indices(num_rows);
+		if (shared_tri_tile_ibo.num_rows == num_rows) {
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shared_tri_tile_ibo.buffer_object);
+			glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLuint)*num_tri_tile_indices(num_rows), indices, GL_STATIC_DRAW);
+			shared_tri_tile_ibo.rows_buffered = num_rows;
+		}
 	}
 
 	return shared_tri_tile_ibo.buffer_object;
@@ -346,6 +351,6 @@ void tri_tile_buffer(tri_tile *t)
 	//Bind buffer to current bound vao so it's used as the index buffer for draw calls.
 	glBindBuffer(GL_ARRAY_BUFFER, t->mesh_buffer);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(struct tri_tile_vertex)*t->num_vertices, t->mesh, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, t->ibo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, t->ibo);
 	t->buffered = true;
 }

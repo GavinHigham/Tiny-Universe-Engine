@@ -9,7 +9,6 @@
 quadtree_node * quadtree_new(void *data, int depth)
 {
 	quadtree_node *new = malloc(sizeof(struct quadtree_node));
-	//Fix notes: before, each tree node contained the struct directly. Now that it's a pointer, I need to allocate tiles dynamically.
 	new->data = data;
 	new->depth = depth;
 	quadtree_node_set_childless(new);

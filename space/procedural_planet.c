@@ -13,6 +13,7 @@
 #include "../math/utility.h"
 #include "../glsw/glsw.h"
 #include "../glsw_shaders.h"
+#include "../debug_graphics.h"
 #include <GL/glew.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -89,10 +90,10 @@ static GLuint proc_planet_tx = 0;
 
 /* Instance Attribute Data */
 
-static struct instance_attributes {
+struct instance_attributes {
 	float pos[9];
 	float tx[6];
-} instance_data[20];
+};
 extern int PRIMITIVE_RESTART_INDEX;
 
 // Static Functions //
@@ -418,19 +419,6 @@ int proc_planet_init()
 	glVertexAttribPointer(VLERPS_ATTR, 2, GL_FLOAT, GL_FALSE, 0, 0);
 	checkErrors("After setting VBO attrib pointer");
 
-	/* Patch Vertices Buffer */
-
-	// for (int i = 0; i < 20; i++) {
-	// 	for (int j = 0; j < 3; j++) {
-	// 		memcpy(&instance_data[i].pos[3*j], &ico_v[ico_i[i*3 + j]*3], 3*sizeof(float));
-	// 		memcpy(&instance_data[i].tx[2*j],  &ico_tx[i*6 + j*2],       2*sizeof(float));
-	// 	}
-	// }
-
-	// glBindBuffer(GL_ARRAY_BUFFER, INBO);
-	// glBufferData(GL_ARRAY_BUFFER, sizeof(instance_data), instance_data, GL_DYNAMIC_DRAW);
-	// checkErrors("After upload indexed array data");
-
 	/* Misc. OpenGL bits */
 
 	glClearDepth(1);
@@ -569,9 +557,11 @@ void proc_planet_draw(amat4 eye_frame, float proj_view_mat[16], proc_planet *pla
 	//Create a list of planet tiles to draw.
 	amat4 tri_frame  = {.a = MAT3_IDENT, .t = {0, 0, 0}};
 	int drawlist_max = 5000 * num_planets; //TODO(Gavin): Get a good estimate of this from actual number of runtime tiles.
-	tri_tile *drawlist[drawlist_max];
+	tri_tile *drawlist[drawlist_max] __attribute__((aligned(64)));
+	//Index for the start of each planet's list of tiles, so I can assign uniforms per-planet.
 	int planet_tiles_start[num_planets + 1] __attribute__((aligned(64))); //Compiler bug!
 	int drawlist_count = 0;
+	//Collect tiles for each planet, store in drawlist.
 	for (int i = 0; i < num_planets; i++) {
 		bpos pos = {eye_frame.t - planet_positions[i].offset, eye_sector - planet_positions[i].origin};
 		planet_tiles_start[i] = drawlist_count;
@@ -580,39 +570,18 @@ void proc_planet_draw(amat4 eye_frame, float proj_view_mat[16], proc_planet *pla
 		if (key_state[SDL_SCANCODE_2])
 			printf("Planet %2i drawing %10i tiles this frame.\n", i, planet_count);
 	}
+	planet_tiles_start[num_planets] = drawlist_count;
 
-	if (getglobbool(L, "gpu_tiles", false)) {
-		planet_tiles_start[num_planets] = drawlist_count;
+	if (getglobbool(L, "gpu_tiles", false) != key_state[SDL_SCANCODE_3]) {
 
 		struct instance_attributes planet_tile_data[drawlist_count] __attribute__((aligned(64))); //Compiler bug!
 		glBindVertexArray(VAO);
 		glUseProgram(SHADER);
 		for (int i = 0; i < num_planets; i++) {
 			for (int j = planet_tiles_start[i]; j < planet_tiles_start[i+1]; j++) {
-				//For each tile, convert "big vertex" positions to camera-space (or "current sector" space)
 				tri_tile *t = drawlist[j];
 
-				//GAVIN RESUME
-				/*
-					You were taking this nested loop from the old style of drawing and adapting it to the proctri approach.
-					You need to fill the instance_data buffer and upload it, taking care to do the correct sector handling
-					for each "big vertex" position. Big vertices on a tile are expressed relative to the tile's offset,
-					which is expressed relative to the planet center. A big vertex's camera-space location should be:
-						Big vert pos + (tile offset + planet bpos relative to camera bpos) * bpos cell size 
-
-					I only need the MVPM, everything can be positioned in camera-space.
-
-					Need:
-						Model Matrix
-						Model View Projection Matrix
-						Rows
-						Sampler
-						Texture Scale
-						Octaves of noise?
-
-					Old version would prepare a model matrix for every tile (used only to get fPosition). Can do without?
-				*/
-
+				//For each tile, convert "big vertex" positions to camera-space (or "current sector" space)
 				vec3 big_vert_offset = bpos_remap((bpos){planet_positions[i].offset, planet_positions[i].origin + t->offset}, eye_sector);
 				for (int k = 0; k < 3; k++) {
 					struct tri_tile_big_vertex tmp = drawlist[i]->big_vertices[k];
@@ -622,6 +591,12 @@ void proc_planet_draw(amat4 eye_frame, float proj_view_mat[16], proc_planet *pla
 				}
 			}
 		}
+
+		// for (int i = 0; i < drawlist_count; i++) {
+		// 	for (int j = 0; j < 9; j++)
+		// 		printf("%f, ", planet_tile_data[i].pos[j]);
+		// 	printf("\n");
+		// }
 
 		//Prep matrices per-planet (later make this per-planet with a per-instance UBO)
 		GLfloat mm[16], mvpm[16], mvnm[16];
@@ -642,10 +617,8 @@ void proc_planet_draw(amat4 eye_frame, float proj_view_mat[16], proc_planet *pla
 		checkErrors("After binding INBO");
 		glDrawElementsInstanced(GL_TRIANGLE_STRIP, num_tri_tile_indices(rows), GL_UNSIGNED_INT, NULL, 20);
 		checkErrors("After instanced draw");
-
-		glBindVertexArray(0);
-		glUseProgram(effects.forward.handle);
 	} else {
+		glUseProgram(effects.forward.handle);
 		for (int i = 0; i < num_planets; i++) {
 			for (int j = planet_tiles_start[i]; j < planet_tiles_start[i+1]; j++) {
 				tri_tile *t = drawlist[j];

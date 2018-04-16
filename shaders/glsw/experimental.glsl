@@ -38,7 +38,7 @@ void main()
 	vec4 val = fbm(x);
 	vec3 g = val.xyz;
 	float R = 1;
-	float s = 0.07;
+	float s = 0.001;
 	vec3 p = (R + s * val.w) * x;
 	vec3 h = g - dot(g, x)*x;
 	vec3 n = x - s * h;
@@ -79,6 +79,7 @@ vec3 triplanar(sampler2D tex, vec3 pos, vec3 norm)
 }
 
 void main() {
+	// float arc_distance = distance()
 	vec3 normal = normalize(fnormal);
 	//vec3 screen_normal = normalize(cross(dFdy(fposition.xyz), dFdx(fposition.xyz)));
 	vec3 color = triplanar(diffuse_tx, fobj_position.xyz*tex_scale, normal) * max(dot(normal, vec3(1)), 0.0);

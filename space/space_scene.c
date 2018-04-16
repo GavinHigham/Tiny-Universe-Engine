@@ -329,6 +329,7 @@ void space_scene_render()
 
 		checkErrors("Before planets draw");
 		proc_planet_draw(eye_frame, proj_view_mat, ssystem.planets, ssystem.planet_positions, ssystem.num_planets);
+		glUseProgram(effects.forward.handle);
 
 		glUniform3f(effects.forward.override_col, 1.0, 1.0, 1.0);
 

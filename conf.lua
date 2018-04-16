@@ -6,4 +6,4 @@ grab_mouse = false
 default_scene = "space_scene"
 proctri_tex = "grass.png"
 tex_scale = 4
-gpu_tiles = true
+gpu_tiles = false

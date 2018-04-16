@@ -22,6 +22,7 @@ extern struct debug_graphics_globals {
 
 	struct {
 		struct debug_graphics_line ship_to_planet;
+		struct debug_graphics_line tile[3];
 	} lines;
 
 	struct {
