@@ -26,7 +26,7 @@
 struct {
 	GLuint vao;
 	bool is_init;
-} proc_planets;
+} proc_planets = {0, 0};
 
 extern bpos_origin eye_sector;
 extern bpos_origin tri_sector;
@@ -209,6 +209,7 @@ static tri_tile * proc_planet_vertices_and_normals(struct element_properties *el
 
 		vec3 cmy, sum_cmy = {0,0,0}; float k, sum_k = 0, sum_h = 0;
 		double ys[3] = {0};
+		//TODO(Gavin): Using noise gradient, can make this ~3 times faster (no finite differences).
 		for (int j = 0; j < num_elements; j++) {
 			float offset = 4529 * j;//random number
 			float scale = pow(2, j*2)*2;
@@ -341,9 +342,9 @@ int proc_planet_init()
 		glEnableVertexAttribArray(effects.forward.vPos);
 		glEnableVertexAttribArray(effects.forward.vNormal);
 		glEnableVertexAttribArray(effects.forward.vColor);
-		glVertexAttribPointer(effects.forward.vPos, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+		glVertexAttribPointer(effects.forward.vPos,    3, GL_FLOAT, GL_FALSE, 0, NULL);
 		glVertexAttribPointer(effects.forward.vNormal, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-		glVertexAttribPointer(effects.forward.vColor, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+		glVertexAttribPointer(effects.forward.vColor,  3, GL_FLOAT, GL_FALSE, 0, NULL);
 		proc_planets.is_init = true;
 	}
 
@@ -619,91 +620,98 @@ void proc_planet_draw(amat4 eye_frame, float proj_view_mat[16], proc_planet *pla
 			printf("Planet %2i drawing %10i tiles this frame.\n", i, planet_count);
 	}
 	planet_tiles_start[num_planets] = drawlist_count;
-	struct instance_attributes planet_tile_data[drawlist_count] __attribute__((aligned(64))); //Compiler bug!
+	struct instance_attributes *planet_tile_data = malloc(drawlist_count * sizeof(struct instance_attributes));
+	// struct instance_attributes planet_tile_data[drawlist_count] __attribute__((aligned(64))); //Compiler bug!
 
+	glBindVertexArray(VAO);
+	glUseProgram(SHADER);
+	for (int i = 0; i < num_planets; i++) {
+		for (int j = planet_tiles_start[i]; j < planet_tiles_start[i+1]; j++) {
+			tri_tile *t = drawlist[j];
 
-		glBindVertexArray(VAO);
-		glUseProgram(SHADER);
-		for (int i = 0; i < num_planets; i++) {
-			for (int j = planet_tiles_start[i]; j < planet_tiles_start[i+1]; j++) {
-				tri_tile *t = drawlist[j];
-
-				//For each tile, convert "big vertex" positions to camera-space (or "current sector" space)
-				vec3 big_vert_offset = bpos_remap((bpos){planet_positions[i].offset, planet_positions[i].origin + t->offset}, eye_sector);
-				for (int k = 0; k < 3; k++) {
-					struct tri_tile_big_vertex tmp = drawlist[i]->big_vertices[k];
-					tmp.position += big_vert_offset;
-					memcpy(&planet_tile_data[j].pos[3*k], &tmp.position, 3*sizeof(float));
-					memcpy(&planet_tile_data[j].tx[2*k],  &tmp.tx,       2*sizeof(float));
-				}
+			//For each tile, convert "big vertex" positions to camera-space (or "current sector" space)
+			vec3 big_vert_offset = bpos_remap((bpos){planet_positions[i].offset, planet_positions[i].origin + t->offset}, eye_sector);
+			for (int k = 0; k < 3; k++) {
+				struct tri_tile_big_vertex tmp = drawlist[j]->big_vertices[k];
+				tmp.position += big_vert_offset;
+				float pos[] = {tmp.position[0], tmp.position[1], tmp.position[2]};
+				memcpy(&planet_tile_data[j].pos[3*k], &pos, 3*sizeof(float));
+				memcpy(&planet_tile_data[j].tx[2*k],  &tmp.tx, 2*sizeof(float));
 			}
 		}
+	}
 
-		// struct instance_attributes test_data[] = {
-		// 	{{-10, 0, -50, -10, 10, -50, 0, 0, -50}, {1, 0, 1, 1, 0, 0}},
-		// };
+	//To debug GPU tile alignment.
+	GLfloat gpu_mm[16], gpu_mvpm[16], gpu_mvnm[16];
+	pp_prep_matrices((amat4)AMAT4_IDENT, proj_view_mat, gpu_mm, gpu_mvpm, gpu_mvnm);
 
-		// for (int i = 0; i < drawlist_count; i++) {
-		// 	for (int j = 0; j < 9; j++)
-		// 		printf("%f, ", planet_tile_data[i].pos[j]);
-		// 	printf("\n");
-		// }
+	glUniformMatrix4fv(MM, 1, true, gpu_mm);
+	glUniformMatrix4fv(MVPM, 1, true, gpu_mvpm);
+	checkErrors("After uniforms");
 
-		//Prep matrices per-planet (later make this per-planet with a per-instance UBO)
-		GLfloat mm[16], mvpm[16], mvnm[16];
-		pp_prep_matrices((amat4)AMAT4_IDENT, proj_view_mat, mm, mvpm, mvnm);
-		glUniformMatrix4fv(MM, 1, true, mm);
-		glUniformMatrix4fv(MVPM, 1, true, mvpm);
-		checkErrors("After uniforms");
+	// amat4_buf_print(mvpm);
+	// puts("");
 
-		// amat4_buf_print(mvpm);
-		// puts("");
-
-		glBindBuffer(GL_ARRAY_BUFFER, INBO);
-		checkErrors("After bind INBO");
-		//glBufferData(GL_ARRAY_BUFFER, sizeof(test_data), test_data, GL_DYNAMIC_DRAW);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(planet_tile_data), planet_tile_data, GL_DYNAMIC_DRAW);
-		checkErrors("After upload indexed array data");
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, proc_planet_tx);
-		glUniform1i(SAMPLER0, 0);
-		glUniform1i(ROWS, rows);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, get_shared_tri_tile_indices_buffer_object(rows));
-		checkErrors("After binding INBO");
+	glBindBuffer(GL_ARRAY_BUFFER, INBO);
+	checkErrors("After bind INBO");
+	//glBufferData(GL_ARRAY_BUFFER, sizeof(test_data), test_data, GL_DYNAMIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(planet_tile_data), planet_tile_data, GL_DYNAMIC_DRAW);
+	checkErrors("After upload indexed array data");
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, proc_planet_tx);
+	glUniform1i(SAMPLER0, 0);
+	glUniform1i(ROWS, rows);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, get_shared_tri_tile_indices_buffer_object(rows));
+	checkErrors("After binding INBO");
 
 	if (getglobbool(L, "gpu_tiles", false) != key_state[SDL_SCANCODE_3]) {
 		glDrawElementsInstanced(GL_TRIANGLE_STRIP, num_tri_tile_indices(rows), GL_UNSIGNED_INT, NULL, drawlist_count);
 
-		//glDrawElementsInstanced(GL_TRIANGLE_STRIP, num_tri_tile_indices(rows), GL_UNSIGNED_INT, NULL, 1);
+		if (key_state[SDL_SCANCODE_4]) {
+			for (int i = 0; i < drawlist_count; i++) {
+				struct instance_attributes *ia = &(planet_tile_data[i]);
+
+				for (int k = 0; k < 3; k++) {
+					float gpu_clip_coords[3];
+					bool gpu_in_viewport = point_in_viewport(gpu_mvpm, ia->pos + 3*k, gpu_clip_coords);
+					uint32_t hash = float3_hash(gpu_clip_coords, 18) % 230 + 1;
+
+					printf(ANSI_NUMERIC_FCOLOR "%s%2i: % f, % f, % f" ANSI_COLOR_RESET "\n",
+						hash,
+						gpu_in_viewport ? "" : "~", i, gpu_clip_coords[0], gpu_clip_coords[1], gpu_clip_coords[2]);
+				}
+			}
+		}
+
 		checkErrors("After instanced draw");
 	} else {
-		//To debug GPU tile alignment.
-		GLfloat gpu_mm[16], gpu_mvpm[16], gpu_mvnm[16];
-		pp_prep_matrices((amat4)AMAT4_IDENT, proj_view_mat, gpu_mm, gpu_mvpm, gpu_mvnm);
-
 		glUseProgram(effects.forward.handle);
 		for (int i = 0; i < num_planets; i++) {
 			for (int j = planet_tiles_start[i]; j < planet_tiles_start[i+1]; j++) {
 				tri_tile *t = drawlist[j];
-				glBindVertexArray(t->vao);
-				if (!t->buffered) //Last resort "BUFFER RIGHT NOW", will cause hiccups.
-					tri_tile_buffer(t);
 				bpos tile_pos = planet_positions[i];
 				tile_pos.offset = bpos_remap((bpos){tile_pos.offset, tile_pos.origin + t->offset}, eye_sector);
 				amat4 tile_frame = {tri_frame.a, tile_pos.offset};
-				glUniform3fv(effects.forward.override_col, 1, (float *)&t->override_col);
 				GLfloat mm[16], mvpm[16], mvnm[16];
+
+				glBindVertexArray(t->vao);
+
+				if (!t->buffered) //Last resort "BUFFER RIGHT NOW", will cause hiccups.
+					tri_tile_buffer(t);
+				
+				glUniform3fv(effects.forward.override_col, 1, (float *)&t->override_col);
 				pp_prep_matrices(tile_frame, proj_view_mat, mm, mvpm, mvnm);
-				drawf("-m-m-m",
-					effects.forward.model_matrix, mm,
-					effects.forward.model_view_projection_matrix, mvpm,
-					effects.forward.model_view_normal_matrix, mvnm);
+
+				glUniformMatrix4fv(effects.forward.model_matrix,                 1, true, mm);
+				glUniformMatrix4fv(effects.forward.model_view_projection_matrix, 1, true, mvpm);
+				glUniformMatrix4fv(effects.forward.model_view_normal_matrix,     1, true, mvnm);
+
 				glDrawElements(GL_TRIANGLE_STRIP, t->num_indices, GL_UNSIGNED_INT, NULL);
 				checkErrors("Drew a planet tile");
 
 				//Debug printing to figure out why GPU tiles aren't aligned right.
 				if (key_state[SDL_SCANCODE_4]) {
-					struct instance_attributes *ia = &planet_tile_data[j];
+					struct instance_attributes *ia = &(planet_tile_data[j]);
 
 					for (int k = 0; k < 3; k++) {
 						float clip_coords[3], gpu_clip_coords[3];
@@ -711,23 +719,22 @@ void proc_planet_draw(amat4 eye_frame, float proj_view_mat[16], proc_planet *pla
 						float vpos[3] = {tmp.x, tmp.y, tmp.z};
 
 						bool in_viewport     = point_in_viewport(mvpm, vpos, clip_coords);
-						bool gpu_in_viewport = point_in_viewport(gpu_mvpm, &ia->pos[3*k], gpu_clip_coords);
+						bool gpu_in_viewport = point_in_viewport(gpu_mvpm, ia->pos + 3*k, gpu_clip_coords);
 						uint32_t hashes[2] = {float3_hash(clip_coords, 18) % 230 + 1, float3_hash(gpu_clip_coords, 18) % 230 + 1};
 						//vec3 colors[] = {color_from_float3(clip_coords, 10), color_from_float3(gpu_clip_coords, 10)};
 
-						if (memcmp(clip_coords, gpu_clip_coords, 3 * sizeof(float))) {
-							printf(ANSI_NUMERIC_FCOLOR "%s%2i: % f, % f, % f" ANSI_COLOR_RESET "\n",
-								hashes[0],
-								in_viewport     ? "" : "~", j,     clip_coords[0],     clip_coords[1],     clip_coords[2]);
-							printf(ANSI_NUMERIC_FCOLOR "%s%2i: % f, % f, % f" ANSI_COLOR_RESET "\n",
-								hashes[1],
-								gpu_in_viewport ? "" : "~", j, gpu_clip_coords[0], gpu_clip_coords[1], gpu_clip_coords[2]);
-						}
+						printf(ANSI_NUMERIC_FCOLOR "%s%2i: % f, % f, % f" ANSI_COLOR_RESET "\n",
+							hashes[0],
+							in_viewport     ? "" : "~", j,     clip_coords[0],     clip_coords[1],     clip_coords[2]);
+						printf(ANSI_NUMERIC_FCOLOR "%s%2i: % f, % f, % f" ANSI_COLOR_RESET "\n",
+							hashes[1],
+							gpu_in_viewport ? "" : "~", j, gpu_clip_coords[0], gpu_clip_coords[1], gpu_clip_coords[2]);
 					}
 				}
 			}
 		}
 	}
+	free(planet_tile_data);
 }
 
 struct proc_planet_tile_raycast_context {

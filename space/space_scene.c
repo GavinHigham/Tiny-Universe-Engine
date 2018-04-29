@@ -116,6 +116,7 @@ void entities_init()
 {
 	ship_entity = entity_new(PHYSICAL_BIT | CONTROLLABLE_BIT | DRAWABLE_BIT);
 	ship_entity->Physical->position.t = (vec3){0, 6000 + planet_radius, 0};
+	ship_entity->Physical->position.a.rows[2].z = -1;
 	ship_entity->Physical->origin = (bpos_origin){0, 400, 0};
 	ship_entity->Controllable->control = ship_control;
 	// printf("ship_entity: %p\n", ship_entity);

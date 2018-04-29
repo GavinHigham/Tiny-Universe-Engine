@@ -28,7 +28,6 @@ int main()
 	// config_expose_bool(&buf, &some_bool, "SOME_BOOL");
 	// config_expose_bool(&buf, &some_other_bool, "SOME_OTHER_BOOL");
 	// config_expose_bool(&buf, &some_unchanging_bool, "SOME_UNCHANGING_BOOL");
-
 	config_expose(&buf, &some_other_int, "SOME_OTHER_INT");
 	config_expose(&buf, &some_special_int, "SOME_SPECIAL_INT");
 	config_expose(&buf, &some_float, "SOME_FLOAT");

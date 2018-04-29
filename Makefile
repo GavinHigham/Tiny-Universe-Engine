@@ -1,6 +1,6 @@
 CC 	= gcc
 SDL 	= -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW
-CFLAGS 	= -Wall -c -std=c11 -g -pthread -Iglla -march=native
+CFLAGS 	= -Wall -c -std=c11 -g -pthread -Iglla -march=native -O0
 LDFLAGS	= $(SDL) -llua
 SHADERS	= shaders/*.vs shaders/*.fs shaders/*.gs
 EXE 	= sock

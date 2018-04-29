@@ -36,6 +36,7 @@ void main()
 	vec3 lpos = mix(vpos[0], vpos[1], vlerp.y);
 	vec3 rpos = mix(vpos[0], vpos[2], vlerp.y);
 	vec4 test_pos = vec4(mix(lpos, rpos, vlerp.x), 1);
+
 	vec3 x = normalize(mix(lpos, rpos, vlerp.x));
 	vec4 val = fbm(x);
 	vec3 g = val.xyz;
@@ -52,8 +53,8 @@ void main()
 
 	gl_Position = model_view_projection_matrix * test_pos;//vec4(p,1);//vec4(normalize(position) * pow(tex.r-tex.g, 0.03), 1);
 	gl_Position.z = (log2(max(1e-6, 1.0 + gl_Position.z)) * log_depth_intermediate_factor - 1.0) * gl_Position.w;
-	//TODO: Model-view normal matrix
-	fposition = vec3(model_matrix * test_pos);//vec4(p, 1));
+	//TODO: Model-view normal matrix?
+	fposition = vec3(model_matrix * test_pos);
 	fobj_position = test_pos.xyz+vec3(2);//p + vec3(2);
 }
 
@@ -86,5 +87,5 @@ void main() {
 	//vec3 screen_normal = normalize(cross(dFdy(fposition.xyz), dFdx(fposition.xyz)));
 	vec3 color = triplanar(diffuse_tx, fobj_position.xyz*tex_scale, normal) * max(dot(normal, vec3(1)), 0.0);
 
-	LFragment = vec4(color, 1.0);
+	LFragment = vec4(1.0);//vec4(color, 1.0);
 }
