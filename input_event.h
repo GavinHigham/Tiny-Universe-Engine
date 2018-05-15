@@ -44,6 +44,11 @@ struct controller_axis_input {
 	float rtrigger;
 };
 
+struct mouse_input {
+	Uint32 buttons;
+	int x, y;
+};
+
 void input_event_init();
 void input_event_device_arrival(int which);
 void caxisevent(SDL_Event e);

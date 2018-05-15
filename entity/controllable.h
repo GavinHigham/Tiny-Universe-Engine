@@ -4,7 +4,7 @@
 #include "entity.h"
 #include "../input_event.h"
 
-#define controllable_callback(name) void name(struct controller_axis_input input, bool buttons[16], Entity *entity)
+#define controllable_callback(name) void name(struct controller_axis_input input, bool buttons[16], struct mouse_input mouse, Entity *entity)
 typedef controllable_callback(controllable_callback_fn);
 
 typedef struct controllable_component {

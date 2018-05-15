@@ -6,5 +6,6 @@
 #include "physical.h"
 #include "controllable.h"
 #include "scriptable.h"
+#include "emissive.h"
 
 #endif

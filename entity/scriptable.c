@@ -9,9 +9,9 @@ scriptable_callback(noop_script)
 
 scriptable_callback(camera_script)
 {
-	Physical *camera = entity->Physical;
+	Physical *camera = entity->physical;
 	//This won't work in situations where the ship entity is shuffled around.
-	Physical *ship = ((Entity *)entity->Scriptable->context)->Physical;
+	Physical *ship = ((Entity *)entity->scriptable->context)->physical;
 
 	//float camera_ease = 0.5; //Using dt on this gives a jittery camera.
 	//float target_ease = 0.5;

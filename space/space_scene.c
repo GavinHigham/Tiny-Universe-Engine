@@ -26,6 +26,8 @@
 #include "../space/solar_system.h"
 #include "../glsw_shaders.h"
 
+extern int open_simplex_noise_seed;
+
 SCENE_VTABLE(space);
 float FOV = M_PI/2.7;
 float far_distance = 10000000;
@@ -40,9 +42,9 @@ amat4 inv_eye_frame;
 static amat4 eye_frame = {.a = MAT3_IDENT,  .t = {6, 0, 0}};
 bpos_origin eye_sector = {0, 0, 0};
 //Object frames. Need a better system for this.
-amat4 room_frame = {.a = MAT3_IDENT, .t = {0, -4, -8}};
+amat4 room_frame = {.a = MAT3_IDENT, .t = {  0,  -4,   -8}};
 amat4 grid_frame = {.a = MAT3_IDENT, .t = {-50, -90, -550}};
-amat4 tri_frame  = {.a = MAT3_IDENT, .t = {0, 0, 0}};
+amat4 tri_frame  = {.a = MAT3_IDENT, .t = {  0,   0,    0}};
 bpos_origin room_sector = {0, 0, 0};
 amat4 big_asteroid_frame = {.a = MAT3_IDENT, .t = {0, -4, -20}};
 amat4 skybox_frame; //Set in init_render() and update()
@@ -50,6 +52,7 @@ float skybox_scale;
 vec3 ambient_color = {0.01, 0.01, 0.01};
 vec3 sun_direction = {0.1, 0.8, 0.1};
 vec3 sun_color     = {0.1, 0.8, 0.1};
+vec3 sun_position; // = bpos_remap((bpos){{0,0,0}, ssystem.origin}, eye_sector);
 struct point_light_attributes point_lights = {.num_lights = 0};
 
 
@@ -57,9 +60,10 @@ const float planet_radius = 6000000;
 
 solar_system ssystem;
 
-Entity *ship_entity = NULL;
-Entity *camera_entity = NULL;
-Entity *star_box_entity;
+Entity *ship_entity     = NULL;
+Entity *camera_entity   = NULL;
+Entity *sun_entity      = NULL;
+Entity *star_box_entity = NULL;
 
 GLfloat proj_mat[16];
 GLfloat proj_view_mat[16];
@@ -68,35 +72,8 @@ Drawable d_ship, d_newship, d_teardropship, d_room, d_skybox;
 Entity *entities;
 int16_t nentities;
 
-/*
-//Just a hacky record so that I allocate/free all these properly as I develop this.
-struct drawable_rec {
-	Drawable *drawable;
-	Draw_func draw;
-	EFFECT *effect;
-	amat4 *frame;
-	bpos_origin *sector;
-	int (*buffering_function)(struct buffer_group);
-} drawables[] = {
-	{&d_ship,         draw_forward,        &effects.forward, &ship->Physical->position, &ship->Physical->origin,   buffer_teardropship},
-	{&d_newship,      draw_forward,        &effects.forward, &ship->Physical->position, &ship->Physical->origin,   buffer_newship     },
-	{&d_teardropship, draw_forward,        &effects.forward, &ship->Physical->position, &ship->Physical->origin,   buffer_teardropship},
-	{&d_room,         draw_forward,        &effects.forward, &room_frame,    &room_sector,   buffer_newroom     },
-	{&d_skybox,       draw_skybox_forward, &effects.skybox,  &skybox_frame,  &eye_sector,    buffer_cube        }
-};
-*/
-
-
 static void init_models()
 {
-	//In the future, this function should be called in a loop on all entities with the drawable component.
-	//Maybe configured from some config file?
-	//init_heap_drawable(Drawable *drawable, Draw_func draw, EFFECT *effect, amat4 *frame, int (*buffering_function)(struct buffer_group));
-	// for (int i = 0; i < LENGTH(drawables); i++)
-	// 	init_heap_drawable(drawables[i].drawable, drawables[i].draw, drawables[i].effect, drawables[i].frame, drawables[i].sector, drawables[i].buffering_function);
-
-	//test_planets[0].planet = proc_planet_new(planet_radius, proc_planet_height, test_planets[0].col);
-	//test_planets[1].planet = proc_planet_new(planet_radius * 1.7, proc_planet_height, test_planets[1].col);
 	ssystem = solar_system_new(eye_sector);
 
 	//bpos_split_fix(&ship.position.t, &ship.sector);
@@ -114,30 +91,41 @@ static void deinit_models()
 
 void entities_init()
 {
-	ship_entity = entity_new(PHYSICAL_BIT | CONTROLLABLE_BIT | DRAWABLE_BIT);
-	ship_entity->Physical->position.t = (vec3){0, 6000 + planet_radius, 0};
-	ship_entity->Physical->position.a.rows[2].z = -1;
-	ship_entity->Physical->origin = (bpos_origin){0, 400, 0};
-	ship_entity->Controllable->control = ship_control;
-	// printf("ship_entity: %p\n", ship_entity);
-	// printf("ship_entity->Controllable: %p\n", ship_entity->Controllable);
-	// printf("ship_entity->Controllable->context: %p\n", ship_entity->Controllable->context);
-	//TODO: Init drawable part
+	ship_entity = entity_new();
+	entity_make_physical(ship_entity, (Physical){
+		.position.t = (vec3){0, 6000 + planet_radius, 0},
+		.position.a = {{{-1, 0, 0}, {0, 1, 0}, {0, 0, -1}}}, /* Flip the ship around, because of where the planet seems to be spawning. */
+		.origin = {0, 400, 0},
+	});
 
-	camera_entity = entity_new(PHYSICAL_BIT | CONTROLLABLE_BIT | SCRIPTABLE_BIT);
-	camera_entity->Physical->position.t = (vec3){0, 4, 8};
-	camera_entity->Controllable->control = camera_control;
-	camera_entity->Controllable->context = ship_entity;
-	// printf("camera_entity: %p\n", camera_entity);
-	// printf("camera_entity->Controllable: %p\n", camera_entity->Controllable);
-	// printf("camera_entity->Controllable->context: %p\n", camera_entity->Controllable->context);
+	entity_make_controllable(ship_entity, (Controllable){
+		.control = ship_control,
+	});
 
-	camera_entity->Scriptable->script = camera_script;
-	camera_entity->Scriptable->context = ship_entity;
+	camera_entity = entity_new();
+	entity_make_physical(camera_entity, (Physical){
+		.position.t = {0, 4, 8},
+	});
 
-	star_box_entity = entity_new(SCRIPTABLE_BIT);
-	star_box_entity->Scriptable->script = star_box_script;
-	star_box_entity->Scriptable->context = camera_entity;
+	entity_make_controllable(camera_entity, (Controllable){
+		.control = camera_control,
+		.context = ship_entity,
+	});
+
+	entity_make_scriptable(camera_entity, (Scriptable){
+		.script = camera_script,
+		.context = ship_entity,
+	});
+
+
+	star_box_entity = entity_new();
+	entity_make_scriptable(star_box_entity, (Scriptable){
+		.script = star_box_script,
+		.context = camera_entity,
+	});
+
+	sun_entity = entity_new();
+	entity_make_scriptable(sun_entity, (Scriptable){.script = sun_script});
 }
 
 void entities_deinit()
@@ -169,6 +157,7 @@ void space_scene_resize(float width, float height)
 //Set up everything needed to start rendering frames.
 int space_scene_init()
 {
+	srand(open_simplex_noise_seed);
 	checkErrors("Function enter");
 
 	glsw_shaders_init();
@@ -411,7 +400,7 @@ void space_scene_render()
 	//stars_draw(eye_frame, proj_view_mat);
 	star_box_draw(eye_sector, proj_view_mat);
 
-	debug_graphics.lines.ship_to_planet.start = bpos_remap((bpos){ship_entity->Physical->position.t, ship_entity->Physical->origin}, eye_sector);
+	debug_graphics.lines.ship_to_planet.start = bpos_remap((bpos){ship_entity->physical->position.t, ship_entity->physical->origin}, eye_sector);
 	debug_graphics.lines.ship_to_planet.end   = bpos_remap(ssystem.planet_positions[0], eye_sector);
 	debug_graphics.lines.ship_to_planet.enabled = true;
 	//debug_graphics.points.ship_to_planet_intersection.pos = bpos_remap(intersection, eye_sector);
@@ -421,12 +410,23 @@ void space_scene_render()
 	checkErrors("After forward junk");
 }
 
+scriptable_callback(sun_script)
+{
+	static float sunscale = 50.0;
+	if (key_state[SDL_SCANCODE_EQUALS])
+		sunscale += 0.1;
+	if (key_state[SDL_SCANCODE_MINUS])
+		sunscale -= 0.1;
+	sun_color = ambient_color * sunscale;
+}
+
 //TODO: Move the update function out of the renderer module, come up with a good interface for things that need to be accessed in both.
 void space_scene_update(float dt)
 {
 	static float light_time = 0;
 	light_time += dt * 0.2;
 	point_lights.position[0] = (vec3){10*cos(light_time), 4, 10*sin(light_time)-8};
+	sun_position = bpos_remap((bpos){{0,0,0}, ssystem.origin}, eye_sector);
 
 	//Commented out because I kept hitting y and getting annoyed.
 	// if (key_state[SDL_SCANCODE_Y]) {
@@ -442,16 +442,9 @@ void space_scene_update(float dt)
 	//float ship_altitude = proc_planet_altitude(test_planets[0].planet, ray_start, &intersection);
 	//printf("Current ship altitude to planet 0: %f\n", ship_altitude);
 
-	eye_frame = (amat4){camera_entity->Physical->position.a, amat4_multpoint(ship_entity->Physical->position, camera_entity->Physical->position.t)};
-	eye_sector = ship_entity->Physical->origin;
+	eye_frame = (amat4){camera_entity->physical->position.a, amat4_multpoint(ship_entity->physical->position, camera_entity->physical->position.t)};
+	eye_sector = ship_entity->physical->origin;
 	bpos_split_fix(&eye_frame.t, &eye_sector);
 
 	point_lights.enabled_for_draw[2] = key_state[SDL_SCANCODE_6];
-	
-	static float sunscale = 50.0;
-	if (key_state[SDL_SCANCODE_EQUALS])
-		sunscale += 0.1;
-	if (key_state[SDL_SCANCODE_MINUS])
-		sunscale -= 0.1;
-	sun_color = ambient_color * sunscale;
 }

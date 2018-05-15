@@ -139,7 +139,7 @@ void star_box_update(bpos_origin observer)
 		bpos_origin sbo = star_box.origins[idx];
 		if (memcmp(&sbo, &curr, sizeof(sbo))) {
 			any_changed = true;
-			printf("Replacing box at %i, new origin ", i); qvec3_print(curr); puts("");
+			//printf("Replacing box at %i, new origin ", i); qvec3_print(curr); puts("");
 			//Generate the stars for that star box.
 			star_box.origins[idx] = curr;
 			star_box_generate(star_box.origins[idx], idx);
@@ -149,7 +149,7 @@ void star_box_update(bpos_origin observer)
 	}
 
 	if (any_changed) {
-		printf("Updating stars, new center at "); qvec3_print(center); puts("");
+		//printf("Updating stars, new center at "); qvec3_print(center); puts("");
 	}
 }
 
@@ -205,6 +205,6 @@ void star_box_draw(bpos_origin camera_origin, float proj_view_mat[16])
 
 scriptable_callback(star_box_script)
 {
-	Physical *camera = ((Entity *)entity->Scriptable->context)->Physical;
+	Physical *camera = ((Entity *)entity->scriptable->context)->physical;
 	star_box_update(camera->origin);
 }

@@ -9,7 +9,7 @@ controllable_callback(noop_control)
 
 controllable_callback(ship_control)
 {
-	Physical ship = *entity->Physical;
+	Physical ship = *entity->physical;
 	input = controller_input_apply_threshold(input, 0.005);
 	float speed = 10;
 
@@ -75,18 +75,18 @@ controllable_callback(ship_control)
 	// 	bpos_split_fix(&ship.position.t, &ship.origin);
 	// }
 
-	*entity->Physical = ship;
+	*entity->physical = ship;
 }
 
 controllable_callback(camera_control)
 {
 
 	// puts("1");
-	Physical *camera = entity->Physical;
+	Physical *camera = entity->physical;
 	// puts("2");
 	//printf("%p\n", entity->Controllable);
 	//printf("%p\n", entity->Controllable->context);
-	Physical *ship = ((Entity *)entity->Controllable->context)->Physical;
+	Physical *ship = ((Entity *)entity->controllable->context)->physical;
 	//Translate the camera using WASD.
 	float camera_speed = 0.5;
 	// puts("3");

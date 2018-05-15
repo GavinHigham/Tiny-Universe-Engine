@@ -12,5 +12,6 @@ typedef struct scriptable_component {
 
 scriptable_callback(noop_script);
 scriptable_callback(camera_script);
+scriptable_callback(sun_script); // So I can play with the sun brightness
 
 #endif

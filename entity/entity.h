@@ -39,11 +39,10 @@ if (entity.damagable)
 	
 */
 
-typedef struct drawable_component Drawable;
-typedef struct controllable_component Controllable;
-typedef struct scriptable_component Scriptable;
-typedef struct physical_component Physical;
-typedef struct collidable_component Collidable;
+//Typedef the components.
+#define ENTITY_COMPONENT_DECLARE(Capitalized, uncapitalized, count) typedef struct uncapitalized##_component Capitalized ;
+#include "declared_components.h"
+#undef ENTITY_COMPONENT_DECLARE
 
 enum {
 	DRAWABLE_BIT     = 1,
@@ -55,24 +54,26 @@ enum {
 
 typedef struct entity {
 	unsigned char is_alive : 1;
-	Drawable *Drawable;
-	Physical *Physical;
-	Controllable *Controllable;
-	Scriptable *Scriptable;
-	Collidable *Collidable;
-	//Occludable
-	//Occludent
-	//Parent_transform? Could create a chain of transforms.
+	//Define the components in an entity.
+	#define ENTITY_COMPONENT_DECLARE(Capitalized, uncapitalized, count) Capitalized * uncapitalized ;
+	#include "declared_components.h"
+	#undef ENTITY_COMPONENT_DECLARE
 } Entity;
 
 extern Entity global_entities[512]; //Later this can be an expandable arraylist.
 extern uint16_t num_global_entities;
 
 //Creates a new entity and any associated components specified in component_mask.
-Entity * entity_new(uint16_t component_mask);
+//Entity * entity_new(uint16_t component_mask);
+Entity * entity_new();
 //Deletes an entity and all associated components.
 void entity_delete(Entity *);
 void entity_reset();
 void entity_update_components();
+
+// //Declare functions to attach each component type to an entity.
+#define ENTITY_COMPONENT_DECLARE(Capitalized, uncapitalized, count) void entity_make_##uncapitalized (Entity *entity, Capitalized uncapitalized );
+#include "declared_components.h"
+#undef ENTITY_COMPONENT_DECLARE
 
 #endif

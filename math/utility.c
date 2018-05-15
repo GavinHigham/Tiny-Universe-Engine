@@ -169,6 +169,36 @@ void make_projection_matrix(float fov, float a, float n, float f, float *buf)
 	memcpy(buf, tmp, sizeof(tmp));
 }
 
+//A stupid hash for arrays of floats, so I can color them and distinguish them visually.
+//Keeping these here in case I need them for debugging in the future.
+uint32_t float3_hash(float *f, int precision)
+{
+	float sum = 0;
+	float primes[] = {5, 19, 37, 53};
+	float fprecision = pow(2, precision);
+	for (int i = 0; i < 3; i++)
+		sum = ((int32_t)(sum * fprecision) / fprecision) * primes[i] + f[i];
+	return sum;
+}
+
+//Keeping these here in case I need them for debugging in the future.
+vec3 color_from_position(vec3 position, float scale)
+{
+	position *= scale;
+	float offset = (2/3) * M_PI;
+	return (vec3){
+		255*(sin(position.x)+1)/2,
+		255*(sin(position.y + offset)+1)/2,
+		255*(sin(position.z + 2*offset)+1)/2
+	};
+}
+
+//Keeping these here in case I need them for debugging in the future.
+vec3 color_from_float3(float *f, float scale)
+{
+	return color_from_position((vec3){f[0], f[1], f[2]}, scale);
+}
+
 int checkErrors(char *label)
 {
 	int error = glGetError();
