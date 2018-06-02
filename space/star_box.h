@@ -9,4 +9,7 @@ void star_box_init(bpos_origin observer);
 void star_box_deinit();
 scriptable_callback(star_box_script);
 
+int star_box_find_nearest_star_idx(bpos_origin pt);
+qvec3 star_box_get_star_origin(int star_idx);
+
 #endif

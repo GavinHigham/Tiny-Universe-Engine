@@ -20,21 +20,24 @@ Since each box has a bpos_origin, each star only needs to store its offset from 
 a uniform variable can represent the offset from the camera to the box origin, which is added
 to each star position for the final camera-space star position.
 
-Since a star will only ever be at most 2048 bpos_origins from the center of a star box, a 16-bit
-integer vector will be sufficient for storing each star's position within the box.
+A star will only ever be at most 2048 bpos_origins from the center of a star box, so a 16-bit
+integer vector would be sufficient for storing each star's position within the box.
 
 I am concerned, however, that the distance from the camera to the box origin may be significant,
 enough to incur float-precision issues, which might manifest non-uniformly, revealing the inherent
 axes making up the universe.
 
 I guess I'll just try it and see?
+Epilogue: It worked!
 */
 
 extern float log_depth_intermediate_factor;
 
+//HALF_BOX_SIZE and -HALF_BOX_SIZE need to be representable in an int32_t.
+const int64_t STAR_BOX_SIZE = 67108864;//4294967296; //The width of one edge of a star box, in bpos cell widths.
+const int64_t HALF_BOX_SIZE = STAR_BOX_SIZE / 2;
 enum {
 	//TODO: Consider if I can just keep this small and multiply in the vertex shader.
-	STAR_BOX_SIZE = 67108864, //The width of one edge of a star box, in bpos cell widths.
 	STARS_PER_BOX = 10000, //The number of stars per "star box", of which there are NUM_BOXES.
 	NUM_BOXES = 27,
 	BUCKET_DIVS_PER_AXIS = 16,
@@ -48,40 +51,41 @@ static struct star_box_globals {
 	GLuint         vbos[NUM_BOXES];
 	bpos_origin origins[NUM_BOXES];
 	int32_t       stars[NUM_BOXES*3*STARS_PER_BOX];
-	int start_indices[NUM_BOXES * BUCKETS_PER_BOX];
+	int   start_indices[NUM_BOXES * BUCKETS_PER_BOX];
 } star_box = {
 	{0}
 };
 
-static bpos_origin star_box_truncate_origin(bpos_origin o, int precision)
+static bpos_origin star_box_truncate_origin(bpos_origin o, int64_t precision)
 {
 	//Shift o by half a box width, and mask off some low-order bits.
+	//Will this cause endian-ness errors? (Do I care?)
 	return (o + precision / 2) & ~(precision-1);
 }
 
-static void star_box_generate(bpos_origin o, int index)
+int bucket_idx(int32_t star[3])
 {
-	int w = STAR_BOX_SIZE/2;
-	int d = BUCKET_DIVS_PER_AXIS*STAR_BOX_SIZE;
-	#define STAR_INDEX(s) ((star[0]+w)/d + (star[1]+w)/d*3 + (star[2]+w)/d*9)
-	vec3 c1 = -w;
-	vec3 c2 =  w;
+	int64_t d = STAR_BOX_SIZE/BUCKET_DIVS_PER_AXIS;
+	return ((star[0]+HALF_BOX_SIZE)/d + (star[1]+HALF_BOX_SIZE)/d*3 + (star[2]+HALF_BOX_SIZE)/d*9);
+}
+
+static void star_box_generate(bpos_origin o, int box)
+{
+	vec3 c1 = -HALF_BOX_SIZE;
+	vec3 c2 =  HALF_BOX_SIZE;
 	srand(hash_qvec3(o));
-	int32_t *stars = &star_box.stars[STARS_PER_BOX * 3 * index];
-	int *buckets = &star_box.start_indices[BUCKETS_PER_BOX * index];
+	int32_t *stars = &star_box.stars[STARS_PER_BOX * 3 * box];
+	int *buckets = &star_box.start_indices[BUCKETS_PER_BOX * box];
 	//The number of stars in each bucket
 	int bucket_counts[BUCKETS_PER_BOX] = {0};
 
-	//Create stars on stack? Or static buffer maybe.
 	for (int i = 0; i < STARS_PER_BOX; i++) {
-		//TODO: Create the stars in an ordered way.
-		//I want to be able to query them by location.
 		vec3 v = rand_box_vec3(c1, c2);
 		int32_t *star = &stars[3*i];
 		star[0] = v.x; star[1] = v.y; star[2] = v.z;
 		//memcpy(star, &v, STAR_SIZE);
 		//Increment bucket, each bucket holds the number of stars it contains.
-		bucket_counts[STAR_INDEX(star)]++;
+		bucket_counts[bucket_idx(star)]++;
 	}
 
 	//Make each bucket store its start index
@@ -96,12 +100,12 @@ static void star_box_generate(bpos_origin o, int index)
 	int32_t star[3] = {stars[0], stars[1], stars[2]};
 	for (int i = 0; i < STARS_PER_BOX; i++) {
 		//Find where it goes.
-		int idx = STAR_INDEX(star);
-		if (idx < 0 || idx >= BUCKETS_PER_BOX)
+		int bucket = bucket_idx(star);
+		if (bucket < 0 || bucket >= BUCKETS_PER_BOX)
 			printf("Index bad for star with position {%i, %i, %i}", star[0], star[1], star[2]);
-		assert(idx < BUCKETS_PER_BOX);
-		assert(idx >= 0);
-		int32_t *dest = &stars[buckets[idx] + bucket_counts[idx]--];
+		assert(bucket < BUCKETS_PER_BOX);
+		assert(bucket >= 0);
+		int32_t *dest = &stars[buckets[bucket] + bucket_counts[bucket]--];
 		//Save the contents of dest
 		int32_t tmp_star[3];
 		memcpy(tmp_star, dest, STAR_SIZE);
@@ -121,6 +125,79 @@ static int idx_from_pt(bpos_origin pt)
 	}
 	return idx.x + idx.y * 3 + idx.z * 9;
 }
+
+void bucket_from_pt(bpos_origin pt, int *box, int *bucket)
+{
+	*box = idx_from_pt(star_box_truncate_origin(pt, STAR_BOX_SIZE));
+	qvec3 tmp = pt - star_box.origins[*box]; //pt relative to box origin.
+	*bucket = bucket_idx((int32_t[3]){tmp.x, tmp.y, tmp.z});
+}
+
+static void nearest_star_in_bucket(int *buckets, int bucket, ivec3 pt, int *star_idx, float *closest_dist)
+{
+	for (int i = buckets[bucket]; i < buckets[bucket+1]; i += 3) {
+		float star_dist = ivec3_distf(pt, star_box.stars[i]);
+		if (star_dist < *closest_dist) {
+			*closest_dist = star_dist;
+			*star_idx = i;
+		}
+	}
+}
+
+//Make this slow and branchy at first, can optimize later.
+int star_box_find_nearest_star_idx(bpos_origin pt)
+{
+	/*
+	We start by searching b, the bucket p falls into, finding the nearest s.
+	Construct a sphere centered around p, just large enough to touch s.
+	Any bucket b' that the sphere intersects must be searched as well, as there
+	could be a nearer star in b'.
+
+	Let a = (s - p).
+	For each cardinal direction d,
+		Let p' = |a|d + p. If p' lies in a different bucket, search that bucket.
+	For each corner of b, c, let d = (c - p)/|c - p|.
+		Let p' = |a|d + p. If p' lies in a different bucket, search that bucket.
+	*/
+
+	ivec3 ipt = {VEC3_COORDS(pt)};
+	int box, bucket, spill_box, spill_bucket, star_idx = -1;
+	float closest_dist = INFINITY;
+	bucket_from_pt(pt, &box, &bucket);
+	int *buckets = &star_box.start_indices[BUCKETS_PER_BOX * box];
+	nearest_star_in_bucket(buckets, bucket, ipt, &star_idx, &closest_dist);
+	printf("Box: %i, bucket: %i\n", box, bucket);
+
+	qvec3 cardinals[] = {
+		{ 0,  0,  1},
+		{ 0,  1,  0},
+		{ 1,  0,  0},
+		{ 0,  0, -1},
+		{ 0, -1,  0},
+		{-1,  0,  0}
+	};
+
+	for (int i = 0; i < LENGTH(cardinals); i++) {
+		bucket_from_pt(pt + cardinals[i]*(int64_t)closest_dist, &spill_box, &spill_bucket);
+		if (spill_bucket == bucket && spill_box == box)
+			continue;
+
+		int *spill_buckets = &star_box.start_indices[BUCKETS_PER_BOX * spill_box];
+		nearest_star_in_bucket(spill_buckets, spill_bucket, ipt, &star_idx, &closest_dist);
+	}
+
+	return star_idx;
+}
+
+#if 0
+qvec3 star_box_get_star_origin(int star_idx)
+{
+	//Find the box index given the star index
+	//Look up the star box origin
+	//Add the star to the origin and return
+	int32_t *s = &star_box.stars[star_idx];
+}
+#endif
 
 /*
 Find the star box for the observer position.

@@ -59,6 +59,7 @@ struct point_light_attributes point_lights = {.num_lights = 0};
 const float planet_radius = 6000000;
 
 solar_system ssystem;
+qvec3 solar_system_origin;
 
 Entity *ship_entity     = NULL;
 Entity *camera_entity   = NULL;
@@ -408,6 +409,57 @@ void space_scene_render()
 	//debug_graphics_draw(eye_frame, proj_view_mat);
 
 	checkErrors("After forward junk");
+}
+
+//Collect these in a camera module?
+controllable_callback(camera_control)
+{
+
+	// puts("1");
+	Physical *camera = entity->physical;
+	// puts("2");
+	//printf("%p\n", entity->Controllable);
+	//printf("%p\n", entity->Controllable->context);
+	Physical *ship = ((Entity *)entity->controllable->context)->physical;
+	//Translate the camera using WASD.
+	float camera_speed = 0.5;
+	// puts("3");
+	camera->position.t = camera->position.t + //Honestly I just tried things at random until it worked, but here's my guess:
+		mat3_multvec(mat3_transp(ship->position.a), // 2) Convert those coordinates from world-space to ship-space.
+			mat3_multvec(camera->position.a, (vec3){ // 1) Move relative to the frame pointed at the ship.
+			(key_state[SDL_SCANCODE_D] - key_state[SDL_SCANCODE_A]) * camera_speed,
+			(key_state[SDL_SCANCODE_Q] - key_state[SDL_SCANCODE_E]) * camera_speed,
+			(key_state[SDL_SCANCODE_S] - key_state[SDL_SCANCODE_W]) * camera_speed}));
+	// puts("4");
+
+	if (key_state[SDL_SCANCODE_8]) {
+		int nearest_star_idx = star_box_find_nearest_star_idx(camera->origin);
+		printf("Camera at "); qvec3_print(camera->origin); printf(", nearest star is %i.\n", nearest_star_idx);
+	}
+}
+
+scriptable_callback(camera_script)
+{
+	Physical *camera = entity->physical;
+	//This won't work in situations where the ship entity is shuffled around.
+	Physical *ship = ((Entity *)entity->scriptable->context)->physical;
+
+	//float camera_ease = 0.5; //Using dt on this gives a jittery camera.
+	//float target_ease = 0.5;
+	//ship.eased_camera.t       = amat4_multvec(ship.velocity, ship.eased_camera.t);
+	// ship.eased_camera.t      = vec3_lerp(ship.eased_camera.t,      ship.locked_camera.t,      camera_ease);
+	// ship.eased_camera_target = vec3_lerp(ship.eased_camera_target, ship.locked_camera_target, target_ease);
+
+	//The eye should look from itself to a point in front of the ship, and its "up" should be "up" from the ship's orientation.
+	// ship.eased_camera.a = mat3_lookat(
+	// 	mat3_multvec(ship.position.a, ship.eased_camera.t),
+	// 	mat3_multvec(ship.position.a, ship.eased_camera_target),
+	// 	mat3_multvec(ship.position.a, (vec3){0, 1, 0}));
+	camera->origin = ship->origin;
+	camera->position.a = mat3_lookat(
+		mat3_multvec(ship->position.a, camera->position.t) + mat3_multvec(ship->position.a, ship->position.t), //Look source, relative to ship.
+		mat3_multvec(ship->position.a, ship->position.t), //Look target (ship), relative to ship.
+		mat3_multvec(ship->position.a, (vec3){0, 1, 0})); //Up vector, relative to ship.
 }
 
 scriptable_callback(sun_script)
