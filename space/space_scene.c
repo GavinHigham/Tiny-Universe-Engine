@@ -25,11 +25,12 @@
 #include "../debug_graphics.h"
 #include "../space/solar_system.h"
 #include "../glsw_shaders.h"
+#include "../configuration/lua_configuration.h"
 
 extern int open_simplex_noise_seed;
 
 SCENE_VTABLE(space);
-float FOV = M_PI/2.7;
+float FOV = M_PI/2;// M_PI/2.7;
 float far_distance = 10000000;
 float near_distance = 1;
 float log_depth_intermediate_factor = NAN; //Needs to be set in init.
@@ -58,8 +59,10 @@ struct point_light_attributes point_lights = {.num_lights = 0};
 
 const float planet_radius = 6000000;
 
-solar_system ssystem;
+solar_system ssystem = {0};
 qvec3 solar_system_origin;
+bool gen_solar_systems = false;
+int64_t solar_system_star = 0;
 
 Entity *ship_entity     = NULL;
 Entity *camera_entity   = NULL;
@@ -73,22 +76,8 @@ Drawable d_ship, d_newship, d_teardropship, d_room, d_skybox;
 Entity *entities;
 int16_t nentities;
 
-static void init_models()
-{
-	ssystem = solar_system_new(eye_sector);
-
-	//bpos_split_fix(&ship.position.t, &ship.sector);
-}
-
-static void deinit_models()
-{
-	// for (int i = 0; i < LENGTH(drawables); i++)
-	// 	deinit_drawable(drawables[i].drawable);
-	solar_system_free(ssystem);
-
-	//for (int i = 0; i < LENGTH(test_planets); i++)
-		//proc_planet_free(test_planets[i].planet);
-}
+/* Lua Config */
+extern lua_State *L;
 
 void entities_init()
 {
@@ -184,8 +173,6 @@ int space_scene_init()
 
 	entities_init();
 	checkErrors("Entities");
-	init_models();
-	checkErrors("Models");
 	init_lights();
 	checkErrors("Lights");
 	//stars_init();
@@ -195,6 +182,8 @@ int space_scene_init()
 	debug_graphics_init();
 	checkErrors("Init debug_graphics");
 	proc_planet_init();
+	ssystem = solar_system_new(eye_sector);
+	solar_system_star = 0;
 
 
 	glUseProgram(effects.forward.handle);
@@ -220,14 +209,19 @@ int space_scene_init()
 	glUseProgram(0);
 	checkErrors("After init_render");
 
+	gen_solar_systems = getglobbool(L, "gen_solar_systems", false);
+
 	return 0;
 }
 
 void space_scene_deinit()
 {
-	deinit_models();
+	solar_system_free(ssystem);
+	solar_system_star = 0;
 	//stars_deinit();
 	proc_planet_deinit();
+	star_box_deinit();
+	debug_graphics_deinit();
 	point_lights.num_lights = 0;
 	entities_deinit();
 }
@@ -399,7 +393,8 @@ void space_scene_render()
 	skybox_frame.t = eye_frame.t;
 	//draw_drawable(&d_skybox);
 	//stars_draw(eye_frame, proj_view_mat);
-	star_box_draw(eye_sector, proj_view_mat);
+	//star_box_draw(eye_sector, proj_view_mat);
+	star_box_draw((bpos_origin){0,0,0}, proj_view_mat);
 
 	debug_graphics.lines.ship_to_planet.start = bpos_remap((bpos){ship_entity->physical->position.t, ship_entity->physical->origin}, eye_sector);
 	debug_graphics.lines.ship_to_planet.end   = bpos_remap(ssystem.planet_positions[0], eye_sector);
@@ -433,8 +428,21 @@ controllable_callback(camera_control)
 	// puts("4");
 
 	if (key_state[SDL_SCANCODE_8]) {
-		int nearest_star_idx = star_box_find_nearest_star_idx(camera->origin);
-		printf("Camera at "); qvec3_print(camera->origin); printf(", nearest star is %i.\n", nearest_star_idx);
+		double dist = 0;
+		int nearest_star_idx = star_box_find_nearest_star_idx(camera->origin, &dist);
+		printf("Camera at "); qvec3_print(camera->origin); printf(", nearest star is %i, distance %f.\n", nearest_star_idx, dist);
+	}
+
+	//Hacking this together, should put in the right spot later.
+	if (gen_solar_systems) {
+		double dist = INFINITY;
+		int64_t nearest_star_idx = star_box_find_nearest_star_idx(camera->origin, &dist);
+		if (solar_system_star != nearest_star_idx) {
+			solar_system_free(ssystem);
+			ssystem = solar_system_new(eye_sector);
+			solar_system_star = nearest_star_idx;
+			solar_system_origin = star_box_get_star_origin(nearest_star_idx);
+		}
 	}
 }
 
@@ -497,6 +505,7 @@ void space_scene_update(float dt)
 	eye_frame = (amat4){camera_entity->physical->position.a, amat4_multpoint(ship_entity->physical->position, camera_entity->physical->position.t)};
 	eye_sector = ship_entity->physical->origin;
 	bpos_split_fix(&eye_frame.t, &eye_sector);
+
 
 	point_lights.enabled_for_draw[2] = key_state[SDL_SCANCODE_6];
 }

@@ -87,8 +87,8 @@ int proctri_scene_init()
 	glswAddDirectiveToken("glsl330", "#version 330");
 
 	GLuint shader[] = {
-		glsw_shader_from_keys(GL_VERTEX_SHADER, "versions.glsl330", "common.noise.GL33", "experimental.vertex.GL33"),
-		glsw_shader_from_keys(GL_FRAGMENT_SHADER, "versions.glsl330", "common.noise.GL33", "experimental.fragment.GL33"),
+		glsw_shader_from_keys(GL_VERTEX_SHADER, "versions.glsl330", "common.noise.GL33", "proctri.vertex.GL33"),
+		glsw_shader_from_keys(GL_FRAGMENT_SHADER, "versions.glsl330", "common.noise.GL33", "proctri.fragment.GL33"),
 	};
 	SHADER = glsw_new_shader_program(shader, LENGTH(shader));
 	glswShutdown();

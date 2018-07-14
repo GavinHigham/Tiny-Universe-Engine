@@ -29,7 +29,7 @@ solar_system solar_system_new(bpos_origin o)
 	solar_system s = {
 		.seed = seed,
 		.origin = o,
-		.num_planets = 1,//frand(&seed) * SOLAR_SYSTEM_MAX_PLANETS,
+		.num_planets = 1//frand(&seed) * SOLAR_SYSTEM_MAX_PLANETS,
 	};
 	element_get_random_set(s.elements, SOLAR_SYSTEM_MAX_ELEMENTS);
 
@@ -59,6 +59,7 @@ solar_system solar_system_new(bpos_origin o)
 		s.planet_positions[i].origin = p;
 		//Later I might use this if I want the planets to actually move slowly following an orbit.
 		s.planet_positions[i].offset = (vec3){0,0,0};
+		s.planet_positions[i].origin += s.origin;
 		qvec3_print(s.planet_positions[i].origin); puts("");
 	}
 

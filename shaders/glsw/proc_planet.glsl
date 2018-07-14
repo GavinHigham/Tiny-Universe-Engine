@@ -71,7 +71,7 @@ in vec3 fnormal;
 in vec3 surface_position;
 
 out vec4 LFragment;
-uniform float tex_scale = 700000;
+uniform float tex_scale = 7000;
 uniform vec3 light_pos;
 uniform vec3 light_col;
 uniform vec3 eye_pos;
@@ -100,8 +100,10 @@ void main() {
 	//vec3 screen_normal = normalize(cross(dFdy(fposition.xyz), dFdx(fposition.xyz)));
 	float specular = 1, diffuse = 1;
 	point_light_fresnel(normalize(light_pos - fposition), normalize(eye_pos - fposition), normal, specular, diffuse);
-	vec3 color = texture(diffuse_tx, ftx).xyz;
-	//vec3 color = triplanar(diffuse_tx, surface_position*tex_scale, normal);
+	//vec3 color = texture(diffuse_tx, ftx).xyz;
+	vec3 color = mix(
+		triplanar(diffuse_tx, normalize(surface_position)*tex_scale, normal),
+		triplanar(diffuse_tx, normalize(surface_position)*tex_scale*10, normal), 0.5);
 	color = color * light_col * diffuse + light_col * specular;
 
 	//Tone mapping
@@ -109,5 +111,5 @@ void main() {
 	//Gamma correction.
 	float gamma = 2.2;
 	color = pow(color, vec3(1.0 / gamma));
-	LFragment = vec4(color*(normal+1.0), 1.0);
+	LFragment = vec4(color, 1.0);
 }

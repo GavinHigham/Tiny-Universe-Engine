@@ -13,9 +13,12 @@
 #include "init.h"
 #include "math/utility.h"
 #include "input_event.h"
+
 #include "space/space_scene.h"
 #include "experiments/icosphere_scene.h"
 #include "experiments/proctri_scene.h"
+#include "experiments/twotri_scene.h"
+
 #include "default_settings.h"
 #include "configuration/lua_configuration.h"
 
@@ -123,8 +126,10 @@ int main()
 
 	if (!strcmp(default_scene, "space_scene"))
 		scene_set(&space_scene);
-	else
+	else if (!strcmp(default_scene, "proctri_scene"))
 		scene_set(&proctri_scene);
+	else if (!strcmp(default_scene, "twotri_scene"))
+		scene_set(&twotri_scene);
 	scene_resize(screen_width, screen_height);
 
 	SDL_AddEventWatch(quit_event, &quit);

@@ -86,6 +86,7 @@ tri_tile * tri_tile_new(const struct tri_tile_big_vertex big_vertices[3])
 	return t;
 }
 
+//TODO(Gavin): Split this into tile data, mesh generation, and OpenGL setup functions.
 //Creates storage for the positions, normals, and colors, as well as OpenGL handles.
 //Should be freed by the caller, using tri_tile_free.
 tri_tile * tri_tile_init(tri_tile *t, qvec3 offset, int num_rows, void (finishing_touches)(tri_tile *, void *), void *finishing_touches_context)

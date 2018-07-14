@@ -286,7 +286,7 @@ static void tri_tile_split(tri_tile *t, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS]
 	for (int i = 0; i < DEFAULT_NUM_TRI_TILE_DIVS; i++) {
 		out[i] = tri_tile_new(new_tile_vertices[i]);
 		tri_tile_init(out[i], t->offset, PROC_PLANET_NUM_TILE_ROWS, t->finishing_touches, t->finishing_touches_context);
-		tri_tile_buffer(out[i]);
+		//tri_tile_buffer(out[i]);
 	}
 
 	printf("Dividing %p.\n", t);

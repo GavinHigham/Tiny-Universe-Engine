@@ -66,5 +66,6 @@ size_t gettmpglobstr(lua_State *L, const char *var, const char *d, char *buf)
 	if (buf && result)
 		strcpy(buf, result);
 	lua_pop(L, 1);
+	//BUG(Gavin): Doesn't this use a string after it has already been popped?
 	return result ? 0 : strlen(result) + 1;
 }
