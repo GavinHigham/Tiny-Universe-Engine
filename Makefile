@@ -14,6 +14,7 @@ include entity/entity.mk
 include glsw/glsw.mk
 include space/space.mk
 include experiments/experiments.mk
+include trackball/trackball.mk
 
 all: $(OBJECTS) #ceffectpp/ceffectpp
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(EXE)

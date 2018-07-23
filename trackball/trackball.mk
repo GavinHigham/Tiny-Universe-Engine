@@ -1,0 +1,2 @@
+OBJECTS += \
+	trackball/trackball.o

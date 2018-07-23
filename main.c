@@ -130,6 +130,8 @@ int main()
 		scene_set(&proctri_scene);
 	else if (!strcmp(default_scene, "twotri_scene"))
 		scene_set(&twotri_scene);
+	else if (!strcmp(default_scene, "icosphere_scene"))
+		scene_set(&icosphere_scene);
 	scene_resize(screen_width, screen_height);
 
 	SDL_AddEventWatch(quit_event, &quit);

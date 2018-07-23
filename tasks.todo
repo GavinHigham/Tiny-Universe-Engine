@@ -1,0 +1,48 @@
+Things to add:
+  ☐ More parameters to planet
+    ☐ Radius
+    ☐ Mass
+
+  ☐ Actual sun
+  ☐ Atmosphere
+  ☐ Surface details including
+    ☐ Color
+    ☐ Roughness
+    ☐ Metalness?
+
+  ☐ Surface trees
+  ☐ Surface collision
+
+  ☐ Frustrum culling
+
+Ideas:
+  ☐ Voronoi-based continents
+  ☐ Random-walk based continents / rivers
+  ☐ Subdivide denauley-triangulation of voronoi to produce interesting mesh?
+  ☐ Add voronoi points to increase samples?
+  ☐ Graph-based diffusion-limited aggregation, to determine the ridgelines of mountains (can I fill in the intermediate areas?)
+  ☐ Use noise function to determine "bumpiness" over the surface, increase sample points in bumpy areas.
+  ☐ Use tiling textures instead of noise functions. Can use GitHub tool to generate them, or alter the simplex noise implementation to wrap where I expect it.
+    ✔ Try triplanar texturing @done (18-07-16 22:42)
+
+Various:
+  ☐ Implement a simple form of scheduling for the tree subdivision and buffering.
+  ☐ Add some simple texturing
+  ☐ Implement ping-pong frame buffer blur / bloom
+  ☐ Limit max speed on ship, implement non-realistic but fun control
+  ☐ Sky simulation
+  ☐ Asteroid impact simulation
+
+  ☐ Try lifting single verts on a terrain piece and making them green for simple forest stand-in? Could be combined with a simple directional blur or distortion to disguise the trick.
+
+  ☐ Cloud layers using alpha-transparent dynamic mesh spheres
+
+  ☐ Refresh my memory on OpenGL streaming best-practices
+
+  ☐ Clouds defined as 3D density function, draw by 3D-dithering, then blue noise and temporal antialiasing
+
+  ☐ Re-work camera controls
+
+  ☐ Model pre-process should determine what type each mesh is, and possibly generate missing data if needed.
+
+  ☐ Raymarch galaxies

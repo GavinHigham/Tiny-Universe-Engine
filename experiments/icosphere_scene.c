@@ -6,6 +6,7 @@
 #include "../math/utility.h"
 #include "../drawf.h"
 #include "../input_event.h"
+#include "../trackball/trackball.h"
 
 #include <glla.h>
 #include <GL/glew.h>
@@ -15,6 +16,7 @@
 /* Implementing scene "interface" */
 SCENE_IMPLEMENT(icosphere);
 static GLuint load_gl_texture(char *path);
+static struct trackball icosphere_trackball;
 
 static SDL_Surface *test_surface = NULL;
 static float screen_width = 640, screen_height = 480;
@@ -121,7 +123,10 @@ int icosphere_scene_init()
 	glBindVertexArray(0);
 
 	/* For rotating the icosahedron */
-	SDL_SetRelativeMouseMode(true);
+	//SDL_SetRelativeMouseMode(true);
+	icosphere_trackball = trackball_new(ico_frame.t, 3);
+	trackball_set_speed(&icosphere_trackball, 1.0/50.0, 1.0/200.0);
+	trackball_set_bounds(&icosphere_trackball, M_PI / 3.0, M_PI / 3.0, INFINITY, INFINITY);
 
 	test_gl_tx = load_gl_texture("grass.png");
 
@@ -156,7 +161,8 @@ void icosphere_scene_update(float dt)
 		key_state[SDL_SCANCODE_S] - key_state[SDL_SCANCODE_W],
 	} * 0.15;
 	
-	SDL_GetMouseState(&mouse_x, &mouse_y);
+	Uint32 buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
+	trackball_step(&icosphere_trackball, mouse_x, mouse_y, buttons & SDL_BUTTON(SDL_BUTTON_LEFT));
 }
 
 void icosphere_scene_render()
@@ -178,10 +184,12 @@ void icosphere_scene_render()
 		float c2 = cos(4*mouse_x/screen_width);
 		mat3 xrot = mat3_rotmat(1, 0, 0, s1, c1);
 		mat3 yrot = mat3_rotmat(0, 1, 0, s2, c2);
-		amat4 rot_model_frame = {mat3_mult(mat3_mult(ico_frame.a, yrot), xrot), ico_frame.t};
+		//amat4 rot_model_frame = {mat3_mult(mat3_mult(ico_frame.a, yrot), xrot), ico_frame.t};
+		amat4 rot_model_frame = {MAT3_IDENT, ico_frame.t};
 		amat4_to_array(rot_model_frame, model_mat);
 		
-		inv_eye_frame = amat4_inverse(eye_frame);
+		//inv_eye_frame = amat4_inverse(eye_frame);
+		inv_eye_frame = amat4_inverse(icosphere_trackball.camera);
 		float tmp[16];
 		amat4_to_array(inv_eye_frame, tmp);
 		amat4_buf_mult(proj_mat, tmp, proj_view_mat);
