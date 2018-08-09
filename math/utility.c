@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <stdbool.h>
 #include <string.h>
 #include <GL/glew.h>
 #include <SDL2/SDL.h>
@@ -226,4 +227,39 @@ SDL_Texture * load_texture(char *image_path) {
 
 	SDL_FreeSurface(loaded_surface);
 	return loaded_texture;
+}
+
+GLuint load_gl_texture(char *path)
+{
+	GLuint texture = 0;
+	SDL_Surface *surface = IMG_Load(path);
+	GLenum texture_format;
+	if (!surface) {
+		printf("Texture %s could not be loaded.\n", path);
+		return 0;
+	}
+
+	// Get the number of channels in the SDL surface.
+	int num_colors = surface->format->BytesPerPixel;
+	bool rgb = surface->format->Rmask == 0x000000ff;
+	if (num_colors == 4) {
+		texture_format = rgb ? GL_RGBA : GL_BGRA;
+	} else if (num_colors == 3) {
+		texture_format = rgb ? GL_RGB : GL_BGR;
+	} else {
+		printf("Image does not have at least 3 color channels.\n");
+		goto error;
+	}
+
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	SDL_LockSurface(surface);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, surface->w, surface->h, 0, texture_format, GL_UNSIGNED_BYTE, surface->pixels);
+	SDL_UnlockSurface(surface);
+
+error:
+	SDL_FreeSurface(surface);
+	return texture;
 }

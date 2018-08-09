@@ -2,9 +2,9 @@
 #include <stdbool.h>
 #include "drawable.h"
 #include "glla.h"
-#include "../effects.h"
-#include "../math/bpos.h"
-#include "../buffer_group.h"
+#include "effects.h"
+#include "math/bpos.h"
+#include "buffer_group.h"
 
 extern bpos_origin eye_sector;
 

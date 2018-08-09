@@ -46,6 +46,7 @@ int SDLCALL quit_event(void *userdata, SDL_Event *e)
 
 void drain_event_queue()
 {
+	mousewheelreset();
 	SDL_Event e;
 	while (SDL_PollEvent(&e)) { //Exhaust our event queue before updating and rendering
 		switch (e.type) {
@@ -55,6 +56,7 @@ void drain_event_queue()
 		case SDL_JOYAXISMOTION:         jaxisevent(e); break;
 		case SDL_JOYBUTTONDOWN:         jbuttonevent(e); break;
 		case SDL_JOYBUTTONUP:           jbuttonevent(e); break;
+		case SDL_MOUSEWHEEL:			mousewheelevent(e); break;
 		case SDL_CONTROLLERDEVICEADDED: //Fall-through
 		case SDL_JOYDEVICEADDED:        input_event_device_arrival(e.jdevice.which); break;
 		case SDL_WINDOWEVENT:

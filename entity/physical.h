@@ -1,7 +1,7 @@
 #ifndef PHYSICAL_H
 #define PHYSICAL_H
 #include "glla.h"
-#include "../math/bpos.h"
+#include "math/bpos.h"
 
 typedef struct physical_component {
 	float bounding_sphere; //Stored as radius squared, centered on position.t

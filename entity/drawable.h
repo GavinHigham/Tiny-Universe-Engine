@@ -5,7 +5,7 @@
 #include "glla.h"
 #include "../effects.h"
 #include "../buffer_group.h"
-#include "../math/bpos.h"
+#include "math/bpos.h"
 
 /*
 A drawable component should encapsulate the following:

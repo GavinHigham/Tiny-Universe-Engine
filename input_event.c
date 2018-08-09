@@ -8,6 +8,8 @@
 
 extern SDL_Window *window;
 const Uint8 *key_state = NULL;
+SDL_Event input_mouse_wheel_sum;
+
 extern int loop_iter_ave;
 extern void reload_effects_void_wrapper();
 Sint16 axes[NUM_HANDLED_AXES] = {0};
@@ -165,3 +167,19 @@ struct controller_axis_input controller_input_apply_threshold(struct controller_
 	input.righty = fabs(input.righty) > threshold ? input.righty : 0;
 	return input;
 }
+
+void mousewheelevent(SDL_Event e)
+{
+	//Huge hack. Just add all scroll amounts within a frame, and reset on update.
+	Sint32 prev_x = input_mouse_wheel_sum.wheel.x, prev_y = input_mouse_wheel_sum.wheel.y;
+	input_mouse_wheel_sum = e;
+	input_mouse_wheel_sum.wheel.x += prev_x;
+	input_mouse_wheel_sum.wheel.y += prev_y;
+}
+
+void mousewheelreset()
+{
+	input_mouse_wheel_sum.wheel.x = 0;
+	input_mouse_wheel_sum.wheel.y = 0;
+}
+

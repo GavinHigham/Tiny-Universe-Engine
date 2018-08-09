@@ -1,14 +1,13 @@
 #include "proctri_scene.h"
-#include "../scene.h"
-#include "../glsw/glsw.h"
-#include "../glsw_shaders.h"
-#include "../macros.h"
-#include "../math/utility.h"
-#include "../drawf.h"
-#include "../math/utility.h"
-#include "../input_event.h"
-#include "../space/triangular_terrain_tile.h"
-#include "../configuration/lua_configuration.h"
+#include "scene.h"
+#include "glsw/glsw.h"
+#include "glsw_shaders.h"
+#include "macros.h"
+#include "drawf.h"
+#include "math/utility.h"
+#include "input_event.h"
+#include "space/triangular_terrain_tile.h"
+#include "configuration/lua_configuration.h"
 
 #include <glla.h>
 #include <GL/glew.h>
@@ -21,7 +20,6 @@
 /* Implementing scene "interface" */
 
 SCENE_IMPLEMENT(proctri);
-GLuint load_gl_texture(char *path);
 int get_tri_lerp_vals(float *lerps, int num_rows);
 
 static float screen_width = 640, screen_height = 480;
@@ -260,41 +258,6 @@ void proctri_scene_render()
 	checkErrors("After instanced draw");
 
 	glBindVertexArray(0);
-}
-
-GLuint load_gl_texture(char *path)
-{
-	GLuint texture = 0;
-	SDL_Surface *surface = IMG_Load(path);
-	GLenum texture_format;
-	if (!surface) {
-		printf("Texture %s could not be loaded.\n", path);
-		return 0;
-	}
-
-	// Get the number of channels in the SDL surface.
-	int num_colors = surface->format->BytesPerPixel;
-	bool rgb = surface->format->Rmask == 0x000000ff;
-	if (num_colors == 4) {
-		texture_format = rgb ? GL_RGBA : GL_BGRA;
-	} else if (num_colors == 3) {
-		texture_format = rgb ? GL_RGB : GL_BGR;
-	} else {
-		printf("Image does not have at least 3 color channels.\n");
-		goto error;
-	}
-
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_2D, texture);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	SDL_LockSurface(surface);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, surface->w, surface->h, 0, texture_format, GL_UNSIGNED_BYTE, surface->pixels);
-	SDL_UnlockSurface(surface);
-
-error:
-	SDL_FreeSurface(surface);
-	return texture;
 }
 
 int get_tri_lerp_vals(float *lerps, int num_rows)

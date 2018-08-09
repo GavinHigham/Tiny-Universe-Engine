@@ -1,8 +1,8 @@
 #include "glla.h"
-#include "../macros.h"
-#include "../effects.h"
-#include "../math/utility.h"
-#include "../math/bpos.h"
+#include "macros.h"
+#include "effects.h"
+#include "math/utility.h"
+#include "math/bpos.h"
 #include <GL/glew.h>
 #include <math.h>
 #include <stdlib.h>

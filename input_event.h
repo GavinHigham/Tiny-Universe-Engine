@@ -5,6 +5,7 @@
 #include <stdbool.h>
 
 extern const Uint8 *key_state;
+extern SDL_Event input_mouse_wheel_sum;
 
 enum {
 	LEFTX,
@@ -54,6 +55,8 @@ void input_event_device_arrival(int which);
 void caxisevent(SDL_Event e);
 void jaxisevent(SDL_Event e);
 void jbuttonevent(SDL_Event e);
+void mousewheelevent(SDL_Event e);
+void mousewheelreset();
 void keyevent(SDL_Keysym keysym, SDL_EventType type);
 struct controller_axis_input controller_input_apply_threshold(struct controller_axis_input input, float threshold);
 

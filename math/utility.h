@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <SDL2/SDL.h>
 #include <SDL2_image/SDL_image.h>
+#include <gl/glew.h>
 
 // printf colors
 #define ANSI_COLOR_RED     "\x1b[31m"
@@ -86,5 +87,6 @@ void make_projection_matrix(float fov, float a, float n, float f, float *buf);
 int checkErrors(char *label);
 
 SDL_Texture * load_texture(char *image_path);
+GLuint load_gl_texture(char *path);
 
 #endif

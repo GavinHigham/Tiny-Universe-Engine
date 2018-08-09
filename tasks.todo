@@ -14,6 +14,18 @@ Things to add:
   ☐ Surface collision
 
   ☐ Frustrum culling
+  ☐ Quad-drawing module, for UI stuff and billboards.
+
+Cleanup:
+  ☐ Add to the include paths in each .mk file, so I can make my include statements shorter.
+  ☐ Clean up and modernize the erosion code
+  ☐ Replace "buffer_group" with some sort of mesh representation, which has configurable vertex channels, and can dump to interleaved or separate VBOs
+  ☐ Move stray files from root directory into folders
+  ☐ Move to a src / bin style?
+  ☐ Remove old configuration file code (but stash it away somewhere for reference)
+  ☐ While dragging a meter, should not affect trackball (even if mouse is no longer within meter)
+  ☐ Tidy meter module
+  ☐ Break text rendering into its own module
 
 Ideas:
   ☐ Voronoi-based continents

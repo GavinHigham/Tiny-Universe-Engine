@@ -1,0 +1,2 @@
+OBJECTS += \
+	meter/meter.o

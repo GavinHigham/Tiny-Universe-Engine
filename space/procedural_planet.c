@@ -1,19 +1,18 @@
 #include "procedural_planet.h"
-#include "../quadtree.h"
-#include "../math/geometry.h"
-#include "../math/utility.h"
-#include "../macros.h"
-#include "../input_event.h" //For controller hotkeys
-#include "../open-simplex-noise-in-c/open-simplex-noise.h"
-#include "../configuration/lua_configuration.h"
+#include "quadtree.h"
+#include "math/geometry.h"
+#include "math/utility.h"
+#include "macros.h"
+#include "input_event.h" //For controller hotkeys
+#include "open-simplex-noise-in-c/open-simplex-noise.h"
+#include "configuration/lua_configuration.h"
 #include "element.h"
-#include "../draw.h"
-#include "../drawf.h" //For draw planets
-#include "../effects.h"
-#include "../math/utility.h"
-#include "../glsw/glsw.h"
-#include "../glsw_shaders.h"
-#include "../debug_graphics.h"
+#include "draw.h"
+#include "drawf.h" //For draw planets
+#include "effects.h"
+#include "glsw/glsw.h"
+#include "glsw_shaders.h"
+#include "debug_graphics.h"
 #include <GL/glew.h>
 #include <stdio.h>
 #include <stdlib.h>

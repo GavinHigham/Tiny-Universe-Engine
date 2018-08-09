@@ -1,9 +1,9 @@
 CC 	= gcc
-SDL 	= -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW
-CFLAGS 	= -Wall -c -std=c11 -g -pthread -Iglla #-march=native -O3
-LDFLAGS	= $(SDL) -llua
-SHADERS	= shaders/*.vs shaders/*.fs shaders/*.gs
-EXE 	= sock
+SDL 	 = -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW
+INCLUDES = -Iglla -I$(CURDIR)
+LDFLAGS	 = $(SDL) -llua
+SHADERS	 = shaders/*.vs shaders/*.fs shaders/*.gs
+EXE 	 = sock
 
 #Module includes append to OBJECTS and define other custom rules.
 include root.mk
@@ -15,7 +15,9 @@ include glsw/glsw.mk
 include space/space.mk
 include experiments/experiments.mk
 include trackball/trackball.mk
+include meter/meter.mk
 
+CFLAGS 	= -Wall -c -std=c11 -g -pthread $(INCLUDES) #-march=native -O3
 all: $(OBJECTS) #ceffectpp/ceffectpp
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(EXE)
 
@@ -23,7 +25,7 @@ all: $(OBJECTS) #ceffectpp/ceffectpp
 include models/Makefile
 
 .depend:
-	gcc -M -Iglla $(**/.c) *.c > .depend #Generate dependencies from all .c files, searching recursively.
+	gcc -M $(INCLUDES) $(**/.c) *.c > .depend #Generate dependencies from all .c files, searching recursively.
 
 effects.c: $(SHADERS) effects.h #ceffectpp/ceffectpp
 	ceffectpp/ceffectpp -c $(SHADERS) > effects.c

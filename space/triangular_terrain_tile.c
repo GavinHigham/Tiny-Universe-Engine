@@ -1,9 +1,9 @@
 #include "triangular_terrain_tile.h"
 #include "space_scene.h"
-#include "../macros.h"
-#include "../mesh.h"
-#include "../math/utility.h"
-#include "../math/geometry.h"
+#include "macros.h"
+#include "mesh.h"
+#include "math/utility.h"
+#include "math/geometry.h"
 #include "procedural_planet.h"
 #include <stdio.h>
 #include <stdlib.h>

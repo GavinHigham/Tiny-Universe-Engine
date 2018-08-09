@@ -22,24 +22,27 @@ to the trackball. I may handle that later, but for now it's outside the scope of
 struct trackball {
 	amat4 camera;
 	vec3 target, rotation, speed, prev_rotation;
-	float radius;
+	float radius, min_radius, max_radius;
 	struct {
 		float top, bottom, left, right;
 	} bounds;
 	struct {
 		bool button;
 		int x, y;
+		struct {
+			int x, y;
+		} scroll;
 	} mouse;
 };
 
 struct trackball trackball_new(vec3 target, float radius);
 
 void trackball_set_target(struct trackball *t, vec3 target);
-void trackball_set_radius(struct trackball *t, float r);
-void trackball_set_speed(struct trackball *t, float horizontal, float vertical);
+void trackball_set_radius(struct trackball *t, float r, float min_r, float max_r);
+void trackball_set_speed(struct trackball *t, float horizontal, float vertical, float zoom);
 //Radians that the trackball can rotate to the top, bottom, left, or right.
 //Values greater than 2pi assume no limits. Recommended to keep top and bottom < pi/2.
 void trackball_set_bounds(struct trackball *t, float top, float bottom, float left, float right);
-void trackball_step(struct trackball *t, int mouse_x, int mouse_y, bool button);
+void trackball_step(struct trackball *t, int mouse_x, int mouse_y, bool button, int scroll_x, int scroll_y);
 
 #endif
