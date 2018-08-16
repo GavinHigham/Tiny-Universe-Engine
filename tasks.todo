@@ -26,6 +26,7 @@ Cleanup:
   ☐ While dragging a meter, should not affect trackball (even if mouse is no longer within meter)
   ☐ Tidy meter module
   ☐ Break text rendering into its own module
+  ☐ Make quadtree and octree intrusive, to reduce allocations.
 
 Ideas:
   ☐ Voronoi-based continents

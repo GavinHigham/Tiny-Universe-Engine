@@ -67,7 +67,8 @@ Optional functions, maybe add later:
 enum meter_state {
 	METER_CLICK_ENDED = 0,
 	METER_CLICK_STARTED = 1,
-	METER_DRAGGED = 2
+	METER_DRAGGED = 2,
+	METER_CLICK_STARTED_OUTSIDE = 3
 };
 
 typedef void (*meter_callback_fn)(char *name, enum meter_state state, float value, void *context);
@@ -98,7 +99,7 @@ int meter_get_value(char *name, float *value);
 //Delete an existing meter.
 int meter_delete(char *name);
 //Inform the meter module of current mouse state. Should be done in update function.
-//Returns 1 if any meter was clicked.
+//Returns 1 if any meter was clicked, returns 2 if any meter is being dragged.
 int meter_mouse(float x, float y, bool mouse_down);
 //Draw all meters.
 int meter_draw_all();

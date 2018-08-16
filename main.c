@@ -19,7 +19,6 @@
 #include "experiments/proctri_scene.h"
 #include "experiments/twotri_scene.h"
 
-#include "default_settings.h"
 #include "configuration/lua_configuration.h"
 
 static const int MS_PER_SECOND = 1000;
@@ -102,11 +101,11 @@ int main()
 
 	window = SDL_CreateWindow(
 		screen_title,
-		WINDOW_OFFSET_X,
-		WINDOW_OFFSET_Y,
+		SDL_WINDOWPOS_UNDEFINED,
+		SDL_WINDOWPOS_UNDEFINED,
 		screen_width,
 		screen_height,
-		WINDOW_FLAGS);
+		SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
 	free(screen_title);
 
@@ -141,7 +140,7 @@ int main()
 	if (fullscreen)
 		SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
 
-	windowID = SDL_GetWindowID(window);
+	// windowID = SDL_GetWindowID(window);
 	Uint32 last_swap_timestamp = SDL_GetTicks();
 	int loop_iter = 0;
 	while (!quit) { //Loop until quit

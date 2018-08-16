@@ -43,6 +43,7 @@ void trackball_set_speed(struct trackball *t, float horizontal, float vertical, 
 //Radians that the trackball can rotate to the top, bottom, left, or right.
 //Values greater than 2pi assume no limits. Recommended to keep top and bottom < pi/2.
 void trackball_set_bounds(struct trackball *t, float top, float bottom, float left, float right);
-void trackball_step(struct trackball *t, int mouse_x, int mouse_y, bool button, int scroll_x, int scroll_y);
+//Returns 1 if the trackball was turned.
+int trackball_step(struct trackball *t, int mouse_x, int mouse_y, bool button, int scroll_x, int scroll_y);
 
 #endif

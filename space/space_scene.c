@@ -3,7 +3,6 @@
 #include "scene.h"
 #include "models/models.h"
 #include "input_event.h"
-#include "default_settings.h"
 #include "buffer_group.h"
 //#include "experiments/deferred_framebuffer.h"
 #include "lights.h"

@@ -6,7 +6,6 @@
 //#include <SDL2/SDL_opengl.h>
 #include <SDL2_image/SDL_image.h>
 #include "init.h"
-#include "default_settings.h"
 #include "effects.h"
 #include "shader_utils.h"
 #include "math/utility.h"

@@ -14,10 +14,10 @@ void main()
 
 uniform vec2 iResolution;
 uniform vec4 iMouse;
-uniform float iTime;
+uniform vec2 iTime;
 uniform float iFocalLength;
 uniform float brightness = 1.0;
-uniform int samples = 10;//64;
+uniform int samples = 5;
 uniform float render_dist = 100.0;
 uniform vec3 spiral_origin = vec3(0.0);
 uniform vec3 eye_pos = vec3(0.0);
@@ -27,7 +27,9 @@ uniform float rotation = 500.0;
 in vec2 position; 
 out vec4 LFragment;
 
-//#define NOISE
+const float phi = 1.61803398874989; //Golden ratio
+
+#define NOISE
 
 vec2 rot(vec2 a, float c, float s)
 {
@@ -37,17 +39,23 @@ vec2 rot(vec2 a, float c, float s)
 float spiral(vec3 p, float d, float c, float s)
 {
 	//Domain transformation about y-axis of spiral_origin
-	vec3 rp = p;
+	vec3 rp = p - spiral_origin;
+	rp.xz = rot(rp.xz, c, s);
+	// rp.y = 0;
+	return clamp(pow(dot(normalize(p - spiral_origin), normalize(rp)), 16.0), 0, 1);
+
 	// rp.xz = rot(p.xz, c, s);
-	rp.xz = rot(p.xz - spiral_origin.xz, c, s);// + spiral_origin.xz;
-	float y = rp.y - spiral_origin.y;
+	// rp.xz = rot(p.xz - spiral_origin.xz, c, s);// + spiral_origin.xz;
+	// rp.y = 0.0;
+	// return 1 - dot(rp, p);
+	// float y = rp.y - spiral_origin.y;
 	// float y = rp.y;
-	float x = rp.z/sqrt(10+rp.x*rp.x/16);
-	float v = smoothstep(5.0, 0.5, x*x + y*y);
+	// float x = rp.z/sqrt(10+rp.x*rp.x/16);
+	// float v = smoothstep(5.0, 0.5, x*x + y*y);
 	// if (v > 0.01) {
 	// 	v *= snoise(p/4.0);
 	// }
-	return v;
+	//return v;
 }
 
 vec3 color_ramp(float v)
@@ -79,16 +87,22 @@ void main() {
 		vec3 color = vec3(0.0);
 
 #ifdef NOISE
-		vec3 noise_step = step * snoise(ray_start * 10.0);
+		// vec3 noise_step = step * snoise(ray_start * 10.0 * iTime.x);
+		vec3 noise_step = step * fract(snoise(ray_start * 10.0) + phi * iTime.y);
 		ray_start += noise_step;
 		dist += length(noise_step);
+
+#else
+		float golden_step = mod(phi * iTime.y * step_dist, step_dist) / step_dist;
+		ray_start += golden_step * step;
+		dist += golden_step;
 #endif
 
 		for (int i = 0; i < samples && dist < render_dist; i++, dist += step_dist) {
 			vec3 p = ray_start + step * i;
 			float d = distance(p, spiral_origin);
 			// float r = d/2.0;
-			float r = 1/d * rotation - iTime;
+			float r = 1/d * rotation;// - iTime;
 			float c = cos(r), s = sin(r);
 			float density = spiral(p, d, c, s);
 			sum += density;
@@ -103,4 +117,17 @@ void main() {
 			//color_ramp( sum * iMouse.x ),
 		1.0);
 	}
+}
+
+-- deferred.GL33 --
+uniform vec2 iResolution;
+uniform sampler2D accum_buffer;
+uniform int num_frames_accum = 1;
+
+in vec2 position; 
+out vec4 LFragment;
+
+void main() {
+	vec2 tx_coord = gl_FragCoord.xy / iResolution;
+	LFragment = vec4(texture(accum_buffer, tx_coord).xyz / float(num_frames_accum), 1.0);
 }

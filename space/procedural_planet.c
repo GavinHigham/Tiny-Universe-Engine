@@ -1,5 +1,5 @@
 #include "procedural_planet.h"
-#include "quadtree.h"
+#include "datastructures/quadtree.h"
 #include "math/geometry.h"
 #include "math/utility.h"
 #include "macros.h"

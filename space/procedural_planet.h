@@ -2,7 +2,7 @@
 #define PROCEDURAL_PLANET_H
 #include "glla.h"
 //#include "dynamic_terrain_tree.h"
-#include "quadtree.h"
+#include "datastructures/quadtree.h"
 #include "triangular_terrain_tile.h"
 #include "terrain_constants.h"
 #include "math/bpos.h"

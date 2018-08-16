@@ -10,7 +10,6 @@ OBJECTS += \
 	open-simplex-noise-in-c/open-simplex-noise.o \
 	effects.o \
 	glla/glla.o \
-	quadtree.o \
 	mesh.o \
 	state_machine.o \
 	glsw_shaders.o \

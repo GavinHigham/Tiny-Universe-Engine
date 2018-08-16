@@ -3,11 +3,15 @@
 #include "glsw_shaders.h"
 #include "macros.h"
 #include "math/utility.h"
+#include "configuration/lua_configuration.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <GL/glew.h>
+
+/* Lua Config */
+extern lua_State *L;
 
 struct meter {
 	char *name;
@@ -177,6 +181,9 @@ static int meter_OpenGL_init()
 	glswSetPath("shaders/glsw/", ".glsl");
 	glswAddDirectiveToken("GL33", "#version 330");
 
+	char texture_path[gettmpglobstr(L, "meter_font", "4x7.png", NULL)];
+	                  gettmpglobstr(L, "meter_font", "4x7.png", texture_path);
+
 	GLuint shader[] = {
 		glsw_shader_from_keys(GL_VERTEX_SHADER, "meter.vertex.GL33"),
 		glsw_shader_from_keys(GL_FRAGMENT_SHADER, "meter.fragment.GL33"),
@@ -206,8 +213,7 @@ static int meter_OpenGL_init()
 	glVertexAttribPointer(meter.ogl.col_attr, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct meter_vertex), (void *)offsetof(struct meter_vertex, color));
 
 	//TODO(Gavin) Load these from a font configuration file.
-	meter.ogl.font_tex = load_gl_texture("4x7.png");//load_gl_texture("grass.png");
-	//printf("\n%i\n\n", meter.ogl.font_tex);
+	meter.ogl.font_tex = load_gl_texture(texture_path);
 	meter.font.width = 6;
 	meter.font.height = 12;
 
@@ -237,7 +243,6 @@ static int meter_check_enclosing(struct meter *m, float x, float y)
 	return x >= m->x && y >= m->y && x <= (m->x + m->width) && y <= (m->y + m->height);
 }
 
-//Find the first meter that encloses x and y.
 static int meter_find_enclosing(float x, float y)
 {
 	for (int i = 0; i < meter.num_meters; i++)
@@ -265,7 +270,6 @@ static void meter_update(struct meter *m, float value)
 		m->callback(m->name, meter.state, m->value, m->callback_context);
 }
 
-//Add a new meter. Returns 0 on success.
 int meter_add(char *name, float width, float height, float min, float value, float max)
 {
 	if (meter.num_meters >= meter.max_meters)
@@ -292,7 +296,6 @@ int meter_add(char *name, float width, float height, float min, float value, flo
 	return 0;
 }
 
-//Change an existing meter. Returns 0 on success.
 int meter_change(char *name, float width, float height, float min, float max, float value)
 {
 	METER_GET_INDEX_OR_RET_ERROR(name, mi)
@@ -307,7 +310,6 @@ int meter_change(char *name, float width, float height, float min, float max, fl
 	return 0;
 }
 
-//Move an existing meter to position x, y. Not relative to current position.
 int meter_position(char *name, float x, float y)
 {
 	METER_GET_INDEX_OR_RET_ERROR(name, mi)
@@ -317,12 +319,6 @@ int meter_position(char *name, float x, float y)
 	return 0;
 }
 
-//Set a callback to be called when an existing meter is clicked, dragged, or released.
-//Callback arguments:
-// name: name of the meter.
-// drag_state: Enum telling if callback was called on click start, drag, or click end.
-// value: current value of the meter.
-// context: the same context that was provided to meter_callback(...) on callback registration.
 int meter_callback(char *name, meter_callback_fn callback, void *context)
 {
 	METER_GET_INDEX_OR_RET_ERROR(name, mi)
@@ -342,7 +338,6 @@ int meter_target(char *name, float *target)
 	return 0;
 }
 
-//Add a new meter with the same characteristics as an existing meter.
 int meter_duplicate(char *name, char *duplicate_name)
 {
 	METER_GET_INDEX_OR_RET_ERROR(name, mi)
@@ -352,7 +347,6 @@ int meter_duplicate(char *name, char *duplicate_name)
 	return 0;
 }
 
-//Change the style of an existing meter.
 int meter_style(char *name, unsigned char fill_color[4], unsigned char border_color[4], unsigned char font_color[4], float padding)
 {
 	METER_GET_INDEX_OR_RET_ERROR(name, mi)
@@ -363,7 +357,6 @@ int meter_style(char *name, unsigned char fill_color[4], unsigned char border_co
 	return 0;
 }
 
-//Return the internal value of an existing meter, or 0 on error.
 float meter_get(char *name)
 {
 	int mi = meter_get_index(name);
@@ -373,7 +366,6 @@ float meter_get(char *name)
 	return meter.meters[mi].value;
 }
 
-//Fill value with the internal value of an existing meter.
 int meter_get_value(char *name, float *value)
 {
 	METER_GET_INDEX_OR_RET_ERROR(name, mi)
@@ -382,7 +374,6 @@ int meter_get_value(char *name, float *value)
 	return 0;
 }
 
-//Delete an existing meter.
 int meter_delete(char *name)
 {
 	METER_GET_INDEX_OR_RET_ERROR(name, mi)
@@ -395,8 +386,6 @@ int meter_delete(char *name)
 	return 0;
 }
 
-//Inform the meter module of current mouse state. Should be done in update function.
-//Returns 1 if any meter was clicked.
 int meter_mouse(float x, float y, bool mouse_down)
 {
 	if (meter.state == METER_CLICK_STARTED || meter.state == METER_DRAGGED) {
@@ -422,11 +411,15 @@ int meter_mouse(float x, float y, bool mouse_down)
 		value = fmax(m->min, fmin(value, m->max));
 		meter_update(m, value);
 		printf("Meter dragged, set to %f\n", m->value);
+		if (METER_DRAGGED)
+			return 2;
 	} else if (meter.state == METER_CLICK_ENDED) {
 		if (mouse_down) {
 			int mi = meter_find_enclosing(x, y);
-			if (mi < 0)
+			if (mi < 0) {
+				meter.state = METER_CLICK_STARTED_OUTSIDE;
 				return 0;
+			}
 
 			meter.state = METER_CLICK_STARTED;
 			struct meter *m = &meter.meters[mi];
@@ -436,14 +429,15 @@ int meter_mouse(float x, float y, bool mouse_down)
 
 			//Pass a different value if I want absolute instead of relative sliding.
 			meter_update(m, m->value);
-		} else {
-			//Do nothing.
+			return 1;
 		}
+	} else if (meter.state == METER_CLICK_STARTED_OUTSIDE) {
+		if (!mouse_down)
+			meter.state = METER_CLICK_ENDED;
 	}
 	return 0;
 }
 
-//Draw all meters.
 int meter_draw_all()
 {
 	return meter_OpenGL_draw_all();
@@ -471,26 +465,12 @@ int meter_init(float screen_width, float screen_height, unsigned int max_num_met
 		goto error;
 	}
 
-	// //TODO(Gavin): Tweak these, position these
-	// meter_add("Font Width", 100, 20, 0.0, 6.0, 100.0);
-	// meter_callback("Font Width", meter_glyph_meter_callback, &meter.font.width);
-	// // meter_target("Font Width", &meter.font.width);
-	// meter_style("Font Width", (unsigned char[]){79, 79, 207, 255}, (unsigned char[]){47, 47, 95, 255}, (unsigned char[]){255, 255, 255, 255}, 2.0);
-	// meter_position("Font Width", 5.0, 70.0);
-
-	// meter_add("Font Height", 100, 20, 0.0, 12.0, 100.0);
-	// // meter_target("Font Height", &meter.font.height);
-	// meter_callback("Font Height", meter_glyph_meter_callback, &meter.font.height);
-	// meter_style("Font Height", (unsigned char[]){79, 79, 207, 255}, (unsigned char[]){47, 47, 95, 255}, (unsigned char[]){255, 255, 255, 255}, 2.0);
-	// meter_position("Font Height", 5.0, 95.0);
-
 	return 0;
 error:
 	printf("Error initializing meter.\n");
 	return -1;
 }
 
-//Deinit the meter system.
 int meter_deinit()
 {
 	for (int i = 0; i < meter.num_meters; i++)
@@ -501,7 +481,6 @@ int meter_deinit()
 	return 0;
 }
 
-//Inform the meter module of a screen resize.
 int meter_resize_screen(float screen_width, float screen_height)
 {
 	meter.screen_width = screen_width;
