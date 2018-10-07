@@ -45,6 +45,11 @@ float frand(int *seed)
 	return res.f - 1.0f;
 }
 
+float fclamp(float value, float min, float max)
+{
+	return fmin(fmax(value, min), max);
+}
+
 vec3 rand_bunched_point3d_in_sphere(vec3 origin, float radius)
 {
 	radius = pow(rand_float(), 4) * radius; //Distribute stars within the sphere, not on the outside.

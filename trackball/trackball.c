@@ -1,4 +1,5 @@
 #include "trackball.h"
+#include "math/utility.h"
 #include <math.h>
 #include <stdio.h>
 
@@ -52,8 +53,8 @@ void trackball_set_bounds(struct trackball *t, float top, float bottom, float le
 static void trackball_update(struct trackball *t)
 {
 	float r = t->radius;
-	float x = fmax(fmin(t->rotation.x, t->bounds.right), -t->bounds.left);
-	float y = fmax(fmin(t->rotation.y, t->bounds.top), -t->bounds.bottom);
+	float x = fclamp(t->rotation.x, -t->bounds.left, t->bounds.right);
+	float y = fclamp(t->rotation.y, -t->bounds.bottom, t->bounds.top);
 	// float x = t->rotation.x;
 	// float y = t->rotation.y;
 	//A is a position on the horizontal ring around the target.
@@ -65,7 +66,7 @@ static void trackball_update(struct trackball *t)
 
 int trackball_step(struct trackball *t, int mouse_x, int mouse_y, bool button, int scroll_x, int scroll_y)
 {
-	t->radius = fmax(fmin(t->radius + scroll_y * t->speed.z, t->max_radius), t->min_radius);
+	t->radius = fclamp(t->radius + scroll_y * t->speed.z, t->min_radius, t->max_radius);
 	if (t->mouse.button) {
 		if (button) {
 //DRAG CONTINUE

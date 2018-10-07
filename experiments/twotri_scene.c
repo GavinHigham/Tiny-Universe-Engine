@@ -10,6 +10,7 @@
 #include "configuration/lua_configuration.h"
 #include "trackball/trackball.h"
 #include "meter/meter.h"
+#include "meter/meter_ogl_renderer.h"
 #include "deferred_framebuffer.h"
 
 #include <glla.h>
@@ -27,7 +28,10 @@ static int mouse_x = 0, mouse_y = 0;
 static struct trackball twotri_trackball;
 static struct color_buffer cbuffer;
 static bool clear_accum = false;
-static int accum_frames = 1;
+static int accum_frames = 0;
+static float tweaks[8] = {1, 1, 1, 1};
+int max_accum_frames = 180;
+bool accumulate = true;
 
 /* Lua Config */
 extern lua_State *L;
@@ -35,11 +39,22 @@ extern lua_State *L;
 /* OpenGL Variables */
 
 static GLint POS_ATTR = 1;
-static GLuint SHADER, VAO, VBO, RESOLUTION_UNIF, MOUSE_UNIF, TIME_UNIF, FOCAL_UNIF, DIR_UNIF, EYE_UNIF, BRIGHT_UNIF, ROTATION_UNIF;
-static GLuint DSHADER, DRESOLUTION_UNIF, DAB_UNIF, DNFRAMES_UNIF;
+struct {
+	GLuint RESOLUTION, MOUSE, TIME, FOCAL, DIR, EYE, BRIGHT, ROTATION, TWEAKS, TWEAKS2, BULGE;
+	GLuint DRESOLUTION, DAB, DNFRAMES;
+} UNIF;
+static GLuint SHADER, DSHADER, VAO, VBO;
 GLfloat vertices[] = {-1, -1, 1, -1, -1, 1, 1, 1};
 float g_brightness;
 float g_rotation;
+float g_bulge_height;
+float g_bulge_width;
+float g_bulge_mask_radius;
+
+void meter_clear_accum_callback(char *name, enum meter_state state, float value, void *context)
+{
+	clear_accum = true;
+}
 
 int twotri_scene_init()
 {
@@ -73,20 +88,24 @@ int twotri_scene_init()
 
 	/* Retrieve uniform variable handles */
 
-	RESOLUTION_UNIF  = glGetUniformLocation(SHADER, "iResolution");
-	MOUSE_UNIF       = glGetUniformLocation(SHADER, "iMouse");
-	TIME_UNIF        = glGetUniformLocation(SHADER, "iTime");
-	FOCAL_UNIF       = glGetUniformLocation(SHADER, "iFocalLength");
-	DIR_UNIF         = glGetUniformLocation(SHADER, "dir_mat");
-	EYE_UNIF         = glGetUniformLocation(SHADER, "eye_pos");
-	BRIGHT_UNIF      = glGetUniformLocation(SHADER, "brightness");
-	ROTATION_UNIF    = glGetUniformLocation(SHADER, "rotation");
-	DRESOLUTION_UNIF = glGetUniformLocation(DSHADER, "iResolution");
-	DAB_UNIF         = glGetUniformLocation(DSHADER, "cbuffer");
-	DNFRAMES_UNIF    = glGetUniformLocation(DSHADER, "num_frames_accum");
+	UNIF.RESOLUTION  = glGetUniformLocation(SHADER, "iResolution");
+	UNIF.MOUSE       = glGetUniformLocation(SHADER, "iMouse");
+	UNIF.TIME        = glGetUniformLocation(SHADER, "iTime");
+	UNIF.FOCAL       = glGetUniformLocation(SHADER, "iFocalLength");
+	UNIF.DIR         = glGetUniformLocation(SHADER, "dir_mat");
+	UNIF.EYE         = glGetUniformLocation(SHADER, "eye_pos");
+	UNIF.BRIGHT      = glGetUniformLocation(SHADER, "brightness");
+	UNIF.ROTATION    = glGetUniformLocation(SHADER, "rotation");
+	UNIF.TWEAKS      = glGetUniformLocation(SHADER, "tweaks");
+	UNIF.TWEAKS2     = glGetUniformLocation(SHADER, "tweaks2");
+	UNIF.BULGE       = glGetUniformLocation(SHADER, "bulge");
+
+	UNIF.DRESOLUTION = glGetUniformLocation(DSHADER, "iResolution");
+	UNIF.DAB         = glGetUniformLocation(DSHADER, "cbuffer");
+	UNIF.DNFRAMES    = glGetUniformLocation(DSHADER, "num_frames_accum");
 	checkErrors("After getting uniform handles");
 	glUseProgram(SHADER);
-	glUniform1f(FOCAL_UNIF, 1.0/tan(FOV/2.0));
+	glUniform1f(UNIF.FOCAL, 1.0/tan(FOV/2.0));
 
 	/* Vertex data */
 
@@ -118,20 +137,75 @@ int twotri_scene_init()
 	trackball_set_bounds(&twotri_trackball, M_PI/2.0 - 0.0001, M_PI/2.0 - 0.0001, INFINITY, INFINITY);
 
 	/* Set up meter module */
-	meter_init(screen_width, screen_height, 20);
-	{
-		meter_add("Brightness", 100, 20, 0.0, 5.0, 100.0);
-		meter_target("Brightness", &g_brightness);
-		meter_position("Brightness", 5.0, 25.0);
+	float y_offset = 25.0;
+	meter_init(screen_width, screen_height, 20, meter_ogl_renderer);
+	struct widget_meter_style wstyles = {.width = 200, .height = 20, .padding = 2.0};
+	struct widget_meter_color tweak_colors = {.fill = {79, 150, 167, 255}, .border = {37, 95, 65, 255}, .font = {255, 255, 255, 255}};
+	struct widget_meter_color bulge_colors = {.fill = {179, 95, 107, 255}, .border = {37, 95, 65, 255}, .font = {255, 255, 255, 255}};
+	widget_meter widgets[] = {
+		{
+			.name = "Brightness", .x = 5.0, .y = 0, .min = 0.0, .max = 100.0, .value = getglob(L, "spiral_brightness", 5.0),
+			.callback = meter_clear_accum_callback, .target = &g_brightness, 
+			.style = wstyles, .color = {.fill = {187, 187, 187, 255}, .border = {95, 95, 95, 255}, .font = {255, 255, 255}}
+		},
+		{
+			.name = "Rotation", .x = 5.0, .y = 0, .min = 0.0, .max = 1000.0, .value = getglob(L, "spiral_rotation", 400.0),
+			.callback = meter_clear_accum_callback, .target = &g_rotation,
+			.style = wstyles, .color = {.fill = {79, 79, 207, 255}, .border = {47, 47, 95, 255}, .font = {255, 255, 255, 255}}
+		},
+		{
+			.name = "Noise Scale", .x = 5.0, .y = 0, .min = 0.0, .max = 50.0, .value = getglob(L,"noise_scale", 9.0),
+			.callback = meter_clear_accum_callback, .target = &tweaks[0],
+			.style = wstyles, .color = tweak_colors
+		},
+		{
+			.name = "Noise Influence", .x = 5.0, .y = 0, .min = 0.0, .max = 50.0, .value = getglob(L,"noise_influence", 9.0),
+			.callback = meter_clear_accum_callback, .target = &tweaks[1],
+			.style = wstyles, .color = tweak_colors
+		},
+		{
+			.name = "Light Step Distance", .x = 5.0, .y = 0, .min = -10.0, .max = 10.0, .value = getglob(L,"light_step_distance", 2.0),
+			.callback = meter_clear_accum_callback, .target = &tweaks[3],
+			.style = wstyles, .color = tweak_colors
+		},
+		{
+			.name = "Diffuse Intensity", .x = 5.0, .y = 0, .min = 0.000001, .max = 1.0, .value = getglob(L,"diffuse_intensity", 1.0),
+			.callback = meter_clear_accum_callback, .target = &tweaks[4],
+			.style = wstyles, .color = tweak_colors
+		},
+		{
+			.name = "Bulge Mask Radius", .x = 5.0, .y = 0, .min = 0.0, .max = 50.0, .value = getglob(L,"bulge_mask_radius", 9.0),
+			.callback = meter_clear_accum_callback, .target = &g_bulge_mask_radius,
+			.style = wstyles, .color = bulge_colors
+		},
+		{
+			.name = "Bulge Height", .x = 5.0, .y = 0, .min = 0.0, .max = 50.0, .value = getglob(L,"bulge_height", 20.0),
+			.callback = meter_clear_accum_callback, .target = &g_bulge_height,
+			.style = wstyles, .color = bulge_colors
+		},
+		{
+			.name = "Bulge Width", .x = 5.0, .y = 0, .min = 0.0, .max = 50.0, .value = getglob(L,"bulge_width", 10.0),
+			.callback = meter_clear_accum_callback, .target = &g_bulge_width,
+			.style = wstyles, .color = bulge_colors
+		},
+		{
+			.name = "Spiral Density", .x = 5.0, .y = 0, .min = 0.0, .max = 50.0, .value = getglob(L,"spiral_density", 9.0),
+			.callback = meter_clear_accum_callback, .target = &tweaks[2],
+			.style = wstyles, .color = tweak_colors
+		},
+	};
+	for (int i = 0; i < LENGTH(widgets); i++) {
+		widget_meter *w = &widgets[i];
+		meter_add(w->name, w->style.width, w->style.height, w->min, w->value, w->max);
+		meter_target(w->name, w->target);
+		meter_position(w->name, w->x, w->y + y_offset);
+		meter_callback(w->name, w->callback, w->callback_context);
+		meter_style(w->name, w->color.fill, w->color.border, w->color.font, w->style.padding);
+		y_offset += 25;
 	}
-	{
-		meter_add("Rotation", 150, 15, 0.0, 500.0, 1000.0);
-		meter_target("Rotation", &g_rotation);
-		meter_style("Rotation", (unsigned char[]){79, 79, 207, 255}, (unsigned char[]){47, 47, 95, 255}, (unsigned char[]){255, 255, 255, 255}, 2.0);
-		meter_position("Rotation", 5.0, 50.0);
-	}
-
-	accum_frames = 1;
+	accum_frames = 0;
+	max_accum_frames = getglob(L, "max_accum_frames", 180);
+	accumulate = getglobbool(L, "accumulate", true);
 
 	return 0;
 }
@@ -189,31 +263,34 @@ void twotri_scene_render()
 	{
 		float dir_mat[9];
 		mat3_to_array_cm(twotri_trackball.camera.a, dir_mat);
-		glUniformMatrix3fv(DIR_UNIF, 1, GL_FALSE, dir_mat);
+		glUniformMatrix3fv(UNIF.DIR, 1, GL_FALSE, dir_mat);
 		checkErrors("After sending dir_mat");
-		glUniform3f(EYE_UNIF, VEC3_COORDS(twotri_trackball.camera.t));
+		glUniform3f(UNIF.EYE, VEC3_COORDS(twotri_trackball.camera.t));
 	}
 
 	// Draw to accumulation buffer.
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, cbuffer.fbo);
-	if (clear_accum) {
+	if (clear_accum || !accumulate) {
 		clear_accum = false;
 		accum_frames = 0;
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 	}
 
-	if (accum_frames < 180) {
-		glUniform1f(ROTATION_UNIF, g_rotation);
-		glUniform1f(BRIGHT_UNIF, g_brightness);
-		glUniform2f(TIME_UNIF, SDL_GetTicks() / 1000.0, accum_frames);
-		glUniform2f(RESOLUTION_UNIF, screen_width, screen_height);
-		glUniform4f(MOUSE_UNIF, mouse_x, mouse_y, 0, 0);
+	if (accum_frames < max_accum_frames || !accumulate) {
+		glUniform1f(UNIF.ROTATION, g_rotation);
+		glUniform1f(UNIF.BRIGHT, g_brightness);
+		glUniform2f(UNIF.TIME, SDL_GetTicks() / 1000.0, accum_frames);
+		glUniform2f(UNIF.RESOLUTION, screen_width, screen_height);
+		glUniform4f(UNIF.MOUSE, mouse_x, mouse_y, 0, 0);
+		glUniform4fv(UNIF.TWEAKS, 1, tweaks);
+		glUniform4fv(UNIF.TWEAKS2, 1, tweaks + 4);
+		glUniform4f(UNIF.BULGE, g_bulge_height, g_bulge_width, g_bulge_mask_radius, 1.0);
 		glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
+		//Each accumulate step, blend additively.
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_ONE, GL_ONE);
 		glBlendEquation(GL_FUNC_ADD);
-		// glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
 		glDepthMask(GL_FALSE);
 		glBindFramebuffer(GL_FRAMEBUFFER, cbuffer.fbo);
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -228,18 +305,14 @@ void twotri_scene_render()
 	glUseProgram(DSHADER);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, cbuffer.texture);
-	glUniform1i(DAB_UNIF, 0);
-	glUniform1i(DNFRAMES_UNIF, accum_frames);
-	glUniform2f(DRESOLUTION_UNIF, screen_width, screen_height);
+	glUniform1i(UNIF.DAB, 0);
+	//The result is divided by the number of accumulated frames, averaging the passes.
+	glUniform1i(UNIF.DNFRAMES, accum_frames);
+	glUniform2f(UNIF.DRESOLUTION, screen_width, screen_height);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	glDisable(GL_BLEND);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	// glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	// glBindFramebuffer(GL_READ_FRAMEBUFFER, cbuffer.fbo);
-	// glReadBuffer(GL_COLOR_ATTACHMENT0);
-	// glBlitFramebuffer(0, 0, screen_width, screen_height, screen_width/2, screen_height/2, screen_width, screen_height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-
 			
 	checkErrors("After draw");
 	meter_draw_all();

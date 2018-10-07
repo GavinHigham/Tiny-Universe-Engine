@@ -29,6 +29,8 @@ float rand_float();
 float sfrand(int *seed);
 //Returns a random float between 0 and 1
 float frand(int *seed);
+//Returns value, clamped between min and max
+float fclamp(float value, float min, float max);
 
 //Distance to the horizon with a planet radius R and elevation above sea level h, from Wikipedia.
 float distance_to_horizon(float R, float h);

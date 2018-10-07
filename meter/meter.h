@@ -73,8 +73,45 @@ enum meter_state {
 
 typedef void (*meter_callback_fn)(char *name, enum meter_state state, float value, void *context);
 
+typedef struct meter {
+	char *name, *fmt;
+	float x, y, min, max, value, *target;
+	struct widget_meter_style {
+		float width, height, padding;
+	} style;
+	struct widget_meter_color {
+		unsigned char fill[4], border[4], font[4];
+	} color;
+	meter_callback_fn callback;
+	void *callback_context;
+} widget_meter;
+
+struct meter_globals;
+typedef int (*meter_renderer_init_fn)(struct meter_globals *meter);
+typedef int (*meter_renderer_deinit_fn)(struct meter_globals *meter);
+typedef int (*meter_renderer_render_fn)(struct meter_globals *meter);
+struct meter_renderer {
+	meter_renderer_init_fn init;
+	meter_renderer_deinit_fn deinit;
+	meter_renderer_render_fn render;
+	void *renderer_ctx;
+};
+struct meter_globals {
+	float screen_width, screen_height;
+	unsigned int num_meters;
+	unsigned int max_meters;
+	struct meter *meters;
+	enum meter_state state;
+	char *clicked_meter_name;
+	float clicked_x, clicked_y;
+	int total_label_chars;
+	struct meter_renderer renderer;
+};
+
 //Add a new meter. Returns 0 on success.
 int meter_add(char *name, float width, float height, float min, float max, float value);
+//
+// int meter_add_lua
 //Change an existing meter. Returns 0 on success.
 int meter_change(char *name, float width, float height, float min, float max, float value);
 //Move an existing meter to position x, y. Not relative to current position.
@@ -90,6 +127,11 @@ int meter_callback(char *name, meter_callback_fn callback, void *context);
 int meter_target(char *name, float *target);
 //Add a new meter with the same characteristics as an existing meter.
 int meter_duplicate(char *name, char *duplicate_name);
+//Change the printed label for a meter.
+// fmt: A printf-style format string. Can contain format specifiers for two arguments:
+//  1. A char * to the meter name.
+//  2. The float value of the meter (or meter target).
+int meter_label(char *name, char *fmt);
 //Change the style of an existing meter.
 int meter_style(char *name, unsigned char fill_color[4], unsigned char border_color[4], unsigned char font_color[4], float padding);
 //Return the internal value of an existing meter, or 0 on error.
@@ -104,7 +146,7 @@ int meter_mouse(float x, float y, bool mouse_down);
 //Draw all meters.
 int meter_draw_all();
 //Init the meter system.
-int meter_init(float screen_width, float screen_height, unsigned int max_num_meters);
+int meter_init(float screen_width, float screen_height, unsigned int max_num_meters, struct meter_renderer renderer);
 //Deinit the meter system.
 int meter_deinit();
 //Inform the meter module of a screen resize.

@@ -1,20 +1,48 @@
-Things to add:
-  ☐ More parameters to planet
+Planets:
+  ☐ Parametrize:
     ☐ Radius
     ☐ Mass
 
-  ☐ Actual sun
-  ☐ Atmosphere
-  ☐ Surface details including
-    ☐ Color
-    ☐ Roughness
-    ☐ Metalness?
-
   ☐ Surface trees
   ☐ Surface collision
+  ☐ Frustum culling
 
-  ☐ Frustrum culling
+  ☐ Variant to be used for stars up-close
+  ☐ Atmosphere
+  ☐ Transform feedback or render-to-texture to create various surface maps, vertex texture fetch.
+    ☐ Texture-space ambient occlusion
+
+Texture:
+  ☐ Color
+  ☐ Roughness
+  ☐ Metalness?
   ☐ Quad-drawing module, for UI stuff and billboards.
+
+Lua:
+  ☐ Should be able to specify meter default values in a Lua file
+    ☐ Should be able to save current value to a Lua file
+  ☐ Could create meters in a Lua file, loaded per-module
+
+Galaxy Raymarch:
+  ☐ Multiple octaves of noise
+  ☐ Fractional brownian motion
+  ☐ Order-independent transparency
+  ☐ Stop at certain brightness or density/occludence
+  ☐ Start rays at bounding volume
+  ☐ Signed distance field optimizations?
+  ☐ Use noise to adjust samples per pixel (rotate duty cycle per pixel?)
+  ☐ Add S2 regions
+  ☐ Alter color by location in the spiral
+  ✔ Add galactic bulge @done (18-10-06 18:12)
+  ☐ Add irregularity
+    ☐ galaxy should be parametrized
+    ☐ sample galaxy function from CPU-side to drive star generation
+  ☐ Integrate into space scene
+  ☐ Render into cubemap of configurable size
+  ☐ Refactor meter creation code, list of names, list of default values, list of targets
+
+Trackball:
+  ☐ Fix gimbal lock issue
 
 Cleanup:
   ☐ Add to the include paths in each .mk file, so I can make my include statements shorter.
@@ -58,4 +86,4 @@ Various:
 
   ☐ Model pre-process should determine what type each mesh is, and possibly generate missing data if needed.
 
-  ☐ Raymarch galaxies
+  ☐ Add stb_truetype, for better text.
