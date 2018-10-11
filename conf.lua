@@ -5,14 +5,16 @@ screen_title = "Simple OpenGL C (k) Engine"
 fullscreen = false
 grab_mouse = false
 
+--ffmpeg recording
+ffmpeg_cmd = "ffmpeg -r 15 -f rawvideo -pix_fmt rgba -s " .. screen_width .. "x" .. screen_height .. " -i - -threads 0 -preset fast -y -pix_fmt yuv420p -crf 21 -vf vflip output.mp4"
 
---default_scene = "icosphere_scene" --"twotri_scene" --"space_scene"
-default_scene = "twotri_scene"
+default_scene = "space_scene" --"twotri_scene" --"icosphere_scene"
+-- default_scene = "twotri_scene"
 
 --proctri_scene.c config values
 proctri_tex = "grass.png"
 tex_scale = 4
-gpu_tiles = true
+gpu_tiles = false
 num_tile_rows = 80
 gen_solar_systems = true
 

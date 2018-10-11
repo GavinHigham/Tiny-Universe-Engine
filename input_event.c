@@ -5,8 +5,13 @@
 #include "shader_utils.h"
 #include "scene.h"
 #include "macros.h"
+#include "configuration/lua_configuration.h"
 
 extern SDL_Window *window;
+extern bool ffmpeg_recording;
+extern FILE *ffmpeg_file;
+extern int *ffmpeg_buffer;
+extern lua_State *L;
 const Uint8 *key_state = NULL;
 SDL_Event input_mouse_wheel_sum;
 
@@ -85,7 +90,25 @@ void keyevent(SDL_Keysym keysym, SDL_EventType type)
 		}
 		break;
 	case SDL_SCANCODE_R:
-		printf("Average # of tight loop iterations after sleep: %d\n", loop_iter_ave);
+		if (keydown) {
+			ffmpeg_recording = !ffmpeg_recording;
+			if (ffmpeg_recording) {
+				printf("Starting to record!\n");
+				char *cmd = getglobstr(L, "ffmpeg_cmd", "output_error.txt");
+				ffmpeg_file = popen(cmd, "w");
+				free(cmd);
+				if (!ffmpeg_file)
+					printf("Could not open ffmpeg file.\n");
+				ffmpeg_buffer = malloc(sizeof(int) * getglob(L, "screen_width", 800) * getglob(L, "screen_height", 600));
+				if (!ffmpeg_buffer)
+					printf("Could not allocate memory.\n");
+			}
+			else {
+				printf("Stopping recording!\n");
+				pclose(ffmpeg_file);
+				free(ffmpeg_buffer);
+			}
+		}
 		break;
 	case SDL_SCANCODE_1:
 		if (!keydown) {

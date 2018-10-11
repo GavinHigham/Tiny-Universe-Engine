@@ -33,7 +33,7 @@ Epilogue: It worked!
 extern float log_depth_intermediate_factor;
 
 //HALF_BOX_SIZE and -HALF_BOX_SIZE need to be representable in an int32_t.
-const int64_t STAR_BOX_SIZE = 4294967296;//8096;//67108864; //The width of one edge of a star box, in bpos cell widths.
+const int64_t STAR_BOX_SIZE = 4294967296;//67108864;//8096; //The width of one edge of a star box, in bpos cell widths.
 const int64_t HALF_BOX_SIZE = STAR_BOX_SIZE / 2;
 enum {
 	//TODO: Consider if I can just keep this small and multiply in the vertex shader.

@@ -33,6 +33,9 @@ SDL_Window *window = NULL;
 Uint32 windowID = 0;
 lua_State *L = NULL;
 const char *luaconf_path = "conf.lua";
+bool ffmpeg_recording = false;
+FILE *ffmpeg_file;
+int *ffmpeg_buffer = NULL;
 
 //Callback for close button event.
 int SDLCALL quit_event(void *userdata, SDL_Event *e)
@@ -140,7 +143,7 @@ int main()
 	if (fullscreen)
 		SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
 
-	// windowID = SDL_GetWindowID(window);
+	windowID = SDL_GetWindowID(window);
 	Uint32 last_swap_timestamp = SDL_GetTicks();
 	int loop_iter = 0;
 	while (!quit) { //Loop until quit
@@ -155,6 +158,12 @@ int main()
 				//Since user input is handled above, game state is "locked" when we enter this block.
 				last_swap_timestamp = SDL_GetTicks();
 		 		SDL_GL_SwapWindow(window); //Display a new screen to the user every 16 ms, on the dot.
+		 		if (ffmpeg_recording && ffmpeg_buffer && ffmpeg_file) {
+		 			int width = getglob(L, "screen_width", 800), height = getglob(L, "screen_height", 600);
+			 		glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, ffmpeg_buffer);
+			 		fwrite(ffmpeg_buffer, sizeof(int)*width*height, 1, ffmpeg_file);
+			 		printf(".");
+		 		}
 				scene_update(1.0/FRAMES_PER_SECOND); //At 16 ms intervals, begin an update. HOPEFULLY DOESN'T TAKE MORE THAN 16 MS.
 				scene_render(); //This will be a picture of the state as of (hopefully exactly) 16 ms ago.
 				//Get a rolling average of the number of tight loop iterations per frame.

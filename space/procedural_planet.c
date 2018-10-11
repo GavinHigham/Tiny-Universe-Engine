@@ -257,7 +257,7 @@ static void proc_planet_finishing_touches(tri_tile *t, void *finishing_touches_c
 	struct element_properties props[p->num_elements];
 	for (int i = 0; i < p->num_elements; i++)
 		props[i] = element_get_properties(p->elements[i]);
-	//proc_planet_vertices_and_normals(props, p->num_elements, t, p->height, planet_pos, p->noise_radius, p->radius, p->amplitude);
+	proc_planet_vertices_and_normals(props, p->num_elements, t, p->height, planet_pos, p->noise_radius, p->radius, p->amplitude);
 }
 
 static void tri_tile_split(tri_tile *t, tri_tile *out[DEFAULT_NUM_TRI_TILE_DIVS])

@@ -154,6 +154,11 @@ int twotri_scene_init()
 			.style = wstyles, .color = {.fill = {79, 79, 207, 255}, .border = {47, 47, 95, 255}, .font = {255, 255, 255, 255}}
 		},
 		{
+			.name = "Arm Width", .x = 5.0, .y = 0, .min = 0.0, .max = 32.0, .value = getglob(L, "arm_width", 2.0),
+			.callback = meter_clear_accum_callback, .target = &tweaks[5],
+			.style = wstyles, .color = {.fill = {79, 79, 207, 255}, .border = {47, 47, 95, 255}, .font = {255, 255, 255, 255}}
+		},
+		{
 			.name = "Noise Scale", .x = 5.0, .y = 0, .min = 0.0, .max = 50.0, .value = getglob(L,"noise_scale", 9.0),
 			.callback = meter_clear_accum_callback, .target = &tweaks[0],
 			.style = wstyles, .color = tweak_colors
@@ -164,7 +169,7 @@ int twotri_scene_init()
 			.style = wstyles, .color = tweak_colors
 		},
 		{
-			.name = "Light Step Distance", .x = 5.0, .y = 0, .min = -10.0, .max = 10.0, .value = getglob(L,"light_step_distance", 2.0),
+			.name = "Diffuse Step Distance", .x = 5.0, .y = 0, .min = -10.0, .max = 10.0, .value = getglob(L,"light_step_distance", 2.0),
 			.callback = meter_clear_accum_callback, .target = &tweaks[3],
 			.style = wstyles, .color = tweak_colors
 		},
@@ -179,6 +184,11 @@ int twotri_scene_init()
 			.style = wstyles, .color = bulge_colors
 		},
 		{
+			.name = "Bulge Mask Power", .x = 5.0, .y = 0, .min = 0.0, .max = 8.0, .value = getglob(L,"bulge_mask_power", 1.0),
+			.callback = meter_clear_accum_callback, .target = &tweaks[6],
+			.style = wstyles, .color = bulge_colors
+		},
+		{
 			.name = "Bulge Height", .x = 5.0, .y = 0, .min = 0.0, .max = 50.0, .value = getglob(L,"bulge_height", 20.0),
 			.callback = meter_clear_accum_callback, .target = &g_bulge_height,
 			.style = wstyles, .color = bulge_colors
@@ -189,7 +199,7 @@ int twotri_scene_init()
 			.style = wstyles, .color = bulge_colors
 		},
 		{
-			.name = "Spiral Density", .x = 5.0, .y = 0, .min = 0.0, .max = 50.0, .value = getglob(L,"spiral_density", 9.0),
+			.name = "Spiral Density", .x = 5.0, .y = 0, .min = 0.0, .max = 4.0, .value = getglob(L,"spiral_density", 1.0),
 			.callback = meter_clear_accum_callback, .target = &tweaks[2],
 			.style = wstyles, .color = tweak_colors
 		},
@@ -284,7 +294,7 @@ void twotri_scene_render()
 		glUniform4f(UNIF.MOUSE, mouse_x, mouse_y, 0, 0);
 		glUniform4fv(UNIF.TWEAKS, 1, tweaks);
 		glUniform4fv(UNIF.TWEAKS2, 1, tweaks + 4);
-		glUniform4f(UNIF.BULGE, g_bulge_height, g_bulge_width, g_bulge_mask_radius, 1.0);
+		glUniform4f(UNIF.BULGE, g_bulge_height, g_bulge_width, g_bulge_mask_radius, g_bulge_width * g_bulge_width);
 		glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
 		//Each accumulate step, blend additively.
