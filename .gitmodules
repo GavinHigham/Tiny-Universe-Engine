@@ -7,3 +7,4 @@
 [submodule "ceffectpp"]
 	path = ceffectpp
 	url = https://github.com/GavinHigham/ceffectpp.git
+	branch = master
