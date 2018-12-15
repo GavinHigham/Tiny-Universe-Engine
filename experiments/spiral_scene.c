@@ -1,4 +1,4 @@
-#include "twotri_scene.h"
+#include "spiral_scene.h"
 #include "scene.h"
 #include "glsw/glsw.h"
 #include "glsw_shaders.h"
@@ -21,17 +21,18 @@
 
 /* Implementing scene "interface" */
 
-SCENE_IMPLEMENT(twotri);
+SCENE_IMPLEMENT(spiral);
 
 static float screen_width = 640, screen_height = 480;
 static int mouse_x = 0, mouse_y = 0;
-static struct trackball twotri_trackball;
+static struct trackball spiral_trackball;
 static struct color_buffer cbuffer;
 static bool clear_accum = false;
 static int accum_frames = 0;
 static float tweaks[8] = {1, 1, 1, 1};
-int max_accum_frames = 180;
-bool accumulate = true;
+static float g_absorption[4] = {0.2, 0.1, 0.01, 0.0};
+static int max_accum_frames = 180;
+static bool accumulate = true;
 
 /* Lua Config */
 extern lua_State *L;
@@ -39,24 +40,24 @@ extern lua_State *L;
 /* OpenGL Variables */
 
 static GLint POS_ATTR = 1;
-struct {
-	GLuint RESOLUTION, MOUSE, TIME, FOCAL, DIR, EYE, BRIGHT, ROTATION, TWEAKS, TWEAKS2, BULGE;
+static struct {
+	GLuint RESOLUTION, MOUSE, TIME, FOCAL, DIR, EYE, BRIGHT, ROTATION, TWEAKS, TWEAKS2, BULGE, ABSORB;
 	GLuint DRESOLUTION, DAB, DNFRAMES;
 } UNIF;
 static GLuint SHADER, DSHADER, VAO, VBO;
-GLfloat vertices[] = {-1, -1, 1, -1, -1, 1, 1, 1};
-float g_brightness;
-float g_rotation;
-float g_bulge_height;
-float g_bulge_width;
-float g_bulge_mask_radius;
+static GLfloat vertices[] = {-1, -1, 1, -1, -1, 1, 1, 1};
+static float g_brightness;
+static float g_rotation;
+static float g_bulge_height;
+static float g_bulge_width;
+static float g_bulge_mask_radius;
 
-void meter_clear_accum_callback(char *name, enum meter_state state, float value, void *context)
+static void meter_clear_accum_callback(char *name, enum meter_state state, float value, void *context)
 {
 	clear_accum = true;
 }
 
-int twotri_scene_init()
+int spiral_scene_init()
 {
 	float FOV = M_PI/2;
 	glGenVertexArrays(1, &VAO);
@@ -67,8 +68,8 @@ int twotri_scene_init()
 	glswSetPath("shaders/glsw/", ".glsl");
 	glswAddDirectiveToken("glsl330", "#version 330");
 
-	char *vsh_key = getglobstr(L, "twotri_vsh_key", "");
-	char *fsh_key = getglobstr(L, "twotri_fsh_key", "");
+	char *vsh_key = getglobstr(L, "spiral_vsh_key", "");
+	char *fsh_key = getglobstr(L, "spiral_fsh_key", "");
 
 	GLuint shader[] = {
 		glsw_shader_from_keys(GL_VERTEX_SHADER, "versions.glsl330", vsh_key),
@@ -80,9 +81,11 @@ int twotri_scene_init()
 	SHADER = glsw_new_shader_program(shader, LENGTH(shader));
 	DSHADER = glsw_new_shader_program(shader_deferred, LENGTH(shader_deferred));
 	glswShutdown();
+	free(vsh_key);
+	free(fsh_key);
 
 	if (!SHADER || !DSHADER) {
-		twotri_scene_deinit();
+		spiral_scene_deinit();
 		return -1;
 	}
 
@@ -99,6 +102,7 @@ int twotri_scene_init()
 	UNIF.TWEAKS      = glGetUniformLocation(SHADER, "tweaks");
 	UNIF.TWEAKS2     = glGetUniformLocation(SHADER, "tweaks2");
 	UNIF.BULGE       = glGetUniformLocation(SHADER, "bulge");
+	UNIF.ABSORB      = glGetUniformLocation(SHADER, "absorption");
 
 	UNIF.DRESOLUTION = glGetUniformLocation(DSHADER, "iResolution");
 	UNIF.DAB         = glGetUniformLocation(DSHADER, "cbuffer");
@@ -132,9 +136,9 @@ int twotri_scene_init()
 	glUseProgram(0);
 
 	/* Set up trackball */
-	twotri_trackball = trackball_new((vec3){0, 0, 0}, 50);
-	trackball_set_speed(&twotri_trackball, 1.0/50.0, 1.0/200.0, 1.0/10.0);
-	trackball_set_bounds(&twotri_trackball, M_PI/2.0 - 0.0001, M_PI/2.0 - 0.0001, INFINITY, INFINITY);
+	spiral_trackball = trackball_new((vec3){0, 0, 0}, 50);
+	trackball_set_speed(&spiral_trackball, 1.0/50.0, 1.0/200.0, 1.0/10.0);
+	trackball_set_bounds(&spiral_trackball, M_PI/2.0 - 0.0001, M_PI/2.0 - 0.0001, INFINITY, INFINITY);
 
 	/* Set up meter module */
 	float y_offset = 25.0;
@@ -164,7 +168,7 @@ int twotri_scene_init()
 			.style = wstyles, .color = tweak_colors
 		},
 		{
-			.name = "Noise Influence", .x = 5.0, .y = 0, .min = 0.0, .max = 50.0, .value = getglob(L,"noise_influence", 9.0),
+			.name = "Noise Strength", .x = 5.0, .y = 0, .min = 0.0, .max = 50.0, .value = getglob(L,"noise_strength", 9.0),
 			.callback = meter_clear_accum_callback, .target = &tweaks[1],
 			.style = wstyles, .color = tweak_colors
 		},
@@ -176,6 +180,11 @@ int twotri_scene_init()
 		{
 			.name = "Diffuse Intensity", .x = 5.0, .y = 0, .min = 0.000001, .max = 1.0, .value = getglob(L,"diffuse_intensity", 1.0),
 			.callback = meter_clear_accum_callback, .target = &tweaks[4],
+			.style = wstyles, .color = tweak_colors
+		},
+		{
+			.name = "Emission Strength", .x = 5.0, .y = 0, .min = 0.000001, .max = 15.0, .value = getglob(L,"emission_strength", 1.0),
+			.callback = meter_clear_accum_callback, .target = &tweaks[7],
 			.style = wstyles, .color = tweak_colors
 		},
 		{
@@ -203,6 +212,21 @@ int twotri_scene_init()
 			.callback = meter_clear_accum_callback, .target = &tweaks[2],
 			.style = wstyles, .color = tweak_colors
 		},
+		{
+			.name = "Absorption R", .x = 5.0, .y = 0, .min = 0.0, .max = 1.0, .value = getglob(L,"absorption_r", g_absorption[0]),
+			.callback = meter_clear_accum_callback, .target = &g_absorption[0],
+			.style = wstyles, .color = tweak_colors
+		},
+		{
+			.name = "Absorption G", .x = 5.0, .y = 0, .min = 0.0, .max = 1.0, .value = getglob(L,"absorption_g", g_absorption[1]),
+			.callback = meter_clear_accum_callback, .target = &g_absorption[1],
+			.style = wstyles, .color = tweak_colors
+		},
+		{
+			.name = "Absorption B", .x = 5.0, .y = 0, .min = 0.0, .max = 1.0, .value = getglob(L,"absorption_b", g_absorption[2]),
+			.callback = meter_clear_accum_callback, .target = &g_absorption[2],
+			.style = wstyles, .color = tweak_colors
+		},
 	};
 	for (int i = 0; i < LENGTH(widgets); i++) {
 		widget_meter *w = &widgets[i];
@@ -220,7 +244,7 @@ int twotri_scene_init()
 	return 0;
 }
 
-void twotri_scene_resize(float width, float height)
+void spiral_scene_resize(float width, float height)
 {
 	glViewport(0, 0, width, height);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -232,15 +256,16 @@ void twotri_scene_resize(float width, float height)
 	//make_projection_matrix(65, screen_width/screen_height, 0.1, 200, proj_mat);	
 }
 
-void twotri_scene_deinit()
+void spiral_scene_deinit()
 {
 	glDeleteVertexArrays(1, &VAO);
 	glDeleteBuffers(1, &VBO);
 	glDeleteProgram(SHADER);
+	color_buffer_delete(cbuffer);
 	meter_deinit();
 }
 
-void twotri_scene_update(float dt)
+void spiral_scene_update(float dt)
 {
 	// eye_frame.t += (vec3){
 	// 	key_state[SDL_SCANCODE_D] - key_state[SDL_SCANCODE_A],
@@ -253,11 +278,11 @@ void twotri_scene_update(float dt)
 	int meter_clicked = meter_mouse(mouse_x, mouse_y, button);
 	button = button && !meter_clicked;
 	int scroll_x = input_mouse_wheel_sum.wheel.x, scroll_y = input_mouse_wheel_sum.wheel.y;
-	if (trackball_step(&twotri_trackball, mouse_x, mouse_y, button, scroll_x, scroll_y))
+	if (trackball_step(&spiral_trackball, mouse_x, mouse_y, button, scroll_x, scroll_y))
 		clear_accum = true;
 }
 
-void twotri_scene_render()
+void spiral_scene_render()
 {
 	glBindVertexArray(VAO);
 	glUseProgram(SHADER);
@@ -272,10 +297,10 @@ void twotri_scene_render()
 
 	{
 		float dir_mat[9];
-		mat3_to_array_cm(twotri_trackball.camera.a, dir_mat);
+		mat3_to_array_cm(spiral_trackball.camera.a, dir_mat);
 		glUniformMatrix3fv(UNIF.DIR, 1, GL_FALSE, dir_mat);
 		checkErrors("After sending dir_mat");
-		glUniform3f(UNIF.EYE, VEC3_COORDS(twotri_trackball.camera.t));
+		glUniform3f(UNIF.EYE, VEC3_COORDS(spiral_trackball.camera.t));
 	}
 
 	// Draw to accumulation buffer.
@@ -295,6 +320,7 @@ void twotri_scene_render()
 		glUniform4fv(UNIF.TWEAKS, 1, tweaks);
 		glUniform4fv(UNIF.TWEAKS2, 1, tweaks + 4);
 		glUniform4f(UNIF.BULGE, g_bulge_height, g_bulge_width, g_bulge_mask_radius, g_bulge_width * g_bulge_width);
+		glUniform4fv(UNIF.ABSORB, 1, g_absorption);
 		glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
 		//Each accumulate step, blend additively.

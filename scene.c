@@ -4,22 +4,17 @@
 #include <signal.h>
 
 //It might be fun to have a simple default scene in these later.
-int scene_empty_init() {return 0;}
-void scene_empty_deinit() {}
-void scene_empty_update(float dt) {}
-void scene_empty_render() {}
-void scene_empty_resize(float width, float height) {}
+SCENE_IMPLEMENT(empty);
+int empty_scene_init() { printf("Empty scene selected.\n"); return 0;}
+void empty_scene_deinit() {}
+void empty_scene_update(float dt) {}
+void empty_scene_render() {}
+void empty_scene_resize(float width, float height) {}
 
 int scene_error(char *fn_name, int error);
 #define SAFE_CALL(fn, ...) (fn ? fn(__VA_ARGS__) : scene_error(#fn, -2))
 
-struct game_scene current_scene = {.deinit = scene_empty_deinit};
-struct game_scene empty_scene = {
-	scene_empty_init,
-	scene_empty_deinit,
-	scene_empty_update,
-	scene_empty_render,
-	scene_empty_resize};
+struct game_scene current_scene = {.deinit = empty_scene_deinit};
 struct game_scene *next_scene = &empty_scene;
 float scene_width = 800, scene_height = 600;
 

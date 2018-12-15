@@ -30,6 +30,7 @@ size_t gettmpglobstr(lua_State *L, const char *var, const char *d, char *buf);
 	int:          getglobint, \
 	lua_Integer:  getglobint, \
 	lua_Number:   getglobnum, \
+	float:        getglobnum, \
 	char *: getglobstr)(L, var, d)
 
 

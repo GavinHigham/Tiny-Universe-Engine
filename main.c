@@ -13,11 +13,13 @@
 #include "init.h"
 #include "math/utility.h"
 #include "input_event.h"
-
+#include "macros.h"
+//Scenes
 #include "space/space_scene.h"
 #include "experiments/icosphere_scene.h"
 #include "experiments/proctri_scene.h"
-#include "experiments/twotri_scene.h"
+#include "experiments/spiral_scene.h"
+#include "experiments/visualizer_scene.h"
 
 #include "configuration/lua_configuration.h"
 
@@ -128,14 +130,18 @@ int main()
 		printf("An error occurred while setting a signal handler.\n");
 	}
 
-	if (!strcmp(default_scene, "space_scene"))
-		scene_set(&space_scene);
-	else if (!strcmp(default_scene, "proctri_scene"))
-		scene_set(&proctri_scene);
-	else if (!strcmp(default_scene, "twotri_scene"))
-		scene_set(&twotri_scene);
-	else if (!strcmp(default_scene, "icosphere_scene"))
-		scene_set(&icosphere_scene);
+	struct game_scene *scenes[] = {
+		&space_scene,
+		&proctri_scene,
+		&spiral_scene,
+		&icosphere_scene,
+		&visualizer_scene
+	};
+
+	for (int i = 0; i < LENGTH(scenes); i++)
+		if (!strcmp(default_scene, scenes[i]->name))
+			scene_set(scenes[i]);
+
 	scene_resize(screen_width, screen_height);
 
 	SDL_AddEventWatch(quit_event, &quit);

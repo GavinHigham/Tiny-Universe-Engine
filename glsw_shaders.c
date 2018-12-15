@@ -3,6 +3,8 @@
 #include "shader_utils.h"
 #include "macros.h"
 #include <stdio.h>
+#include <string.h>
+#include <assert.h>
 #include <GL/glew.h>
 
 enum {MAX_NUM_KEYS = 5};
@@ -32,8 +34,10 @@ GLuint shader_from_strs(GLenum type, const char **strs, int count)
 GLuint glsw_shader_from_keys_num(GLenum type, const char **keys, int num)
 {
 	const char *strs[num];
-	for (int i = 0; i < num; i++) 
+	for (int i = 0; i < num; i++) {
+		assert(strcmp(keys[i], "")); //Ensure we don't get an empty string key.
 		strs[i] = glswGetShader(keys[i]);
+	}
 	return shader_from_strs(type, strs, num);
 }
 
