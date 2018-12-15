@@ -7,6 +7,8 @@ I'm using the project as a means to learn OpenGL, to develop my C style and prac
 
 Currently the project is only maintained for OSX, as I develop on a somewhat-dated but still adequate 2011 MacBook Pro 13".
 
+If you're reading this sometime in the far future, there may be development blogs about this project at [http://www.gavinblog.space/](http://www.gavinblog.space/).
+
 ## Compiling ##
 Extract to a directory, cd in, and run make.
 
