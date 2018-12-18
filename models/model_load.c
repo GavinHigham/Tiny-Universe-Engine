@@ -1,7 +1,7 @@
+#include "graphics.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <GL/glew.h>
 
 #define MAX_TOKENS_PER_LINE 20
 #define VPROPERTY_POSITION_X 1 << 1

@@ -1,6 +1,7 @@
 #include "controllable.h"
 #include "physical.h"
 #include <stdio.h>
+#include <math.h>
 
 controllable_callback(noop_control)
 {

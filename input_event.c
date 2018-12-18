@@ -1,5 +1,9 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
 #include <stdbool.h>
 #include <SDL2/SDL.h>
+#include "emcc_stubs.h"
 #include "input_event.h"
 #include "init.h"
 #include "shader_utils.h"

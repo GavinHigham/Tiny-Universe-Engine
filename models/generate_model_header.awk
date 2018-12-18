@@ -2,7 +2,7 @@ BEGIN {
 	print "//GENERATED FILE, CHANGES WILL BE LOST ON NEXT RUN OF MAKE."
 	print "#ifndef MODELS_H"
 	print "#define MODELS_H\n"
-	print "#include <GL/glew.h>"
+	print "#include \"graphics.h\""
 	print "#include \"../buffer_group.h\"\n"
 }
 FNR == 1 {

@@ -10,10 +10,11 @@
 #include "configuration/lua_configuration.h"
 
 #include <glla.h>
-#include <GL/glew.h>
 #include <stdio.h>
+#include <string.h>
+#include <math.h>
 #include <assert.h>
-#include <SDL2_image/SDL_image.h>
+#include "graphics.h"
 
 #define USING_ROWS
 

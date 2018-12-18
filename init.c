@@ -1,10 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <GL/glew.h>
 #include <SDL2/SDL.h>
 //#include <SDL2/SDL_opengl.h>
-#include <SDL2_image/SDL_image.h>
+#include "graphics.h"
 #include "init.h"
 #include "effects.h"
 #include "shader_utils.h"

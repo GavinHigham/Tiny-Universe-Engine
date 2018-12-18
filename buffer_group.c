@@ -1,6 +1,6 @@
-#include <GL/glew.h>
 #include <stdio.h>
 #include <string.h>
+#include "graphics.h"
 #include "buffer_group.h"
 #include "shader_utils.h"
 #include "math/utility.h"

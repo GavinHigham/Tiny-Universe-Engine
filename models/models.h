@@ -2,7 +2,7 @@
 #ifndef MODELS_H
 #define MODELS_H
 
-#include <GL/glew.h>
+#include "graphics.h"
 #include "../buffer_group.h"
 
 int buffer_ball(struct buffer_group rc);

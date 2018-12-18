@@ -1,15 +1,14 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <signal.h>
-#include <GL/glew.h>
-#include <SDL2/SDL.h>
+#include <string.h>
 //#include <SDL2/SDL_opengl.h>
-#include "graphics.h"
 //Lua headers
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
 //Project headers.
+#include "graphics.h"
 #include "init.h"
 #include "math/utility.h"
 #include "input_event.h"

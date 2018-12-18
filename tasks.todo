@@ -55,6 +55,7 @@ Cleanup:
   ☐ Tidy meter module
   ☐ Break text rendering into its own module
   ☐ Make quadtree and octree intrusive, to reduce allocations.
+  ☐ Remove dependency on ceffectpp, or convert it to a script
 
 Ideas:
   ☐ Voronoi-based continents

@@ -109,7 +109,7 @@ int config_load(struct config_buf cb, char *file_path)
 	FILE * fp;
 	char * line = NULL;
 	size_t len = 0;
-	ssize_t read;
+	size_t read;
 
 	fp = fopen(file_path, "r");
 	if (fp == NULL)

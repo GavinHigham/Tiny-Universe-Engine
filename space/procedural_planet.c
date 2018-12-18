@@ -13,9 +13,10 @@
 #include "glsw/glsw.h"
 #include "glsw_shaders.h"
 #include "debug_graphics.h"
-#include <GL/glew.h>
+#include "graphics.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 #include <math.h>
 

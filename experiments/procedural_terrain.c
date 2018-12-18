@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <math.h>
 #include <assert.h>
-#include <GL/glew.h>
+#include "graphics.h"
 #include "glla.h"
 #include "procedural_terrain.h"
 #include "open-simplex-noise-in-c/open-simplex-noise.h"
