@@ -1,10 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <GL/glew.h>
 #include <SDL2/SDL.h>
 //#include <SDL2/SDL_opengl.h>
-#include <SDL2_image/SDL_image.h>
+#include "graphics.h"
 #include "init.h"
 #include "effects.h"
 #include "shader_utils.h"
@@ -31,9 +30,12 @@ int engine_init(SDL_GLContext *context, SDL_Window *window)
 		return -1;
 	checkErrors("gl_init");
 
-	if (glew_init())
+	// if (glew_init())
+	// 	return -1;
+	// checkErrors("glew_init");
+	if (glad_init())
 		return -1;
-	checkErrors("glew_init");
+	checkErrors("glad_init");
 
 	open_simplex_noise(open_simplex_noise_seed, &osnctx);
 
@@ -64,16 +66,24 @@ int gl_init(SDL_GLContext *context, SDL_Window *window)
 	return 0;
 }
 
-int glew_init()
+// int glew_init()
+// {
+// 	glewExperimental = true;
+// 	GLenum glewError = glewInit();
+// 	checkErrors("After glewInit");
+// 	if (glewError != GLEW_OK) {
+// 		printf("Error initializing GLEW! %s\n", glewGetErrorString(glewError));
+// 		return -1;
+// 	}
+// 	return 0;
+// }
+
+int glad_init()
 {
-	glewExperimental = true;
-	GLenum glewError = glewInit();
-	checkErrors("After glewInit");
-	if (glewError != GLEW_OK) {
-		printf("Error initializing GLEW! %s\n", glewGetErrorString(glewError));
-		return -1;
-	}
-	return 0;
+	int error = gladLoadGL();
+	if (error != 1)
+		printf("Error initializing GLAD! %d\n", error);
+	return !error;
 }
 
 void engine_deinit()

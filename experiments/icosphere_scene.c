@@ -9,9 +9,9 @@
 #include "trackball/trackball.h"
 
 #include <glla.h>
-#include <GL/glew.h>
 #include <stdio.h>
-#include <SDL2_image/SDL_image.h>
+#include <math.h>
+#include "graphics.h"
 
 /* Implementing scene "interface" */
 SCENE_IMPLEMENT(icosphere);

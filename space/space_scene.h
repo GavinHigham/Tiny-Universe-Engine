@@ -1,6 +1,6 @@
 #ifndef SPACE_SCENE_H
 #define SPACE_SCENE_H
-#include <GL/glew.h>
+#include "graphics.h"
 #include "scene.h"
 
 extern float screen_width;

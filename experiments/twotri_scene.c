@@ -12,9 +12,10 @@
 #include "meter/meter.h"
 #include "meter/meter_ogl_renderer.h"
 #include "deferred_framebuffer.h"
+#include "graphics.h"
 
 #include <glla.h>
-#include <GL/glew.h>
+#include <math.h>
 #include <stdio.h>
 #include <assert.h>
 //#include <SDL2_image/SDL_image.h>

@@ -1,15 +1,14 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <signal.h>
-#include <GL/glew.h>
-#include <SDL2/SDL.h>
+#include <string.h>
 //#include <SDL2/SDL_opengl.h>
-#include "graphics.h"
 //Lua headers
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
 //Project headers.
+#include "graphics.h"
 #include "init.h"
 #include "math/utility.h"
 #include "input_event.h"
@@ -80,7 +79,7 @@ static void reload_signal_handler(int signo) {
 	luaconf_run(L, luaconf_path);
 }
 
-int main()
+int main(int argc, char *argv[])
 {
 	SDL_GLContext context;
 
@@ -123,10 +122,12 @@ int main()
 		return -1;
 	}
 	
+	#ifndef _WIN32 //Don't hurt Windows's feelings
 	//When we receive SIGUSR1, reload the scene.
 	if (signal(SIGUSR1, reload_signal_handler) == SIG_ERR) {
 		printf("An error occurred while setting a signal handler.\n");
 	}
+	#endif
 
 	if (!strcmp(default_scene, "space_scene"))
 		scene_set(&space_scene);

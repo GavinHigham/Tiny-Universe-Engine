@@ -1,5 +1,7 @@
 #include "meter.h"
+#include "macros.h"
 #include "math/utility.h"
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 

@@ -2,7 +2,7 @@
 #ifndef MODELS_H
 #define MODELS_H
 
-#include <GL/glew.h>
+#include "graphics.h"
 
 GLfloat ball_positions[] = {
 	0.239714, -0.239714, 0.000000,

@@ -1,6 +1,8 @@
 #include "star_box.h"
+#include "glla.h"
 #include "math/bpos.h"
 #include "math/utility.h"
+#include "graphics.h"
 #include "effects.h"
 #include "entity/scriptable.h"
 #include "entity/physical.h"
@@ -12,7 +14,6 @@
 #include <assert.h>
 #include <math.h>
 #include <stdbool.h>
-#include <GL/glew.h>
 
 /*
 Since each box has a bpos_origin, each star only needs to store its offset from that origin;

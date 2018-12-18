@@ -11,7 +11,7 @@ print([[
 #ifndef MODELS_H
 #define MODELS_H
 
-#include <GL/glew.h>
+#include "graphics.h"
 ]])
 
 for _, file in ipairs(arg) do

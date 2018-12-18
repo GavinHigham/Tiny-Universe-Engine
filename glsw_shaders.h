@@ -1,6 +1,6 @@
 #ifndef GLSW_SHADERS_H
 #define GLSW_SHADERS_H
-#include <GL/glew.h>
+#include "graphics.h"
 
 struct glsw_shaders {
 	GLuint forward;

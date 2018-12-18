@@ -2,7 +2,7 @@
 #define METER_OGL_RENDERER_H
 
 #include "meter.h"
-#include <GL/glew.h>
+#include "graphics.h"
 
 struct meter_ogl_renderer_ctx {
 	GLuint shader, vao, vbo, ibo, screen_res, font_tex, font_tex_unif, textured_unif;

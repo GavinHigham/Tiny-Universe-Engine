@@ -4,7 +4,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <GL/glew.h>
+#include "graphics.h"
 #include "effects.h"
 #include "math/utility.h"
 

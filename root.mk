@@ -14,4 +14,5 @@ OBJECTS += \
 	state_machine.o \
 	glsw_shaders.o \
 	debug_graphics.o \
-	scene.o
+	scene.o \
+	glad/src/glad.o

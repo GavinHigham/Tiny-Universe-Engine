@@ -21,6 +21,7 @@
 #include "space/solar_system.h"
 #include "glsw_shaders.h"
 #include "configuration/lua_configuration.h"
+#include <stdio.h>
 #include <stdbool.h>
 #include <math.h>
 #include <assert.h>

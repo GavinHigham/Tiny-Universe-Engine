@@ -1,9 +1,9 @@
 #include "glsw_shaders.h"
 #include "glsw/glsw.h"
+#include "graphics.h"
 #include "shader_utils.h"
 #include "macros.h"
 #include <stdio.h>
-#include <GL/glew.h>
 
 enum {MAX_NUM_KEYS = 5};
 struct glsw_shaders glsw = {0};

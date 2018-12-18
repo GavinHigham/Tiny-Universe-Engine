@@ -1,8 +1,8 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdbool.h>
-#include <GL/glew.h>
 #include "glla.h"
+#include "graphics.h"
 
 void drawf_fv(GLint name, GLfloat *val, int num)
 {
@@ -26,16 +26,19 @@ void drawf_iv(GLint name, GLint *val, int num)
 
 void drawf_uv(GLint name, GLuint *val, int num)
 {
+#ifndef __EMSCRIPTEN__
 	switch (num) {
 	case 1: glUniform1uiv(name, 1, val); break;
 	case 2: glUniform2uiv(name, 1, val); break;
 	case 3: glUniform3uiv(name, 1, val); break;
 	case 4: glUniform4uiv(name, 1, val); break;
 	}
+#endif
 }
 
 void drawf_mat(GLint name, int transp, GLfloat *val, int x, int y)
 {
+#ifndef __EMSCRIPTEN__
 	//Array of OpenGL matrix functions, x and y will index into this to call the right one efficiently.
 	void (*matrix_func[])(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) = {
 		glUniformMatrix2fv,
@@ -51,6 +54,7 @@ void drawf_mat(GLint name, int transp, GLfloat *val, int x, int y)
 
 	//No parameter checking for x and y because suck my diiiiiiiick
 	matrix_func[3*(x-2) + (y-2)](name, 1, transp, val);
+#endif
 }
 
 void drawf(char *format, ...)
@@ -147,10 +151,12 @@ void drawf(char *format, ...)
 					v[i] = va_arg(args, GLuint);
 
 				switch (vsize) {
-				case 1: glUniform1ui(name, v[0]); break;
-				case 2: glUniform2ui(name, v[0], v[1]); break;
-				case 3: glUniform3ui(name, v[0], v[1], v[2]); break;
-				case 4: glUniform4ui(name, v[0], v[1], v[2], v[3]); break;
+				#ifndef __EMSCRIPTEN__
+					case 1: glUniform1ui(name, v[0]); break;
+					case 2: glUniform2ui(name, v[0], v[1]); break;
+					case 3: glUniform3ui(name, v[0], v[1], v[2]); break;
+					case 4: glUniform4ui(name, v[0], v[1], v[2], v[3]); break;
+				#endif
 				}
 			} break;
 		default: continue; //Not a valid type.

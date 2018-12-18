@@ -3,66 +3,31 @@
 #ifndef EFFECTS_H
 #define EFFECTS_H
 
-#include <GL/glew.h>
+#include "graphics.h"
 typedef struct effect_data {
 	GLuint handle;
 	union {
 		struct {
-			GLint ambient_pass;
-			GLint bpos_size;
-			GLint camera_position;
-			GLint eye_box_offset;
-			GLint eye_pos;
-			GLint eye_sector_coords;
-			GLint gLightPos;
-			GLint hella_time;
-			GLint log_depth_intermediate_factor;
-			GLint model_matrix;
-			GLint model_view_normal_matrix;
-			GLint model_view_projection_matrix;
-			GLint override_col;
-			GLint projection_view_matrix;
-			GLint sector_size;
-			GLint star_box_size;
-			GLint sun_color;
-			GLint sun_direction;
-			GLint uLight_attr;
-			GLint uLight_col;
-			GLint uLight_pos;
-			GLint uOrigin;
-			GLint zpass;
 		};
-		GLint unif[23];
+		GLint unif[0];
 	};
 	union {
 		struct {
-			GLint sector_coords;
-			GLint star_pos;
-			GLint vColor;
-			GLint vNormal;
-			GLint vPos;
 		};
-		GLint attr[5];
+		GLint attr[0];
 	};
 } EFFECT;
 
 union effect_list {
 	struct {
-		EFFECT debug_graphics;
-		EFFECT forward;
-		EFFECT outline;
-		EFFECT shadow;
-		EFFECT skybox;
-		EFFECT star_box;
-		EFFECT stars;
 	};
-	EFFECT all[7];
+	EFFECT all[0];
 };
 
-extern union effect_list effects;
+union effect_list effects;
 
-extern const char *uniform_strings[23];
-extern const char *attribute_strings[5];
-extern const char *shader_file_paths[21];
+const char *uniform_strings[0];
+const char *attribute_strings[0];
+const char *shader_file_paths[0];
 
 #endif

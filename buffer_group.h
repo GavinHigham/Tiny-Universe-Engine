@@ -1,6 +1,6 @@
 #ifndef BUFFER_GROUP_H
 #define BUFFER_GROUP_H
-#include <GL/glew.h>
+#include "graphics.h"
 #include "effects.h"
 
 enum {

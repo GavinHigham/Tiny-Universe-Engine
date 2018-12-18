@@ -1,7 +1,7 @@
 #ifndef DEFERRED_FRAMEBUFFER_H
 #define DEFERRED_FRAMEBUFFER_H
+#include "graphics.h"
 #include <stdio.h>
-#include <GL/glew.h>
 
 enum GBUFFER_TEXTURE_TYPE {
 	GBUFFER_TEXTURE_TYPE_POSITION,

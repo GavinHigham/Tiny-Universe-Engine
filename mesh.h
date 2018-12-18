@@ -1,8 +1,8 @@
 #ifndef MESH_H
 #define MESH_H
 #include <stdbool.h>
-#include <GL/glew.h>
 #include "glla.h"
+#include "graphics.h"
 #include "effects.h"
 
 /*

@@ -1,8 +1,8 @@
 #ifndef DEBUG_GRAPHICS_H
 #define DEBUG_GRAPHICS_H
 #include "glla.h"
+#include "graphics.h"
 #include <stdbool.h>
-#include <GL/glew.h>
 
 struct debug_graphics_line {
 	vec3 start;

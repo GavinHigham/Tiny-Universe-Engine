@@ -1,10 +1,9 @@
 #ifndef UTILITY_H
 #define UTILITY_H
 #include "glla.h"
+#include "graphics.h"
 #include <stdlib.h>
 #include <SDL2/SDL.h>
-#include <SDL2_image/SDL_image.h>
-#include <gl/glew.h>
 
 // printf colors
 #define ANSI_COLOR_RED     "\x1b[31m"

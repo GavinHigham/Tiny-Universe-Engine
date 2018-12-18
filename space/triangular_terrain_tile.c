@@ -1,5 +1,6 @@
 #include "triangular_terrain_tile.h"
 #include "space_scene.h"
+#include "graphics.h"
 #include "macros.h"
 #include "mesh.h"
 #include "math/utility.h"
@@ -10,7 +11,6 @@
 #include <string.h>
 #include <math.h>
 #include <assert.h>
-#include <GL/glew.h>
 
 //Suppress prints
 #define printf(...) while(0) {}
