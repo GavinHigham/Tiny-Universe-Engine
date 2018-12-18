@@ -1,6 +1,6 @@
 CC 	= gcc
-SDL 	 = -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW
-INCLUDES = -Iglla -I$(CURDIR)
+SDL 	 = -F/Library/Frameworks -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW
+INCLUDES = -Iglla -I$(CURDIR) -I/Library/Frameworks/SDL2.framework/Headers -I/Library/Frameworks/SDL2_image.framework/Headers -Ilua-5.3.5/src
 LDFLAGS	 = $(SDL) -llua
 SHADERS	 = shaders/*.vs shaders/*.fs shaders/*.gs
 EXE 	 = sock
@@ -28,10 +28,10 @@ include models/Makefile
 .depend:
 	gcc -M $(INCLUDES) $(**/.c) *.c > .depend #Generate dependencies from all .c files, searching recursively.
 
-effects.c: $(SHADERS) effects.h #ceffectpp/ceffectpp
+effects.c: $(SHADERS) effects.h lua-5.3.5 #ceffectpp/ceffectpp
 	ceffectpp/ceffectpp -c $(SHADERS) > effects.c
 
-effects.h: $(SHADERS) #ceffectpp/ceffectpp
+effects.h: $(SHADERS) lua-5.3.5 #ceffectpp/ceffectpp
 	ceffectpp/ceffectpp -h $(SHADERS) > effects.h
 
 # ceffectpp/ceffectpp:
@@ -39,6 +39,9 @@ effects.h: $(SHADERS) #ceffectpp/ceffectpp
 
 open-simplex-noise.o:
 	cd open-simplex-noise-in-c; make
+
+lua-5.3.5:
+	cd lua-5.3.5; make macosx
 
 clean:
 	rm $(OBJECTS)
