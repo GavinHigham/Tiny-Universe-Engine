@@ -29,7 +29,7 @@
 
 extern int open_simplex_noise_seed;
 
-SCENE_VTABLE(space);
+SCENE_IMPLEMENT(space);
 float FOV = M_PI/2;// M_PI/2.7;
 float far_distance = 10000000;
 float near_distance = 1;

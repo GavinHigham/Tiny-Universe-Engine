@@ -122,7 +122,7 @@ float galaxy_density(vec3 p, float bulge_density, float noise_scale, float noise
 {
 	float s = spiral_density(p);
 #ifdef EAT_NOISE
-	s -= clamp(snoise_oct(p / (noise_scale), 3) * noise_strength, 0.0, 1.0);
+	s *= clamp(snoise_oct(p / (noise_scale), 3) * noise_strength, 0.0, 1.0);
 #else
 	//This line is responsible for a lot of the visual interest of the spiral,
 	//and is probably the first thing that should be tweaked to improve the appearance.
@@ -206,7 +206,7 @@ vec3 raymarch()
 				float bulge_light_intensity = bulge.z*bulge.z * 2.0 * PI / (10.0 * lp2); //Roughly solid angle of bulge from p2's vantage point.
 
 #ifdef FRONT_TO_BACK
-				if (length(sdt) < 0.2) {
+				if (length(sdt) < 0.05) {
 					// samples = i;
 					// color = vec3(1.0, 0.0, 0.0);
 					break;

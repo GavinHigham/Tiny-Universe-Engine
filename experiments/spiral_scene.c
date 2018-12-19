@@ -174,7 +174,7 @@ int spiral_scene_init()
 			.style = wstyles, .color = tweak_colors
 		},
 		{
-			.name = "Diffuse Step Distance", .x = 5.0, .y = 0, .min = -10.0, .max = 10.0, .value = getglob(L,"light_step_distance", 2.0),
+			.name = "Diffuse Step Distance", .x = 5.0, .y = 0, .min = -10.0, .max = 10.0, .value = getglob(L,"light_step_distance", 0.2),
 			.callback = meter_clear_accum_callback, .target = &tweaks[3],
 			.style = wstyles, .color = tweak_colors
 		},
