@@ -141,6 +141,8 @@ int main()
 		if (!strcmp(default_scene, scenes[i]->name))
 			scene_set(scenes[i]);
 
+	free(default_scene);
+
 	scene_resize(screen_width, screen_height);
 
 	SDL_AddEventWatch(quit_event, &quit);

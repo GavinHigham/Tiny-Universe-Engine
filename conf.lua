@@ -11,9 +11,9 @@ recording_width, recording_height = 1920, 1080
 recording_cmd = "ffmpeg -r 60 -f rawvideo -pix_fmt rgba -s " .. recording_width .. "x" .. recording_height .. " -i - -threads 0 -preset fast -y -pix_fmt yuv420p -crf 21 -vf vflip recording.mp4"
 
 
--- default_scene = "space_scene" --"twotri_scene" --"icosphere_scene"
+default_scene = "icosphere_scene" --"twotri_scene" --"space_scene"
 -- default_scene = "visualizer"
-default_scene = "spiral"
+-- default_scene = "spiral"
 
 --proctri_scene.c config values
 proctri_tex = "grass.png"
