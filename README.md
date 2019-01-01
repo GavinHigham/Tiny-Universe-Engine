@@ -40,10 +40,3 @@ This should come pre-installed with OSX.
 
 ### Lua 5.3 ###
 I'm gradually integrating Lua as a scripting and configuration language for the project. I'm also in the process of converting my awk scripts to Lua to reduce dependencies. At the moment, you'll need both the Lua library and the binary. In the future I'll have the library compiled first so it can be used to run the Lua build scripts.
-
-## macOS Considerations ##
-SDL2 is distributed as a framework, containing SDL.h in a "Headers" folder. SDL2_image looks for SDL2/SDL.h, and thus cannot find SDL.h. I work around this by creating a symbolic link in my /usr/local/include:
-
-    ln -s /Library/Frameworks/SDL2.framework/Headers /usr/local/include/SDL2
-
-You may need to do similar shenanigans to get things compiling.
