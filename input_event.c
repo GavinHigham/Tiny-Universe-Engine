@@ -16,7 +16,9 @@ extern bool ffmpeg_recording;
 extern FILE *ffmpeg_file;
 extern int *ffmpeg_buffer;
 extern lua_State *L;
+static int key_state_numkeys = 0;
 const Uint8 *key_state = NULL;
+Uint8 *key_state_prev = NULL;
 SDL_Event input_mouse_wheel_sum;
 
 extern int loop_iter_ave;
@@ -68,10 +70,25 @@ void push_quit()
 
 void input_event_init()
 {
-	key_state = SDL_GetKeyboardState(NULL);
+	key_state = SDL_GetKeyboardState(&key_state_numkeys);
+	key_state_prev = malloc(key_state_numkeys);
+
+	for (int i = 0; i < key_state_numkeys; i++)
+		key_state_prev[i] = 0;
 	for (int i = 0; i < LENGTH(nes30_buttons); i++)
 		nes30_buttons[i] = false;
 	controller_init();
+}
+
+void input_event_deinit()
+{
+	free(key_state_prev);
+}
+
+void input_event_save_prev_key_state()
+{
+	for (int i = 0; i < key_state_numkeys; i++)
+		key_state_prev[i] = key_state[i];
 }
 
 void keyevent(SDL_Keysym keysym, SDL_EventType type)
@@ -208,5 +225,13 @@ void mousewheelreset()
 {
 	input_mouse_wheel_sum.wheel.x = 0;
 	input_mouse_wheel_sum.wheel.y = 0;
+}
+
+//A key is "pressed" if this is the first frame in which it is down.
+//A key is "held" if it is down, and it was down the previous frame.
+// key held == ! key pressed
+Uint8 key_pressed(SDL_Scancode s)
+{
+	return key_state[s] && !key_state_prev[s];
 }
 

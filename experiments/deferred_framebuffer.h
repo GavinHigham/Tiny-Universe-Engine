@@ -29,6 +29,13 @@ struct color_buffer {
 	GLuint depth;
 };
 
+struct renderable_cubemap {
+	GLuint fbo;
+	GLuint texture;
+	GLuint depth;
+	float width;
+};
+
 struct deferred_framebuffer new_deferred_framebuffer(int width, int height);
 struct accumulation_buffer new_accumulation_buffer(int width, int height);
 struct color_buffer color_buffer_new(int width, int height);
@@ -38,5 +45,8 @@ void color_buffer_delete(struct color_buffer cb);
 void color_buffer_bind_for_reading(struct color_buffer cb);
 void bind_deferred_for_reading(struct deferred_framebuffer fb, struct accumulation_buffer ab);
 void bind_accumulation_for_reading(struct accumulation_buffer ab);
+
+struct renderable_cubemap renderable_cubemap_new(int width);
+int renderable_cubemap_bind(struct renderable_cubemap rc);
 
 #endif

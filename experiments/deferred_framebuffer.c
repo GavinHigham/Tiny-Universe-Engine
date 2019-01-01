@@ -105,6 +105,62 @@ struct color_buffer color_buffer_new(int width, int height)
 	return tmp;
 }
 
+struct renderable_cubemap renderable_cubemap_new(int width)
+{
+	struct renderable_cubemap tmp;
+	tmp.width = width;
+	glGenFramebuffers(1, &tmp.fbo);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, tmp.fbo);
+
+	glGenTextures(1, &tmp.texture);
+	glGenTextures(1, &tmp.depth);
+
+	glBindTexture(GL_TEXTURE_CUBE_MAP, tmp.texture);
+
+	for (int i = 0; i < 6; i++)
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, tmp.width, tmp.width, 0, GL_RGB, GL_FLOAT, NULL);
+
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+	
+	//Bind positive x for now.
+	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X, tmp.texture, 0);
+
+	glBindTexture(GL_TEXTURE_2D, tmp.depth);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, tmp.width, tmp.width, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tmp.depth, 0);
+
+	glDrawBuffer(GL_COLOR_ATTACHMENT0);
+
+	GLenum error = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+
+	if (error != GL_FRAMEBUFFER_COMPLETE) {
+		printf("FB error, status: 0x%x\n", error);
+	}
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+	return tmp;
+}
+
+// int renderable_cubemap_bind(struct renderable_cubemap rc, float screen_width, float screen_height)
+// {
+// 	glViewport(0, 0, rc.width, rc.width);
+
+// 	for (int i = 0; i < 6; i++) {
+// 	    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, rc.texture, 0);
+// 	    //Set camera, render
+// 	}
+	 
+// 	//stop rendering to fbo
+// 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+// 	glViewport(0, 0, screen_width, screen_height);
+// }
+
 void delete_deferred_framebuffer(struct deferred_framebuffer fb)
 {
 	glDeleteTextures(GBUFFER_NUM_TEXTURES, fb.textures);

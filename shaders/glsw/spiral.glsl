@@ -7,7 +7,7 @@ out vec2 position;
 void main()
 {
 	position = pos;
-	gl_Position = vec4(pos, -0.5, 1);
+	gl_Position = vec4(pos, -0.5, 1.0);
 }
 
 -- fragment.GL33 --
@@ -16,17 +16,17 @@ uniform vec2 iResolution;
 uniform vec4 iMouse;
 uniform vec2 iTime;
 uniform float iFocalLength;
+uniform mat3 dir_mat;
+uniform vec3 eye_pos = vec3(0.0);
 uniform float brightness = 1.0;
+uniform float rotation = 500.0;
+uniform vec4 tweaks = vec4(1.0);
+uniform vec4 tweaks2 = vec4(1.0);
+uniform vec4 bulge = vec4(50.0, 10.0, 1.0, 1.0);
+uniform vec4 absorption = vec4(0.2, 0.1, 0.01, 0.0);
 uniform int samples = 10;
 uniform float render_dist = 100.0;
 uniform vec3 spiral_origin = vec3(0.0);
-uniform vec3 eye_pos = vec3(0.0);
-uniform vec4 tweaks = vec4(1.0);
-uniform vec4 tweaks2 = vec4(1.0);
-uniform mat3 dir_mat;
-uniform float rotation = 500.0;
-uniform vec4 bulge = vec4(50.0, 10.0, 1.0, 1.0);
-uniform vec4 absorption = vec4(0.2, 0.1, 0.01, 0.0);
 vec4 transmittance = vec4(1.0) - absorption;
 
 in vec2 position; 
@@ -249,13 +249,76 @@ uniform sampler2D accum_buffer;
 uniform int num_frames_accum = 1;
 float gamma = 2.2;
 
-in vec2 position; 
+in vec2 position;
 out vec4 LFragment;
 
 void main() {
 	vec2 tx_coord = gl_FragCoord.xy / iResolution;
 	//Temporal denoising
 	vec3 color = texture(accum_buffer, tx_coord).xyz / float(num_frames_accum);
+	//Tone mapping
+	// color = color / (color + vec3(1.0));
+	//Gamma correction
+	// color = pow(color, vec3(1.0 / gamma));
+	LFragment = vec4(color, 1.0);
+}
+
+-- deferred.cubemap.GL33 --
+
+uniform samplerCube accum_cube;
+uniform int num_frames_accum = 1;
+float gamma = 2.2;
+
+in vec2 position;
+out vec4 LFragment;
+
+void main() {
+	//Temporal denoising
+	vec3 color = vec3(0.0);
+
+	vec2 p = mod( position + 1.0 // 0-2
+	                        , 0.5) // 0-0.5 4 times
+	                        * 4.0  // 0-2 4 times
+	                        - 1.0; // -1-1 4 times
+	// Cases for each 1/16th of the screen
+	if (position.y < -0.5) {
+		if (position.x < -0.5)
+			;
+		else if (position.x < 0.0)
+			color = texture(accum_cube, normalize(vec3(p.x, -1.0, -p.y))).xyz / float(num_frames_accum); //-y
+		else if (position.x < 0.5)
+			;
+		else
+			;
+	} else if (position.y < 0.0) {
+		if (position.x < -0.5)
+			color = texture(accum_cube, normalize(vec3(1.0, -p.yx))).xyz / float(num_frames_accum); //+x
+		else if (position.x < 0.0)
+			color = texture(accum_cube, normalize(vec3(-p, -1.0))).xyz / float(num_frames_accum); //-z
+		else if (position.x < 0.5)
+			color = texture(accum_cube, normalize(vec3(-1.0, -p.y, p.x))).xyz / float(num_frames_accum); //-x
+		else
+			color = texture(accum_cube, normalize(vec3(p.x, -p.y, 1.0))).xyz / float(num_frames_accum); //z
+	} else if (position.y < 0.5) {
+		if (position.x < -0.5)
+			;
+		else if (position.x < 0.0)
+			color = texture(accum_cube, normalize(vec3(p.x, 1.0, p.y))).xyz / float(num_frames_accum); //+y
+		else if (position.x < 0.5)
+			;
+		else
+			;
+	} else {
+		;
+		// if (position.x < -0.5)
+		// 	;
+		// else if (position.x < 0.0)
+		// 	color = texture(accum_cube, normalize(vec3(-1.0, position))).xyz / float(num_frames_accum); //-x
+		// else if (position.x < 0.5)
+		// 	;
+		// else
+		// 	;
+	}
 	//Tone mapping
 	// color = color / (color + vec3(1.0));
 	//Gamma correction

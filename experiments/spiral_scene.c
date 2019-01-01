@@ -14,7 +14,7 @@
 #include "deferred_framebuffer.h"
 #include "graphics.h"
 
-#include <glla.h>
+#include <glla/glla.h>
 #include <math.h>
 #include <stdio.h>
 #include <assert.h>
@@ -28,12 +28,20 @@ static float screen_width = 640, screen_height = 480;
 static int mouse_x = 0, mouse_y = 0;
 static struct trackball spiral_trackball;
 static struct color_buffer cbuffer;
+static struct renderable_cubemap rcube;
 static bool clear_accum = false;
 static int accum_frames = 0;
 static float tweaks[8] = {1, 1, 1, 1};
 static float g_absorption[4] = {0.2, 0.1, 0.01, 0.0};
 static int max_accum_frames = 180;
 static bool accumulate = true;
+static bool show_tweaks = true;
+static struct {
+	float screen;
+	float screen_focal;
+	float cubemap;
+	float cubemap_focal;
+} field_of_view;
 
 /* Lua Config */
 extern lua_State *L;
@@ -41,11 +49,12 @@ extern lua_State *L;
 /* OpenGL Variables */
 
 static GLint POS_ATTR = 1;
-static struct {
+static struct spiral_uniforms {
 	GLuint RESOLUTION, MOUSE, TIME, FOCAL, DIR, EYE, BRIGHT, ROTATION, TWEAKS, TWEAKS2, BULGE, ABSORB;
 	GLuint DRESOLUTION, DAB, DNFRAMES;
+	GLuint DAB_CUBE, DNFRAMES_CUBE;
 } UNIF;
-static GLuint SHADER, DSHADER, VAO, VBO;
+static GLuint SHADER, DSHADER, DSHADER_CUBE, VAO, VBO;
 static GLfloat vertices[] = {-1, -1, 1, -1, -1, 1, 1, 1};
 static float g_brightness;
 static float g_rotation;
@@ -58,13 +67,10 @@ static void meter_clear_accum_callback(char *name, enum meter_state state, float
 	clear_accum = true;
 }
 
-int spiral_scene_init()
+int spiral_shader_init(struct spiral_uniforms *unif)
 {
-	float FOV = M_PI/2;
-	glGenVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
-
 	/* Shader initialization */
+
 	glswInit();
 	glswSetPath("shaders/glsw/", ".glsl");
 	glswAddDirectiveToken("glsl330", "#version 330");
@@ -78,9 +84,17 @@ int spiral_scene_init()
 	}, shader_deferred[] = {
 		glsw_shader_from_keys(GL_VERTEX_SHADER, "versions.glsl330", vsh_key),
 		glsw_shader_from_keys(GL_FRAGMENT_SHADER, "versions.glsl330", "spiral.deferred.GL33"),
+	}, shader_deferred_cube[] = {
+		glsw_shader_from_keys(GL_VERTEX_SHADER, "versions.glsl330", vsh_key),
+		glsw_shader_from_keys(GL_FRAGMENT_SHADER, "versions.glsl330", "spiral.deferred.cubemap.GL33"),
 	};
 	SHADER = glsw_new_shader_program(shader, LENGTH(shader));
+	checkErrors("After creating spiral shader program");
 	DSHADER = glsw_new_shader_program(shader_deferred, LENGTH(shader_deferred));
+	checkErrors("After creating deferred shader program");
+	DSHADER_CUBE = glsw_new_shader_program(shader_deferred_cube, LENGTH(shader_deferred_cube));
+	checkErrors("After creating cubemap shader program");
+
 	glswShutdown();
 	free(vsh_key);
 	free(fsh_key);
@@ -92,25 +106,45 @@ int spiral_scene_init()
 
 	/* Retrieve uniform variable handles */
 
-	UNIF.RESOLUTION  = glGetUniformLocation(SHADER, "iResolution");
-	UNIF.MOUSE       = glGetUniformLocation(SHADER, "iMouse");
-	UNIF.TIME        = glGetUniformLocation(SHADER, "iTime");
-	UNIF.FOCAL       = glGetUniformLocation(SHADER, "iFocalLength");
-	UNIF.DIR         = glGetUniformLocation(SHADER, "dir_mat");
-	UNIF.EYE         = glGetUniformLocation(SHADER, "eye_pos");
-	UNIF.BRIGHT      = glGetUniformLocation(SHADER, "brightness");
-	UNIF.ROTATION    = glGetUniformLocation(SHADER, "rotation");
-	UNIF.TWEAKS      = glGetUniformLocation(SHADER, "tweaks");
-	UNIF.TWEAKS2     = glGetUniformLocation(SHADER, "tweaks2");
-	UNIF.BULGE       = glGetUniformLocation(SHADER, "bulge");
-	UNIF.ABSORB      = glGetUniformLocation(SHADER, "absorption");
-
-	UNIF.DRESOLUTION = glGetUniformLocation(DSHADER, "iResolution");
-	UNIF.DAB         = glGetUniformLocation(DSHADER, "cbuffer");
-	UNIF.DNFRAMES    = glGetUniformLocation(DSHADER, "num_frames_accum");
+	unif->RESOLUTION  = glGetUniformLocation(SHADER, "iResolution");
+	unif->MOUSE       = glGetUniformLocation(SHADER, "iMouse");
+	unif->TIME        = glGetUniformLocation(SHADER, "iTime");
+	unif->FOCAL       = glGetUniformLocation(SHADER, "iFocalLength");
+	unif->DIR         = glGetUniformLocation(SHADER, "dir_mat");
+	unif->EYE         = glGetUniformLocation(SHADER, "eye_pos");
+	unif->BRIGHT      = glGetUniformLocation(SHADER, "brightness");
+	unif->ROTATION    = glGetUniformLocation(SHADER, "rotation");
+	unif->TWEAKS      = glGetUniformLocation(SHADER, "tweaks");
+	unif->TWEAKS2     = glGetUniformLocation(SHADER, "tweaks2");
+	unif->BULGE       = glGetUniformLocation(SHADER, "bulge");
+	unif->ABSORB      = glGetUniformLocation(SHADER, "absorption");
 	checkErrors("After getting uniform handles");
+
+	unif->DRESOLUTION = glGetUniformLocation(DSHADER, "iResolution");
+	unif->DAB         = glGetUniformLocation(DSHADER, "accum_buffer");
+	unif->DNFRAMES    = glGetUniformLocation(DSHADER, "num_frames_accum");
+	checkErrors("After getting deferred uniform handles");
+
+	unif->DAB_CUBE      = glGetUniformLocation(DSHADER_CUBE, "accum_cube");
+	unif->DNFRAMES_CUBE = glGetUniformLocation(DSHADER_CUBE, "num_frames_accum");
+	checkErrors("After getting cubemap uniform handles");
 	glUseProgram(SHADER);
-	glUniform1f(UNIF.FOCAL, 1.0/tan(FOV/2.0));
+
+	field_of_view.screen = M_PI/2;
+	field_of_view.screen_focal = 1.0/tan(field_of_view.screen/2.0);
+	field_of_view.cubemap = M_PI/2; //Cubemap needs to have 90 degree FOV for each face.
+	field_of_view.cubemap_focal = 1.0/tan(field_of_view.cubemap/2.0);
+
+	return 0;
+}
+
+int spiral_scene_init()
+{
+	glGenVertexArrays(1, &VAO);
+	glBindVertexArray(VAO);
+
+	if (spiral_shader_init(&UNIF))
+		return -1;
 
 	/* Vertex data */
 
@@ -126,6 +160,8 @@ int spiral_scene_init()
 
 	/* Accumulation Buffer */
 	cbuffer = color_buffer_new(screen_width, screen_height);
+	rcube = renderable_cubemap_new(getglob(L, "cubemap_width", 512));
+	checkErrors("After renderable_cubemap_new");
 
 	/* Misc. OpenGL bits */
 
@@ -238,6 +274,7 @@ int spiral_scene_init()
 		meter_style(w->name, w->color.fill, w->color.border, w->color.font, w->style.padding);
 		y_offset += 25;
 	}
+
 	accum_frames = 0;
 	max_accum_frames = getglob(L, "max_accum_frames", 180);
 	accumulate = getglobbool(L, "accumulate", true);
@@ -276,11 +313,14 @@ void spiral_scene_update(float dt)
 	
 	Uint32 buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
 	bool button = buttons & SDL_BUTTON(SDL_BUTTON_LEFT);
-	int meter_clicked = meter_mouse(mouse_x, mouse_y, button);
-	button = button && !meter_clicked;
+	if (show_tweaks)
+		button = !meter_mouse(mouse_x, mouse_y, button) && button;
 	int scroll_x = input_mouse_wheel_sum.wheel.x, scroll_y = input_mouse_wheel_sum.wheel.y;
 	if (trackball_step(&spiral_trackball, mouse_x, mouse_y, button, scroll_x, scroll_y))
 		clear_accum = true;
+
+	if (key_pressed(SDL_SCANCODE_TAB))
+		show_tweaks = !show_tweaks;
 }
 
 void spiral_scene_render()
@@ -288,7 +328,6 @@ void spiral_scene_render()
 	glBindVertexArray(VAO);
 	glUseProgram(SHADER);
 	glClearColor(0, 0, 0, 0);
-	// glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 	//Draw in wireframe if 'z' is held down.
 	if (key_state[SDL_SCANCODE_Z])
@@ -296,32 +335,47 @@ void spiral_scene_render()
 	else
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
+	bool draw_to_cubemap = getglobbool(L, "cubemap_mode", false) != key_state[SDL_SCANCODE_C];
+
+	if (draw_to_cubemap)
 	{
-		float dir_mat[9];
-		mat3_to_array_cm(spiral_trackball.camera.a, dir_mat);
-		glUniformMatrix3fv(UNIF.DIR, 1, GL_FALSE, dir_mat);
-		checkErrors("After sending dir_mat");
-		glUniform3f(UNIF.EYE, VEC3_COORDS(spiral_trackball.camera.t));
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, rcube.fbo);
+		glUniform1f(UNIF.FOCAL, field_of_view.cubemap_focal);
+	} else {
+		// Draw to accumulation buffer.
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, cbuffer.fbo);
+		glUniform1f(UNIF.FOCAL, field_of_view.screen_focal);
 	}
 
-	// Draw to accumulation buffer.
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, cbuffer.fbo);
 	if (clear_accum || !accumulate) {
 		clear_accum = false;
 		accum_frames = 0;
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+		if (draw_to_cubemap) {
+			for (int i = 0; i < 6; i++) {
+				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, rcube.texture, 0);
+				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+			}
+		} else {
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+		}
 	}
 
 	if (accum_frames < max_accum_frames || !accumulate) {
 		glUniform1f(UNIF.ROTATION, g_rotation);
 		glUniform1f(UNIF.BRIGHT, g_brightness);
 		glUniform2f(UNIF.TIME, SDL_GetTicks() / 1000.0, accum_frames);
-		glUniform2f(UNIF.RESOLUTION, screen_width, screen_height);
 		glUniform4f(UNIF.MOUSE, mouse_x, mouse_y, 0, 0);
 		glUniform4fv(UNIF.TWEAKS, 1, tweaks);
 		glUniform4fv(UNIF.TWEAKS2, 1, tweaks + 4);
 		glUniform4f(UNIF.BULGE, g_bulge_height, g_bulge_width, g_bulge_mask_radius, g_bulge_width * g_bulge_width);
 		glUniform4fv(UNIF.ABSORB, 1, g_absorption);
+		glUniform3f(UNIF.EYE, VEC3_COORDS(spiral_trackball.camera.t));
+		{
+			float dir_mat[9];
+			mat3_to_array_cm(spiral_trackball.camera.a, dir_mat);
+			glUniformMatrix3fv(UNIF.DIR, 1, GL_FALSE, dir_mat);
+			checkErrors("After sending dir_mat");
+		}
 		glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
 		//Each accumulate step, blend additively.
@@ -329,30 +383,78 @@ void spiral_scene_render()
 		glBlendFunc(GL_ONE, GL_ONE);
 		glBlendEquation(GL_FUNC_ADD);
 		glDepthMask(GL_FALSE);
-		glBindFramebuffer(GL_FRAMEBUFFER, cbuffer.fbo);
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		if (draw_to_cubemap) {
+			glBindFramebuffer(GL_FRAMEBUFFER, rcube.fbo);
+			glViewport(0, 0, rcube.width, rcube.width);
+			glUniform2f(UNIF.RESOLUTION, rcube.width, rcube.width);
+
+			float s90 = 1.0, c90 = 0.0, s180 = 0.0, c180 = -1.0, s270 = -1.0, c270 = 0.0;
+			mat3 *c = &spiral_trackball.camera.a;
+			mat3 cubemap_mats[] = {
+				mat3_mult(*c, mat3_rotmaty(s90, c90)), // +X
+				mat3_mult(*c, mat3_rotmaty(s270, c270)), // -X
+				mat3_mult(*c, mat3_rotmatx(s90, c90)), // +Y
+				mat3_mult(*c, mat3_rotmatx(s270, c270)), // -Y
+				mat3_mult(*c, mat3_rotmaty(s180, c180)), // +Z
+				*c, // -Z
+			};
+
+			for (int i = 0; i < LENGTH(cubemap_mats); i++) {
+				// For each direction, draw to cubemap
+				float dir_mat[9];
+				mat3_to_array_cm(cubemap_mats[i], dir_mat);
+				glUniformMatrix3fv(UNIF.DIR, 1, GL_FALSE, dir_mat);
+
+				//Bind cubemap face texture and draw
+				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, rcube.texture, 0);
+				glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+			}
+
+			glViewport(0, 0, screen_width, screen_height);
+		} else {
+			glBindFramebuffer(GL_FRAMEBUFFER, cbuffer.fbo);
+			glUniform2f(UNIF.RESOLUTION, screen_width, screen_height);
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		}
 		accum_frames++;
 	}
 
 	// Draw from accumulation buffer to screen.
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, cbuffer.fbo);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-	glDisable(GL_BLEND);
-	glUseProgram(DSHADER);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, cbuffer.texture);
-	glUniform1i(UNIF.DAB, 0);
-	//The result is divided by the number of accumulated frames, averaging the passes.
-	glUniform1i(UNIF.DNFRAMES, accum_frames);
-	glUniform2f(UNIF.DRESOLUTION, screen_width, screen_height);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-	glDisable(GL_BLEND);
+	if (draw_to_cubemap) {
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, rcube.fbo);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+		glDisable(GL_BLEND);
+		glUseProgram(DSHADER_CUBE);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, rcube.texture);
+		checkErrors("After bind texture");
+		glUniform1i(UNIF.DAB_CUBE, 0);
+		//The result is divided by the number of accumulated frames, averaging the passes.
+		glUniform1i(UNIF.DNFRAMES_CUBE, accum_frames);
+		// glUniform2f(UNIF.DRESOLUTION, rcube.width, rcube.width);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	} else {
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, cbuffer.fbo);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+		glDisable(GL_BLEND);
+		glUseProgram(DSHADER);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, cbuffer.texture);
+		glUniform1i(UNIF.DAB, 0);
+		//The result is divided by the number of accumulated frames, averaging the passes.
+		glUniform1i(UNIF.DNFRAMES, accum_frames);
+		glUniform2f(UNIF.DRESOLUTION, screen_width, screen_height);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	}
 
+	glDisable(GL_BLEND);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			
 	checkErrors("After draw");
-	meter_draw_all();
+	if (show_tweaks)
+		meter_draw_all();
 	checkErrors("After meter_draw_all");
 	glBindVertexArray(0);
 }

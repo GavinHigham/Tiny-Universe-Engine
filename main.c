@@ -176,6 +176,11 @@ int main()
 				//Get a rolling average of the number of tight loop iterations per frame.
 				loop_iter_ave = (loop_iter_ave + loop_iter)/2; //Average the current number of loop iterations with the average.
 				loop_iter = 0;
+
+				//Needs to be done before the call to SDL_PollEvent (which implicitly calls SDL_PumpEvents)
+				//WARNING: This modifies the input state.
+				//Done here because there are sometimes issues detecting "pressed" edges from rapid keypresses if it's placed after the SDL_Delay
+				input_event_save_prev_key_state();
 		} else if ((frame_time_ms - since_update_ms) > wake_early_ms) { //If there's more than wake_early_ms milliseconds left...
 			SDL_Delay(frame_time_ms - since_update_ms - wake_early_ms); //Sleep up until wake_early_ms milliseconds left. (Busywait the rest)
 		}

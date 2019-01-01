@@ -77,6 +77,7 @@ int glew_init()
 
 void engine_deinit()
 {
+	input_event_deinit();
 	open_simplex_noise_free(osnctx);
 	IMG_Quit();
 	SDL_Quit();
