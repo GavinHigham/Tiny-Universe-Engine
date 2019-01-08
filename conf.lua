@@ -20,22 +20,25 @@ proctri_tex = "grass.png"
 tex_scale = 4
 gpu_tiles = false
 num_tile_rows = 80
-gen_solar_systems = true
+gen_solar_systems = false
 
 --twotri_scene.c config values
 spiral_vsh_key = "spiral.vertex.GL33"
 spiral_fsh_key = "spiral.fragment.GL33"
 cubemap_width = 128
-cubemap_mode = true
+cubemap_mode = false
 max_accum_frames = 180
 accumulate = true
-spiral_rotation = 300.0
-noise_scale = 3.6
-noise_strength = 4.7
-spiral_density = 2.8
-bulge_mask_radius = 12.0
-bulge_height = 14.0
-bulge_width = 23.0
+galaxy_defaults = {
+	arm_width = 2.0,
+	rotation = 300.0,
+	noise_scale = 3.6,
+	noise_strength = 4.7,
+	spiral_density = 2.8,
+	bulge_mask_radius = 12.0,
+	bulge_height = 14.0,
+	bulge_width = 23.0,
+}
 
 --visualizer_scene.c config values
 num_buckets = 2048

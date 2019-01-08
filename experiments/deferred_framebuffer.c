@@ -125,7 +125,7 @@ struct renderable_cubemap renderable_cubemap_new(int width)
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-	
+
 	//Bind positive x for now.
 	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X, tmp.texture, 0);
 
@@ -146,20 +146,6 @@ struct renderable_cubemap renderable_cubemap_new(int width)
 
 	return tmp;
 }
-
-// int renderable_cubemap_bind(struct renderable_cubemap rc, float screen_width, float screen_height)
-// {
-// 	glViewport(0, 0, rc.width, rc.width);
-
-// 	for (int i = 0; i < 6; i++) {
-// 	    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, rc.texture, 0);
-// 	    //Set camera, render
-// 	}
-	 
-// 	//stop rendering to fbo
-// 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-// 	glViewport(0, 0, screen_width, screen_height);
-// }
 
 void delete_deferred_framebuffer(struct deferred_framebuffer fb)
 {

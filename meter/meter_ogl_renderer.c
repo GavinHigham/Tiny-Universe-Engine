@@ -178,8 +178,9 @@ int meter_ogl_renderer_init(struct meter_globals *meter)
 	glswSetPath("shaders/glsw/", ".glsl");
 	glswAddDirectiveToken("GL33", "#version 330");
 
-	char texture_path[gettmpglobstr(L, "meter_font", "4x7.png", NULL)];
-	                  gettmpglobstr(L, "meter_font", "4x7.png", texture_path);
+	// char texture_path[gettmpglobstr(L, "meter_font", "4x7.png", NULL)];
+	//                   gettmpglobstr(L, "meter_font", "4x7.png", texture_path);
+	char *texture_path = getglob(L, "meter_font", "4x7.png");
 
 	GLuint shader[] = {
 		glsw_shader_from_keys(GL_VERTEX_SHADER, "meter.vertex.GL33"),
@@ -211,6 +212,7 @@ int meter_ogl_renderer_init(struct meter_globals *meter)
 
 	//TODO(Gavin) Load these from a font configuration file.
 	ogl->font_tex = load_gl_texture(texture_path);
+	free(texture_path);
 	ogl->font.width = 6;
 	ogl->font.height = 12;
 
@@ -222,6 +224,8 @@ int meter_ogl_renderer_init(struct meter_globals *meter)
 
 	int len = strlen(character_set);
 	for (int i = 0; i < len; i++) {
+		if (character_set[i] & 128)
+			continue; //Skip unicode for now, would overflow buffer.
 		glyph_coords[(int)character_set[i]].x = ogl->font.width * (i % 26);
 		glyph_coords[(int)character_set[i]].y = ogl->font.height * (i / 26);
 	}

@@ -20,7 +20,7 @@ uniform mat3 dir_mat;
 uniform vec3 eye_pos = vec3(0.0);
 uniform float brightness = 1.0;
 uniform float rotation = 500.0;
-uniform vec4 tweaks = vec4(1.0);
+uniform vec4 tweaks1 = vec4(1.0);
 uniform vec4 tweaks2 = vec4(1.0);
 uniform vec4 bulge = vec4(50.0, 10.0, 1.0, 1.0);
 uniform vec4 absorption = vec4(0.2, 0.1, 0.01, 0.0);
@@ -46,7 +46,7 @@ bool in_galaxy(vec3 p)
 {
 	float l = length(p.xz);
 	float d = l*l / bulge.w;
-	return l < galaxy_diameter && (abs(p.y) < bulge.x/(d + 1.0) || length(p)/bulge.z < 2.0);
+	return l < galaxy_diameter && (abs(p.y) < tweaks2.w/(d + 1.0) || length(p)/bulge.y < 2.0);
 }
 
 float snoise_oct(vec3 v, int oct)
@@ -115,7 +115,7 @@ float spiral_density(vec3 p)
 		rotation / 3000.0 * length(p.xz);
 	return pow(
 		sin(2.0 * r) * 0.5 + 0.5, //Smoothly wrap to 0.0-1.0
-		tweaks2.y);
+		tweaks1.x);
 }
 
 float galaxy_density(vec3 p, float bulge_density, float noise_scale, float noise_strength)
@@ -129,10 +129,10 @@ float galaxy_density(vec3 p, float bulge_density, float noise_scale, float noise
 	p += (normalize(p) * (snoise(p / noise_scale) - 0.4)) * noise_strength; //Domain transformation.
 #endif
 	float d2 = dot(p.xz, p.xz) / bulge.w;
-	return tweaks.z *
+	return tweaks1.w *
 		max(s, bulge_density) * //Spiral and bulge
-		(1.0 - smoothstep(0, bulge.x/(1.0 + d2), abs(p.y))) * //Galaxy profile
-		(1.0 - smoothstep(0, galaxy_diameter, length(p.xz)));          //Fade spiral out into disk shape
+		(1.0 - smoothstep(0, tweaks2.w/(1.0 + d2), abs(p.y))) * //Galaxy profile
+		(1.0 - smoothstep(0, galaxy_diameter, length(p.xz))); //Fade spiral out into disk shape
 }
 
 
@@ -180,7 +180,7 @@ vec3 raymarch()
 	ray_start += golden_step * step;
 	dist += golden_step;
 #endif
-	// float by2 = bulge.y * bulge.y;
+	// float by2 = bulge.x * bulge.x;
 	vec3 norm_step = normalize(step);
 
 	vec3 si = sphereIntersection(ray_start, norm_step, vec4(spiral_origin, galaxy_diameter/2.0));
@@ -193,17 +193,17 @@ vec3 raymarch()
 			if (in_galaxy(p2)) {
 				float lp2 = length(p2);
 
-				float bulge_density = pow(max(2.0 - lp2/bulge.z, 0.0), tweaks2.z);
-				float density = galaxy_density(p2, bulge_density, tweaks.x, tweaks.y);
+				float bulge_density = pow(max(2.0 - lp2/bulge.y, 0.0), bulge.z);
+				float density = galaxy_density(p2, bulge_density, tweaks1.y, tweaks1.z);
 				float clamped_density = clamp(density, 0.0, 1.0);
-				float eps = tweaks.w;
+				float eps = tweaks2.y;
 				float dif = clamp(
-					(galaxy_density(p2 - eps*normalize(p2), bulge_density, tweaks.x, tweaks.y) - density) / eps,
+					(galaxy_density(p2 - eps*normalize(p2), bulge_density, tweaks1.y, tweaks1.z) - density) / eps,
 					0.0, 1.0);
 
 				sdt *= transmittance.xyz*(1 - clamped_density);
 				// float clamped_bulge_density = clamp(bulge_density, 0.0, 1.0);
-				float bulge_light_intensity = bulge.z*bulge.z * 2.0 * PI / (10.0 * lp2); //Roughly solid angle of bulge from p2's vantage point.
+				float bulge_light_intensity = bulge.y*bulge.y * 2.0 * PI / (10.0 * lp2); //Roughly solid angle of bulge from p2's vantage point.
 
 #ifdef FRONT_TO_BACK
 				if (length(sdt) < 0.05) {
@@ -220,7 +220,7 @@ vec3 raymarch()
 				color =
 					(
 						color + //Color from previous steps
-						mix(color_ramp(clamped_density * step_dist * 30.0), bulge_color * bulge_density, bulge_density) * tweaks2.w + //Emissivity
+						mix(color_ramp(clamped_density * step_dist * 30.0), bulge_color * bulge_density, bulge_density) * tweaks2.z + //Emissivity
 						bulge_light_intensity * tweaks2.x * dif*bulge_color //Diffuse lighting
 					) *
 					(vec3(1.0) - transmittance.xyz*clamped_density); //Attenuation
@@ -276,34 +276,31 @@ void main() {
 	//Temporal denoising
 	vec3 color = vec3(0.0);
 
-	vec2 p = mod( position + 1.0 // 0-2
-	                        , 0.5) // 0-0.5 4 times
-	                        * 4.0  // 0-2 4 times
-	                        - 1.0; // -1-1 4 times
+	vec2 p = mod(position + 1.0, 0.5) * 4.0 - 1.0;
 	// Cases for each 1/16th of the screen
 	if (position.y < -0.5) {
 		if (position.x < -0.5)
 			;
 		else if (position.x < 0.0)
-			color = texture(accum_cube, normalize(vec3(p.x, -1.0, -p.y))).xyz / float(num_frames_accum); //-y
+			color = texture(accum_cube, normalize(vec3(p.x, -1.0, -p.y))).xyz; //-y
 		else if (position.x < 0.5)
 			;
 		else
 			;
 	} else if (position.y < 0.0) {
 		if (position.x < -0.5)
-			color = texture(accum_cube, normalize(vec3(1.0, -p.yx))).xyz / float(num_frames_accum); //+x
+			color = texture(accum_cube, normalize(vec3(1.0, -p.yx))).xyz; //+x
 		else if (position.x < 0.0)
-			color = texture(accum_cube, normalize(vec3(-p, -1.0))).xyz / float(num_frames_accum); //-z
+			color = texture(accum_cube, normalize(vec3(-p, -1.0))).xyz; //-z
 		else if (position.x < 0.5)
-			color = texture(accum_cube, normalize(vec3(-1.0, -p.y, p.x))).xyz / float(num_frames_accum); //-x
+			color = texture(accum_cube, normalize(vec3(-1.0, -p.y, p.x))).xyz; //-x
 		else
-			color = texture(accum_cube, normalize(vec3(p.x, -p.y, 1.0))).xyz / float(num_frames_accum); //z
+			color = texture(accum_cube, normalize(vec3(p.x, -p.y, 1.0))).xyz; //z
 	} else if (position.y < 0.5) {
 		if (position.x < -0.5)
 			;
 		else if (position.x < 0.0)
-			color = texture(accum_cube, normalize(vec3(p.x, 1.0, p.y))).xyz / float(num_frames_accum); //+y
+			color = texture(accum_cube, normalize(vec3(p.x, 1.0, p.y))).xyz; //+y
 		else if (position.x < 0.5)
 			;
 		else
@@ -313,7 +310,7 @@ void main() {
 		// if (position.x < -0.5)
 		// 	;
 		// else if (position.x < 0.0)
-		// 	color = texture(accum_cube, normalize(vec3(-1.0, position))).xyz / float(num_frames_accum); //-x
+		// 	color = texture(accum_cube, normalize(vec3(-1.0, position))).xyz; //-x
 		// else if (position.x < 0.5)
 		// 	;
 		// else
@@ -323,5 +320,5 @@ void main() {
 	// color = color / (color + vec3(1.0));
 	//Gamma correction
 	// color = pow(color, vec3(1.0 / gamma));
-	LFragment = vec4(color, 1.0);
+	LFragment = vec4(color / float(num_frames_accum), 1.0);
 }

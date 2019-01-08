@@ -69,3 +69,45 @@ size_t gettmpglobstr(lua_State *L, const char *var, const char *d, char *buf)
 	//BUG(Gavin): Doesn't this use a string after it has already been popped?
 	return result ? 0 : strlen(result) + 1;
 }
+
+bool getoptbool(lua_State *L, int i, bool d)
+{
+	bool result = lua_isboolean(L, i) ? lua_toboolean(L, i) : d;
+	return result;
+}
+
+char * getoptstr(lua_State *L, int i, const char *d)
+{
+	char *result = (char *)luaL_optstring(L, i, d);
+	result = result ? strdup(result) : NULL;
+	return result;
+}
+
+bool getoptfieldbool(lua_State *L, int i, const char *var, bool d)
+{
+	lua_getfield(L, i, var);
+	bool result = getopttop(L, d);
+	lua_pop(L, 1);
+	return result;
+}
+int getoptfieldint(lua_State *L, int i, const char *var, lua_Integer d)
+{
+	lua_getfield(L, i, var);
+	int result = getopttop(L, d);
+	lua_pop(L, 1);
+	return result;
+}
+lua_Number getoptfieldnum(lua_State *L, int i, const char *var, lua_Number d)
+{
+	lua_getfield(L, i, var);
+	lua_Number result = getopttop(L, d);
+	lua_pop(L, 1);
+	return result;
+}
+char * getoptfieldstr(lua_State *L, int i, const char *var, const char *d)
+{
+	lua_getfield(L, i, var);
+	char *result = getopttop(L, d);
+	lua_pop(L, 1);
+	return result;
+}

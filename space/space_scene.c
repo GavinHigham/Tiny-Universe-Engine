@@ -68,6 +68,7 @@ Entity *ship_entity     = NULL;
 Entity *camera_entity   = NULL;
 Entity *sun_entity      = NULL;
 Entity *star_box_entity = NULL;
+Entity *galaxy_box_entity = NULL;
 
 GLfloat proj_mat[16];
 GLfloat proj_view_mat[16];
@@ -107,6 +108,15 @@ void entities_init()
 		.context = ship_entity,
 	});
 
+	// galaxy_box_entity = entity_new();
+	// entity_make_scriptable(galaxy_box_entity, (Scriptable){
+	// 	.script = galaxy_box_script,
+	// 	.context = camera_entity
+	// });
+
+	// entity_make_drawable(galaxy_box_entity, (Drawable){
+
+	// });
 
 	star_box_entity = entity_new();
 	entity_make_scriptable(star_box_entity, (Scriptable){
@@ -236,7 +246,7 @@ static void forward_update_point_light(EFFECT *effect, struct point_light_attrib
 
 //Eventually I'll have an algorithm to calculate potential visible set, etc.
 //static Drawable *pvs[] = {&d_newship, &d_room};
-static Drawable *pvs[] = {};//{&d_ship};
+static Drawable *pvs[] = {}; //{&d_ship};
 
 void space_scene_render()
 {
@@ -391,10 +401,10 @@ void space_scene_render()
 	glUniform3f(effects.skybox.sun_direction, VEC3_COORDS(sun_direction));
 	glUniform3f(effects.skybox.sun_color, VEC3_COORDS(sun_color));
 	skybox_frame.t = eye_frame.t;
-	//draw_drawable(&d_skybox);
+	// draw_drawable(&d_skybox);
 	//stars_draw(eye_frame, proj_view_mat);
-	//star_box_draw(eye_sector, proj_view_mat);
-	star_box_draw((bpos_origin){0,0,0}, proj_view_mat);
+	star_box_draw(eye_sector, proj_view_mat);
+	// star_box_draw((bpos_origin){0,0,0}, proj_view_mat);
 
 	debug_graphics.lines.ship_to_planet.start = bpos_remap((bpos){ship_entity->physical->position.t, ship_entity->physical->origin}, eye_sector);
 	debug_graphics.lines.ship_to_planet.end   = bpos_remap(ssystem.planet_positions[0], eye_sector);

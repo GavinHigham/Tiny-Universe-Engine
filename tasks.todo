@@ -24,10 +24,10 @@ Lua:
   ☐ Could create meters in a Lua file, loaded per-module
 
 Galaxy Raymarch:
-  ☐ Multiple octaves of noise
+  ✔ Multiple octaves of noise @done (19-01-02 00:28)
   ☐ Fractional brownian motion
-  ☐ Order-independent transparency
-  ☐ Stop at certain brightness or density/occludence
+  ✔ Order-independent transparency @done (19-01-02 00:28)
+  ✔ Stop at certain brightness or density/occludence @done (19-01-02 00:28)
   ☐ Start rays at bounding volume
   ☐ Signed distance field optimizations?
   ☐ Use noise to adjust samples per pixel (rotate duty cycle per pixel?)
@@ -38,8 +38,10 @@ Galaxy Raymarch:
     ☐ galaxy should be parametrized
     ☐ sample galaxy function from CPU-side to drive star generation
   ☐ Integrate into space scene
-  ☐ Render into cubemap of configurable size
+  ✔ Render into cubemap of configurable size @done (19-01-02 00:28)
   ☐ Refactor meter creation code, list of names, list of default values, list of targets
+  ☐ Move tweaks into single structure
+  ☐ Density should probably not be linearly correlated with both absorption and emission
 
 Trackball:
   ☐ Fix gimbal lock issue
