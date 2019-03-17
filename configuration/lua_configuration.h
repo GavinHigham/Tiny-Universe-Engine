@@ -1,6 +1,7 @@
 #ifndef LUA_CONFIGURATION_LUA_H
 #define LUA_CONFIGURATION_LUA_H
-#include <lua.h>
+#include <lua-5.3.5/src/lua.h>
+#include <lua-5.3.5/src/lauxlib.h>
 #include <stdbool.h>
 
 //Runs the Lua file located at filepath, and prints errors as appropriate.
@@ -42,7 +43,7 @@ char * getoptfieldstr(lua_State *L, int i, const char *var, const char *d);
 //Generic get field value, based on the type of the default value.
 #define getoptfield(L, index, var, d) _Generic((d), \
 	bool:         getoptfieldbool, \
-	int:          (int)getoptfieldint, \
+	int:          getoptfieldint, \
 	lua_Integer:  getoptfieldint, \
 	lua_Number:   getoptfieldnum, \
 	float:        getoptfieldnum, \

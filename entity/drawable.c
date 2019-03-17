@@ -5,6 +5,7 @@
 #include "effects.h"
 #include "math/bpos.h"
 #include "buffer_group.h"
+#include "entity/entity.h"
 
 extern bpos_origin eye_sector;
 
@@ -35,4 +36,14 @@ void deinit_drawable(Drawable *d)
 void draw_drawable(Drawable *d)
 {
 	d->draw(d->effect, *d->bg, (amat4){d->frame->a, bpos_remap((bpos){d->frame->t, *(d->sector)}, eye_sector)});
+}
+
+void entity_make_drawable(Entity *e, Drawable d)
+{
+	entity_alloc_drawable(e, d);
+}
+
+void entity_unmake_drawable(Entity *e)
+{
+	entity_dealloc_drawable(e);
 }

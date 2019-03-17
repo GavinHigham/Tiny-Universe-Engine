@@ -27,6 +27,7 @@ uniform vec4 absorption = vec4(0.2, 0.1, 0.01, 0.0);
 uniform int samples = 10;
 uniform float render_dist = 100.0;
 uniform vec3 spiral_origin = vec3(0.0);
+uniform float freshness = 0.1;
 vec4 transmittance = vec4(1.0) - absorption;
 
 in vec2 position; 
@@ -38,7 +39,7 @@ const float INVPI = 1.0/PI;
 const float galaxy_diameter = 80.0;
 const vec3 bulge_color = vec3(0.992, 0.941, 0.549);
 
-#define EAT_NOISE
+// #define EAT_NOISE
 #define NOISE
 #define FRONT_TO_BACK
 
@@ -54,7 +55,7 @@ float snoise_oct(vec3 v, int oct)
 	float sum = 0.0;
 	float q = 1.0;
 	for (int i = 0; i < 10 && i < oct; i++) {
-		float s = snoise(v*q);
+		float s = abs(snoise(v*q));
 		q *= 2;
 		sum += s / q;
 	}
@@ -120,14 +121,15 @@ float spiral_density(vec3 p)
 
 float galaxy_density(vec3 p, float bulge_density, float noise_scale, float noise_strength)
 {
-	float s = spiral_density(p);
+	float s = 1.0;
 #ifdef EAT_NOISE
 	s *= clamp(snoise_oct(p / (noise_scale), 3) * noise_strength, 0.0, 1.0);
 #else
 	//This line is responsible for a lot of the visual interest of the spiral,
 	//and is probably the first thing that should be tweaked to improve the appearance.
-	p += (normalize(p) * (snoise(p / noise_scale) - 0.4)) * noise_strength; //Domain transformation.
+	p += (normalize(p) * (snoise_oct(p / noise_scale, 3) - 0.4)) * noise_strength; //Domain transformation.
 #endif
+	s *= spiral_density(p);
 	float d2 = dot(p.xz, p.xz) / bulge.w;
 	return tweaks1.w *
 		max(s, bulge_density) * //Spiral and bulge
@@ -138,6 +140,7 @@ float galaxy_density(vec3 p, float bulge_density, float noise_scale, float noise
 
 vec3 color_ramp(float v)
 {
+	// return vec3(smoothstep(0, 100, 1.0));
 	return vec3(
 		smoothstep(70, 100, v),
 		smoothstep(20, 100, v),
@@ -206,7 +209,7 @@ vec3 raymarch()
 				float bulge_light_intensity = bulge.y*bulge.y * 2.0 * PI / (10.0 * lp2); //Roughly solid angle of bulge from p2's vantage point.
 
 #ifdef FRONT_TO_BACK
-				if (length(sdt) < 0.05) {
+				if (length(sdt) < 0.005) {
 					// samples = i;
 					// color = vec3(1.0, 0.0, 0.0);
 					break;
@@ -233,14 +236,14 @@ vec3 raymarch()
 	if (si.x < 0)
 		tint = vec3(0.25, 0, 0);
 
-	return color * brightness + tint;
+	return clamp(color * brightness + tint, 0.0, 100000.0);
 }
 
 void main() {
 	vec2 uv = 2.0 * gl_FragCoord.xy / iResolution - 1.0;
 	uv.x *= iResolution.x / iResolution.y;
 
-	LFragment = vec4(raymarch(), 1.0);
+	LFragment = vec4(raymarch(), freshness);
 }
 
 -- deferred.GL33 --

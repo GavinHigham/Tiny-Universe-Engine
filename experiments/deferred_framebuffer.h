@@ -3,6 +3,7 @@
 #include "graphics.h"
 #include <stdio.h>
 
+
 enum GBUFFER_TEXTURE_TYPE {
 	GBUFFER_TEXTURE_TYPE_POSITION,
 	GBUFFER_TEXTURE_TYPE_DIFFUSE,
@@ -46,6 +47,7 @@ void color_buffer_bind_for_reading(struct color_buffer cb);
 void bind_deferred_for_reading(struct deferred_framebuffer fb, struct accumulation_buffer ab);
 void bind_accumulation_for_reading(struct accumulation_buffer ab);
 
+#define CUBEMAP_FOCAL_LENGTH 1.0 // 1.0/tan(M_PI/4.0), focal length for a 90-degree cubemap face camera is 1.0
 struct renderable_cubemap renderable_cubemap_new(int width);
 int renderable_cubemap_bind(struct renderable_cubemap rc);
 

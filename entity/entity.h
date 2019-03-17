@@ -1,6 +1,7 @@
 #ifndef ENTITY_H
 #define ENTITY_H
 #include "inttypes.h"
+#include "stddef.h"
 
 /*
 
@@ -40,24 +41,17 @@ if (entity.damagable)
 */
 
 //Typedef the components.
-#define ENTITY_COMPONENT_DECLARE(Capitalized, uncapitalized, count) typedef struct uncapitalized##_component Capitalized ;
-#include "declared_components.h"
-#undef ENTITY_COMPONENT_DECLARE
-
-enum {
-	DRAWABLE_BIT     = 1,
-	PHYSICAL_BIT     = 2,
-	CONTROLLABLE_BIT = 4,
-	SCRIPTABLE_BIT   = 8,
-	COLLIDABLE_BIT   = 16,
-};
+#define ENTITY_COMPONENT_GEN(Capitalized, uncapitalized, count) typedef struct uncapitalized##_component Capitalized ;
+#include "all_components.h"
+#undef ENTITY_COMPONENT_GEN
 
 typedef struct entity {
 	unsigned char is_alive : 1;
+	uint64_t component_bits;
 	//Define the components in an entity.
-	#define ENTITY_COMPONENT_DECLARE(Capitalized, uncapitalized, count) Capitalized * uncapitalized ;
-	#include "declared_components.h"
-	#undef ENTITY_COMPONENT_DECLARE
+	#define ENTITY_COMPONENT_GEN(Capitalized, uncapitalized, count) Capitalized * uncapitalized ;
+	#include "all_components.h"
+	#undef ENTITY_COMPONENT_GEN
 } Entity;
 
 extern Entity global_entities[512]; //Later this can be an expandable arraylist.
@@ -71,9 +65,37 @@ void entity_delete(Entity *);
 void entity_reset();
 void entity_update_components();
 
-// //Declare functions to attach each component type to an entity.
-#define ENTITY_COMPONENT_DECLARE(Capitalized, uncapitalized, count) void entity_make_##uncapitalized (Entity *entity, Capitalized uncapitalized );
-#include "declared_components.h"
-#undef ENTITY_COMPONENT_DECLARE
+//Generate enum values for component bits.
+//Uses the offset of the component pointer within the struct to create unique bits.
+#define ENTITY_COMPONENT_BIT(uncapitalized) (1 << (offsetof(Entity, uncapitalized)/sizeof(void *)))
+#define ENTITY_COMPONENT_GEN(Capitalized, uncapitalized, count) uncapitalized##_bit = ENTITY_COMPONENT_BIT(uncapitalized),
+enum entity_component_bits {
+	#include "all_components.h"
+};
+#undef ENTITY_COMPONENT_GEN
+
+//Declare functions to attach each component type to an entity.
+#define ENTITY_COMPONENT_GEN(Capitalized, uncapitalized, count) void entity_make_##uncapitalized (Entity *entity, Capitalized uncapitalized );
+#include "generated_components.h"
+//If I want to support alternative prototypes in the future, I may have to remove this and have nongenerated components declare their own make/unmake functions.
+#include "nongenerated_components.h"
+#undef ENTITY_COMPONENT_GEN
+
+//Declare functions to allocate each component with non-generated make/unmake.
+//These functions should be called by their respective manually-defined make functions.
+#define ENTITY_COMPONENT_GEN(Capitalized, uncapitalized, count) void entity_alloc_##uncapitalized (Entity *entity, Capitalized uncapitalized );
+#include "nongenerated_components.h"
+#undef ENTITY_COMPONENT_GEN
+
+//Declare functions to deattach and delete each component type from an entity.
+#define ENTITY_COMPONENT_GEN(Capitalized, uncapitalized, count) void entity_unmake_##uncapitalized (Entity *entity);
+#include "all_components.h"
+#undef ENTITY_COMPONENT_GEN
+
+//Declare functions to deallocate each component with non-generated make/unmake.
+//These functions should be called by their respective manually-defined unmake functions.
+#define ENTITY_COMPONENT_GEN(Capitalized, uncapitalized, count) void entity_dealloc_##uncapitalized (Entity *entity);
+#include "nongenerated_components.h"
+#undef ENTITY_COMPONENT_GEN
 
 #endif

@@ -12,15 +12,18 @@
 #include "space/star_box.h"
 #include "draw.h"
 #include "drawf.h"
+#include "entity/entity.h"
 #include "entity/entity_components.h"
 #include "space/procedural_planet.h"
 #include "space/triangular_terrain_tile.h"
+#include "space/galaxy_volume.h"
 #include "math/utility.h"
 #include "math/bpos.h"
 #include "debug_graphics.h"
 #include "space/solar_system.h"
 #include "glsw_shaders.h"
 #include "configuration/lua_configuration.h"
+#include "experiments/spiral_scene.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <math.h>
@@ -28,11 +31,12 @@
 #include <string.h>
 
 extern int open_simplex_noise_seed;
+extern bool show_tweaks;
 
 SCENE_IMPLEMENT(space);
-float FOV = M_PI/2;// M_PI/2.7;
+float FOV = M_PI/3;// M_PI/2.7;
 float far_distance = 10000000;
-float near_distance = 1;
+float near_distance = 0.5;
 float log_depth_intermediate_factor = NAN; //Needs to be set in init.
 int PRIMITIVE_RESTART_INDEX = 0xFFFFFFFF;
 
@@ -40,7 +44,7 @@ float screen_width, screen_height;
 
 GLuint gVAO = 0;
 amat4 inv_eye_frame;
-static amat4 eye_frame = {.a = MAT3_IDENT,  .t = {6, 0, 0}};
+amat4 eye_frame = {.a = MAT3_IDENT,  .t = {6, 0, 0}};
 bpos_origin eye_sector = {0, 0, 0};
 //Object frames. Need a better system for this.
 amat4 room_frame = {.a = MAT3_IDENT, .t = {  0,  -4,   -8}};
@@ -70,8 +74,11 @@ Entity *sun_entity      = NULL;
 Entity *star_box_entity = NULL;
 Entity *galaxy_box_entity = NULL;
 
+struct buffer_group cube_buffer_group;
+
 GLfloat proj_mat[16];
 GLfloat proj_view_mat[16];
+GLfloat skybox_proj_mat[16];
 
 Drawable d_ship, d_newship, d_teardropship, d_room, d_skybox;
 Entity *entities;
@@ -79,6 +86,9 @@ int16_t nentities;
 
 /* Lua Config */
 extern lua_State *L;
+
+/* UI */
+// static bool show_tweaks = false;
 
 void entities_init()
 {
@@ -108,15 +118,23 @@ void entities_init()
 		.context = ship_entity,
 	});
 
-	// galaxy_box_entity = entity_new();
+	galaxy_box_entity = entity_new();
 	// entity_make_scriptable(galaxy_box_entity, (Scriptable){
 	// 	.script = galaxy_box_script,
 	// 	.context = camera_entity
 	// });
 
-	// entity_make_drawable(galaxy_box_entity, (Drawable){
-
-	// });
+	cube_buffer_group = new_buffer_group(buffer_galaxy_cube, &effects.skybox);
+	checkErrors("After setting up cube_buffer_group");
+	entity_make_drawable(galaxy_box_entity, (Drawable){
+		.effect = &effects.skybox,
+		.frame = &skybox_frame, //This should be changed to a frame internal to the skybox entity (physical component probably)
+		.sector = &eye_sector, // Could keep this, or update with a scriptable component that tracks it to the camera
+		.bg = &cube_buffer_group,
+		.bg_from_malloc = true,
+		.draw = draw_skybox_forward,
+	});
+	checkErrors("After entity_make_drawable for galaxy_box_entity");
 
 	star_box_entity = entity_new();
 	entity_make_scriptable(star_box_entity, (Scriptable){
@@ -130,6 +148,7 @@ void entities_init()
 
 void entities_deinit()
 {
+	delete_buffer_group(cube_buffer_group);
 	entity_reset();
 }
 
@@ -152,6 +171,8 @@ void space_scene_resize(float width, float height)
 	screen_width = width;
 	screen_height = height;
 	make_projection_matrix(FOV, screen_width/screen_height, -near_distance, -far_distance, proj_mat);	
+	make_projection_matrix(FOV, screen_width/screen_height, -0.1, -10, skybox_proj_mat);
+	spiral_scene_resize(width, height);
 }
 
 //Set up everything needed to start rendering frames.
@@ -171,6 +192,8 @@ int space_scene_init()
 	checkErrors("load_effects");
 
 	glGenVertexArrays(1, &gVAO);
+
+	spiral_scene_init();
 
 	glUseProgram(0);
 	glClearDepth(1);
@@ -220,6 +243,8 @@ int space_scene_init()
 	checkErrors("After init_render");
 
 	gen_solar_systems = getglobbool(L, "gen_solar_systems", false);
+	
+	show_tweaks = false;
 
 	return 0;
 }
@@ -233,6 +258,7 @@ void space_scene_deinit()
 	star_box_deinit();
 	debug_graphics_deinit();
 	point_lights.num_lights = 0;
+	spiral_scene_deinit();
 	entities_deinit();
 }
 
@@ -401,7 +427,8 @@ void space_scene_render()
 	glUniform3f(effects.skybox.sun_direction, VEC3_COORDS(sun_direction));
 	glUniform3f(effects.skybox.sun_color, VEC3_COORDS(sun_color));
 	skybox_frame.t = eye_frame.t;
-	// draw_drawable(&d_skybox);
+	glDepthMask(GL_FALSE);
+	draw_drawable(galaxy_box_entity->drawable);
 	//stars_draw(eye_frame, proj_view_mat);
 	star_box_draw(eye_sector, proj_view_mat);
 	// star_box_draw((bpos_origin){0,0,0}, proj_view_mat);
@@ -413,71 +440,10 @@ void space_scene_render()
 	//debug_graphics.points.ship_to_planet_intersection.enabled = true;
 	//debug_graphics_draw(eye_frame, proj_view_mat);
 
+	if (show_tweaks)
+		meter_draw_all(&g_galaxy_meters);
+
 	checkErrors("After forward junk");
-}
-
-//Collect these in a camera module?
-controllable_callback(camera_control)
-{
-
-	// puts("1");
-	Physical *camera = entity->physical;
-	// puts("2");
-	//printf("%p\n", entity->Controllable);
-	//printf("%p\n", entity->Controllable->context);
-	Physical *ship = ((Entity *)entity->controllable->context)->physical;
-	//Translate the camera using WASD.
-	float camera_speed = 0.5;
-	// puts("3");
-	camera->position.t = camera->position.t + //Honestly I just tried things at random until it worked, but here's my guess:
-		mat3_multvec(mat3_transp(ship->position.a), // 2) Convert those coordinates from world-space to ship-space.
-			mat3_multvec(camera->position.a, (vec3){ // 1) Move relative to the frame pointed at the ship.
-			(key_state[SDL_SCANCODE_D] - key_state[SDL_SCANCODE_A]) * camera_speed,
-			(key_state[SDL_SCANCODE_Q] - key_state[SDL_SCANCODE_E]) * camera_speed,
-			(key_state[SDL_SCANCODE_S] - key_state[SDL_SCANCODE_W]) * camera_speed}));
-	// puts("4");
-
-	if (key_state[SDL_SCANCODE_8]) {
-		double dist = 0;
-		int nearest_star_idx = star_box_find_nearest_star_idx(camera->origin, &dist);
-		printf("Camera at "); qvec3_print(camera->origin); printf(", nearest star is %i, distance %f.\n", nearest_star_idx, dist);
-	}
-
-	//Hacking this together, should put in the right spot later.
-	if (gen_solar_systems) {
-		double dist = INFINITY;
-		int64_t nearest_star_idx = star_box_find_nearest_star_idx(camera->origin, &dist);
-		if (solar_system_star != nearest_star_idx) {
-			solar_system_free(ssystem);
-			ssystem = solar_system_new(eye_sector);
-			solar_system_star = nearest_star_idx;
-			solar_system_origin = star_box_get_star_origin(nearest_star_idx);
-		}
-	}
-}
-
-scriptable_callback(camera_script)
-{
-	Physical *camera = entity->physical;
-	//This won't work in situations where the ship entity is shuffled around.
-	Physical *ship = ((Entity *)entity->scriptable->context)->physical;
-
-	//float camera_ease = 0.5; //Using dt on this gives a jittery camera.
-	//float target_ease = 0.5;
-	//ship.eased_camera.t       = amat4_multvec(ship.velocity, ship.eased_camera.t);
-	// ship.eased_camera.t      = vec3_lerp(ship.eased_camera.t,      ship.locked_camera.t,      camera_ease);
-	// ship.eased_camera_target = vec3_lerp(ship.eased_camera_target, ship.locked_camera_target, target_ease);
-
-	//The eye should look from itself to a point in front of the ship, and its "up" should be "up" from the ship's orientation.
-	// ship.eased_camera.a = mat3_lookat(
-	// 	mat3_multvec(ship.position.a, ship.eased_camera.t),
-	// 	mat3_multvec(ship.position.a, ship.eased_camera_target),
-	// 	mat3_multvec(ship.position.a, (vec3){0, 1, 0}));
-	camera->origin = ship->origin;
-	camera->position.a = mat3_lookat(
-		mat3_multvec(ship->position.a, camera->position.t) + mat3_multvec(ship->position.a, ship->position.t), //Look source, relative to ship.
-		mat3_multvec(ship->position.a, ship->position.t), //Look target (ship), relative to ship.
-		mat3_multvec(ship->position.a, (vec3){0, 1, 0})); //Up vector, relative to ship.
 }
 
 scriptable_callback(sun_script)
@@ -516,6 +482,7 @@ void space_scene_update(float dt)
 	eye_sector = ship_entity->physical->origin;
 	bpos_split_fix(&eye_frame.t, &eye_sector);
 
+	spiral_scene_update(dt);
 
 	point_lights.enabled_for_draw[2] = key_state[SDL_SCANCODE_6];
 }

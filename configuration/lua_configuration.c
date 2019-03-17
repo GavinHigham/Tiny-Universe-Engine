@@ -2,8 +2,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <lua.h>
-#include <lauxlib.h>
 #include "lua_configuration.h"
 
 void luaconf_run(lua_State *L, const char *filepath)

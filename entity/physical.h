@@ -8,7 +8,7 @@ typedef struct physical_component {
 	amat4 position;
 	amat4 velocity;
 	amat4 acceleration;
-	bpos_origin origin;
+	bpos_origin origin; //May later want to move this into a separate component for performance.
 } Physical;
 
 #endif

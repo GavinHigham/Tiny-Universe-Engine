@@ -8,7 +8,6 @@
 #include "input_event.h"
 //#include "space/triangular_terrain_tile.h"
 #include "configuration/lua_configuration.h"
-#include "trackball/trackball.h"
 #include "meter/meter.h"
 #include "meter/meter_ogl_renderer.h"
 #include "deferred_framebuffer.h"
@@ -27,10 +26,28 @@ SCENE_IMPLEMENT(visualizer);
 static float screen_width = 640, screen_height = 480;
 static float obuffer_width = 1920, obuffer_height = 1080;
 static int mouse_x = 0, mouse_y = 0;
-static struct trackball visualizer_trackball;
 static struct color_buffer obuffer;
 static int accum_frames = 0;
-static float tweaks[8] = {1, 1, 1, 1};
+static float tweaks[8] = {1, 1, 1, 1, 1, 1, 1, 1};
+
+#define UNIFORM_GEN(name, decl) GLuint name;
+#define ATTRIBUTE(name) GLuint name;
+struct visualizer_ogl {
+	GLuint shader, vao, vbo;
+	//Generate OpenGL handles for all uniforms and attributes.
+	#include "experiments/visualizer_glsl_bp.h"
+} g_visualizer_ogl;
+#undef UNIFORM
+#undef ATTRIBUTE
+
+#define UNIFORM(name, decl) decl;
+#define ATTRIBUTE(name)
+struct visualizer_tweaks {
+	//Generate storage for uniform variable values.
+	#include "experiments/visualizer_glsl_bp.h"
+} g_visualizer_tweaks;
+#undef UNIFORM
+#undef ATTRIBUTE
 
 /* Recording file */
 FILE *visualizer_file;
@@ -44,7 +61,7 @@ extern lua_State *L;
 
 static GLint POS_ATTR = 1;
 static struct {
-	GLuint RESOLUTION, MOUSE, TIME, TWEAKS, TWEAKS2, TEX;
+	GLuint RESOLUTION, MOUSE, TIME, TWEAKS, TWEAKS2, TEX, STYLE;
 } UNIF;
 static GLuint SHADER, VAO, VBO;
 static GLfloat vertices[] = {-1, -1, 1, -1, -1, 1, 1, 1};
@@ -52,17 +69,37 @@ static GLfloat vertices[] = {-1, -1, 1, -1, -1, 1, 1, 1};
 /* Texture and audio */
 GLuint tex_handle;
 GLenum tex_fmt = GL_RG8UI;
-const int tex_w = 2048, tex_h = 2, texel_size = 2;
-char tex_data[tex_w*tex_h*texel_size] = {0};
-unsigned char *wav_buffer = NULL;
-uint32_t wav_length;
+const int g_tex_w = 2048, g_tex_h = 2, g_texel_size = 2;
+char g_tex_buf[g_tex_w*g_tex_h*g_texel_size] = {0};
+unsigned char *g_wav_buffer = NULL;
+uint32_t g_wav_length;
 
-SDL_AudioSpec wav_spec = {0}, audio_spec = {0};
+SDL_AudioSpec g_wav_spec = {0}, g_audio_spec = {0};
 int nfft = 16384;//4096; //2^14
 kiss_fftr_cfg cfg;
-kiss_fft_scalar *timedata;
-kiss_fft_cpx    *freqdata;
+kiss_fft_scalar *g_timedata;
+kiss_fft_cpx    *g_freqdata;
 float g_num_buckets, g_db_multiplier, g_db_divisor, g_blank_seconds;
+
+enum viz_style {VIZ_STYLE_BAR, VIZ_STYLE_CIRCLE, NUM_VIZ_STYLES};
+enum viz_style g_viz_style = VIZ_STYLE_BAR;
+
+struct viz_circle {
+	float inner_radius;
+	float rotation;
+	bool flip;
+} g_viz_circle = {
+	.inner_radius = 3.0,
+	.rotation = 0.0,
+	.flip = false,
+};
+
+/* UI */
+static bool show_tweaks = true;
+static bool visuals_overflowing = false;
+static int g_offset_x = 0, g_offset_y = 0;
+static float g_y_offset;
+static meter_ctx g_viz_meters;
 
 static float hann(int n, int N)
 {
@@ -70,9 +107,81 @@ static float hann(int n, int N)
 	return s*s;
 }
 
+static bool bar_overflowing()
+{
+	float bar_width = tweaks[1];
+	float bar_spacing = tweaks[2];
+	float num_buckets = g_num_buckets;
+	return (bar_width + bar_spacing) * num_buckets > obuffer_width;
+}
+
 static void visualizer_meter_callback(char *name, enum meter_state state, float value, void *context)
 {
-	// clear_accum = true;
+	visuals_overflowing = bar_overflowing() && g_viz_style == VIZ_STYLE_BAR;
+}
+
+void init_viz_meters(meter_ctx *M, widget_meter *widgets, int num_widgets, float *y_offset)
+{
+	for (int i = 0; i < num_widgets; i++) {
+		widget_meter *w = &widgets[i];
+		meter_add(M, w->name, w->style.width, w->style.height, w->min, w->value, w->max);
+		meter_target(M, w->name, w->target);
+		meter_position(M, w->name, w->x, w->y + *y_offset);
+		meter_callback(M, w->name, w->callback, w->callback_context);
+		meter_style(M, w->name, w->color.fill, w->color.border, w->color.font, w->style.padding);
+		*y_offset += 25;
+	}
+}
+
+static void set_bar_mode()
+{
+	g_viz_style = VIZ_STYLE_BAR;
+	obuffer_width = getglob(L, "recording_width", 1920);
+	obuffer_height = getglob(L, "recording_height", 1080);
+	color_buffer_delete(obuffer);
+	obuffer = color_buffer_new(obuffer_width, obuffer_height);
+	visuals_overflowing = bar_overflowing() && g_viz_style == VIZ_STYLE_BAR;
+}
+
+static void set_circle_mode()
+{
+	g_viz_style = VIZ_STYLE_CIRCLE;
+	obuffer_width = obuffer_height = getglob(L, "visualizer_circle_width", 512);
+	color_buffer_delete(obuffer);
+	obuffer = color_buffer_new(obuffer_width, obuffer_height);
+	visuals_overflowing = false;
+}
+
+static void visualizer_style_callback(char *name, enum meter_state state, float value, void *context)
+{
+	// visualizer_meter_callback(name, state, value, context);
+	// float bar_width = tweaks[1];
+	// float bar_spacing = tweaks[2];
+	// float num_buckets = g_num_buckets;
+	// if ((bar_width + bar_spacing) * num_buckets > obuffer_width)
+	// 	visuals_overflowing = true;
+	// else
+	// 	visuals_overflowing = false;
+
+	// meter_label(name, )
+	value = round(value);
+	enum viz_style s = value;
+	meter_raw_set(&g_viz_meters, name, value);
+
+	if (g_viz_style != s) {
+		switch(s) {
+		case VIZ_STYLE_BAR: set_bar_mode(); break;
+		case VIZ_STYLE_CIRCLE: set_circle_mode(); break;
+		default: break;
+		}
+	}
+}
+
+void rem_viz_meters(widget_meter *widgets, int num_widgets, float *y_offset)
+{
+	for (int i = 0; i < num_widgets; i++)
+		meter_delete(&g_viz_meters, widgets[i].name);
+	*y_offset -= num_widgets * 25;
 }
 
 int visualizer_scene_init()
@@ -110,6 +219,10 @@ int visualizer_scene_init()
 	UNIF.TWEAKS      = glGetUniformLocation(SHADER, "tweaks");
 	UNIF.TWEAKS2     = glGetUniformLocation(SHADER, "tweaks2");
 	UNIF.TEX         = glGetUniformLocation(SHADER, "frequencies");
+	UNIF.STYLE       = glGetUniformLocation(SHADER, "style");
+
+	g_visualizer_ogl.shader = SHADER;
+	#define UNIFORM(name) g_visualizer_ogl.name = glGetUniformLocation(g_visualizer_ogl.shader, #name);
 
 	checkErrors("After getting uniform handles");
 	glUseProgram(SHADER);
@@ -130,13 +243,14 @@ int visualizer_scene_init()
 	char *wav_file = getglobstr(L, "wav_filename", "");
 
 	/* Load the WAV */
-	if (SDL_LoadWAV(wav_file, &wav_spec, &wav_buffer, &wav_length) == NULL) {
+	if (SDL_LoadWAV(wav_file, &g_wav_spec, &g_wav_buffer, &g_wav_length) == NULL) {
 		fprintf(stderr, "Could not open %s: %s\n", wav_file, SDL_GetError());
 	} else {
 		/* Do stuff with the WAV data, and then... */
-		printf("freq: %d, fmt: %x, channels: %d, samples: %d, length %d\n", wav_spec.freq, wav_spec.format, wav_spec.channels, wav_spec.samples, wav_length);
+		printf("freq: %d, fmt: %x, channels: %d, samples: %d, length %d\n", g_wav_spec.freq, g_wav_spec.format, g_wav_spec.channels, g_wav_spec.samples, g_wav_length);
 
-		SDL_AudioSpec want, have;
+		// SDL_AudioSpec want;
+		SDL_AudioSpec have;
 		SDL_AudioDeviceID dev;
 
 		// SDL_memset(&want, 0, sizeof(want)); /* or SDL_zero(want) */
@@ -146,11 +260,11 @@ int visualizer_scene_init()
 		// want.samples = 4096;
 		// want.callback = NULL; /* you wrote this function elsewhere -- see SDL_AudioSpec for details */
 
-		dev = SDL_OpenAudioDevice(NULL, 0, &wav_spec, &have, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
+		dev = SDL_OpenAudioDevice(NULL, 0, &g_wav_spec, &have, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
 		if (dev == 0) {
 			SDL_Log("Failed to open audio: %s", SDL_GetError());
 		} else {
-			if (have.format != wav_spec.format) { /* we let this one thing change. */
+			if (have.format != g_wav_spec.format) { /* we let this one thing change. */
 				SDL_Log("We didn't get requested audio format.");
 			}
 			// SDL_QueueAudio(dev, wav_buffer, wav_length);
@@ -162,8 +276,8 @@ int visualizer_scene_init()
 	free(wav_file);
 
 	cfg = kiss_fftr_alloc(nfft, 0, NULL, NULL);
-	timedata = malloc(nfft*sizeof(kiss_fft_scalar));
-	freqdata = malloc(nfft*sizeof(kiss_fft_cpx));
+	g_timedata = malloc(nfft*sizeof(kiss_fft_scalar));
+	g_freqdata = malloc(nfft*sizeof(kiss_fft_cpx));
 
 
 	/* Texture creation */
@@ -172,11 +286,16 @@ int visualizer_scene_init()
 	glBindTexture(GL_TEXTURE_2D, tex_handle);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, tex_w, tex_h, 0, GL_RED, GL_UNSIGNED_BYTE, tex_data);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, g_tex_w, g_tex_h, 0, GL_RED, GL_UNSIGNED_BYTE, g_tex_buf);
+
+	/* Visualizer Style */
+	g_viz_style = getglob(L, "visualizer_style", 0);
 
 	/* Offscreen Buffer */
 	obuffer_width = getglob(L, "recording_width", 1920);
 	obuffer_height = getglob(L, "recording_height", 1080);
+	// g_offset_x = getglob(L, "visualizer_offset_x",                 fmax((screen_width  - obuffer_width)  / 2, 0));
+	// g_offset_y = getglob(L, "visualizer_offset_y", screen_height - fmax((screen_height - obuffer_height) / 2, 0));
 	obuffer = color_buffer_new(obuffer_width, obuffer_height);
 
 	/* Misc. OpenGL bits */
@@ -189,14 +308,12 @@ int visualizer_scene_init()
 	glUseProgram(0);
 
 	/* Set up meter module */
-	float y_offset = 25.0;
-	meter_init(screen_width, screen_height, 20, meter_ogl_renderer);
+	g_y_offset = 25.0;
+	meter_init(&g_viz_meters, screen_width, screen_height, 20, meter_ogl_renderer);
 	struct widget_meter_style wstyles = {.width = 200, .height = 20, .padding = 2.0};
-	struct widget_meter_color tweak_colors = {.fill = {79, 150, 167, 255}, .border = {37, 95, 65, 255}, .font = {255, 255, 255, 255}};
-	struct widget_meter_color bulge_colors = {.fill = {179, 95, 107, 255}, .border = {37, 95, 65, 255}, .font = {255, 255, 255, 255}};
 	widget_meter widgets[] = {
 		{
-			.name = "Num Buckets", .x = 5.0, .y = 0, .min = 1.0, .max = 2048.0, .value = getglob(L, "num_buckets", 2048.0),
+			.name = "Num Buckets", .x = 5.0, .y = 0, .min = 1.0, .max = 512.0, .value = getglob(L, "num_buckets", 128.0),
 			.callback = visualizer_meter_callback, .target = &g_num_buckets, 
 			.style = wstyles, .color = {.fill = {187, 187, 187, 255}, .border = {95, 95, 95, 255}, .font = {255, 255, 255}}
 		},
@@ -206,80 +323,43 @@ int visualizer_scene_init()
 			.style = wstyles, .color = {.fill = {187, 187, 187, 255}, .border = {95, 95, 95, 255}, .font = {255, 255, 255}}
 		},
 		{
-			.name = "dB Divisor", .x = 5.0, .y = 0, .min = 1.0, .max = 1024.0, .value = getglob(L, "db_divisor", 1.0),
+			.name = "dB Divisor", .x = 5.0, .y = 0, .min = 1.0, .max = 3.0, .value = getglob(L, "db_divisor", 1.0),
 			.callback = visualizer_meter_callback, .target = &g_db_divisor, 
 			.style = wstyles, .color = {.fill = {187, 187, 187, 255}, .border = {95, 95, 95, 255}, .font = {255, 255, 255}}
 		},
-		// {
-		// 	.name = "Rotation", .x = 5.0, .y = 0, .min = 0.0, .max = 1000.0, .value = getglob(L, "visualizer_rotation", 400.0),
-		// 	.callback = visualizer_meter_callback, .target = &g_rotation,
-		// 	.style = wstyles, .color = {.fill = {79, 79, 207, 255}, .border = {47, 47, 95, 255}, .font = {255, 255, 255, 255}}
-		// },
-		// {
-		// 	.name = "Arm Width", .x = 5.0, .y = 0, .min = 0.0, .max = 32.0, .value = getglob(L, "arm_width", 2.0),
-		// 	.callback = visualizer_meter_callback, .target = &tweaks[5],
-		// 	.style = wstyles, .color = {.fill = {79, 79, 207, 255}, .border = {47, 47, 95, 255}, .font = {255, 255, 255, 255}}
-		// },
-		// {
-		// 	.name = "Noise Scale", .x = 5.0, .y = 0, .min = 0.0, .max = 50.0, .value = getglob(L,"noise_scale", 9.0),
-		// 	.callback = visualizer_meter_callback, .target = &tweaks[0],
-		// 	.style = wstyles, .color = tweak_colors
-		// },
-		// {
-		// 	.name = "Noise Influence", .x = 5.0, .y = 0, .min = 0.0, .max = 50.0, .value = getglob(L,"noise_influence", 9.0),
-		// 	.callback = visualizer_meter_callback, .target = &tweaks[1],
-		// 	.style = wstyles, .color = tweak_colors
-		// },
-		// {
-		// 	.name = "Diffuse Step Distance", .x = 5.0, .y = 0, .min = -10.0, .max = 10.0, .value = getglob(L,"light_step_distance", 2.0),
-		// 	.callback = visualizer_meter_callback, .target = &tweaks[3],
-		// 	.style = wstyles, .color = tweak_colors
-		// },
-		// {
-		// 	.name = "Diffuse Intensity", .x = 5.0, .y = 0, .min = 0.000001, .max = 1.0, .value = getglob(L,"diffuse_intensity", 1.0),
-		// 	.callback = visualizer_meter_callback, .target = &tweaks[4],
-		// 	.style = wstyles, .color = tweak_colors
-		// },
-		// {
-		// 	.name = "Emission Strength", .x = 5.0, .y = 0, .min = 0.000001, .max = 15.0, .value = getglob(L,"emission_strength", 1.0),
-		// 	.callback = visualizer_meter_callback, .target = &tweaks[7],
-		// 	.style = wstyles, .color = tweak_colors
-		// },
-		// {
-		// 	.name = "Bulge Mask Radius", .x = 5.0, .y = 0, .min = 0.0, .max = 50.0, .value = getglob(L,"bulge_mask_radius", 9.0),
-		// 	.callback = visualizer_meter_callback, .target = &g_bulge_mask_radius,
-		// 	.style = wstyles, .color = bulge_colors
-		// },
-		// {
-		// 	.name = "Bulge Mask Power", .x = 5.0, .y = 0, .min = 0.0, .max = 8.0, .value = getglob(L,"bulge_mask_power", 1.0),
-		// 	.callback = visualizer_meter_callback, .target = &tweaks[6],
-		// 	.style = wstyles, .color = bulge_colors
-		// },
-		// {
-		// 	.name = "Bulge Height", .x = 5.0, .y = 0, .min = 0.0, .max = 50.0, .value = getglob(L,"bulge_height", 20.0),
-		// 	.callback = meter_clear_accum_callback, .target = &g_bulge_height,
-		// 	.style = wstyles, .color = bulge_colors
-		// },
-		// {
-		// 	.name = "Bulge Width", .x = 5.0, .y = 0, .min = 0.0, .max = 50.0, .value = getglob(L,"bulge_width", 10.0),
-		// 	.callback = meter_clear_accum_callback, .target = &g_bulge_width,
-		// 	.style = wstyles, .color = bulge_colors
-		// },
-		// {
-		// 	.name = "Spiral Density", .x = 5.0, .y = 0, .min = 0.0, .max = 4.0, .value = getglob(L,"visualizer_density", 1.0),
-		// 	.callback = meter_clear_accum_callback, .target = &tweaks[2],
-		// 	.style = wstyles, .color = tweak_colors
-		// },
+		{
+			.name = "Bar Width", .x = 5.0, .y = 0, .min = 0.0, .max = 50.0, .value = getglob(L, "bar_width", 2.0),
+			.callback = visualizer_meter_callback, .target = &tweaks[1], 
+			.style = wstyles, .color = {.fill = {187, 187, 187, 255}, .border = {95, 95, 95, 255}, .font = {255, 255, 255}}
+		},
+		{
+			.name = "Bar Spacing", .x = 5.0, .y = 0, .min = 0.0, .max = 30.0, .value = getglob(L, "bar_spacing", 0.0),
+			.callback = visualizer_meter_callback, .target = &tweaks[2], 
+			.style = wstyles, .color = {.fill = {187, 187, 187, 255}, .border = {95, 95, 95, 255}, .font = {255, 255, 255}}
+		},
+		{
+			.name = "Bar Min Height", .x = 5.0, .y = 0, .min = 0.0, .max = 100.0, .value = getglob(L, "bar_min_height", 0.0),
+			.callback = visualizer_meter_callback, .target = &tweaks[3], 
+			.style = wstyles, .color = {.fill = {187, 187, 187, 255}, .border = {95, 95, 95, 255}, .font = {255, 255, 255}}
+		},
+		{
+			.name = "Style", .x = 5.0, .y = 0, .min = 0.0, .max = NUM_VIZ_STYLES - 1, .value = g_viz_style,
+			.callback = visualizer_style_callback,
+			.style = wstyles, .color = {.fill = {187, 187, 187, 255}, .border = {65, 65, 95, 255}, .font = {255, 255, 255}}
+		},
+		{
+			.name = "Circle Inner Radius", .x = 5.0, .y = 0, .min = 0.0, .max = 256.0, .value = getglob(L, "inner_radius", 0.0),
+			.target = &tweaks[4], 
+			.style = wstyles, .color = {.fill = {187, 187, 187, 255}, .border = {65, 65, 95, 255}, .font = {255, 255, 255}}
+		},
+		{
+			.name = "Circle Rotation", .x = 5.0, .y = 0, .min = 0.0, .max = 1.0, .value = getglob(L, "circle_rotation", 0.0),
+			.target = &tweaks[5], 
+			.style = wstyles, .color = {.fill = {187, 187, 187, 255}, .border = {65, 65, 95, 255}, .font = {255, 255, 255}}
+		},
 	};
-	for (int i = 0; i < LENGTH(widgets); i++) {
-		widget_meter *w = &widgets[i];
-		meter_add(w->name, w->style.width, w->style.height, w->min, w->value, w->max);
-		meter_target(w->name, w->target);
-		meter_position(w->name, w->x, w->y + y_offset);
-		meter_callback(w->name, w->callback, w->callback_context);
-		meter_style(w->name, w->color.fill, w->color.border, w->color.font, w->style.padding);
-		y_offset += 25;
-	}
+	init_viz_meters(&g_viz_meters, widgets, LENGTH(widgets), &g_y_offset);
+	meter_label(&g_viz_meters, "Style", "%s %.0f");
 
 	g_blank_seconds = getglob(L, "blank_seconds", 2.0);
 
@@ -292,8 +372,8 @@ void visualizer_scene_resize(float width, float height)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 	screen_width = width;
 	screen_height = height;
-	meter_resize_screen(screen_width, screen_height);
-
+	meter_resize_screen(&g_viz_meters, screen_width, screen_height);
+	// visualizer_scene_render();
 	// color_buffer_delete(obuffer);
 	// obuffer = color_buffer_new(obuffer_width, obuffer_height);
 	//make_projection_matrix(65, screen_width/screen_height, 0.1, 200, proj_mat);	
@@ -304,39 +384,72 @@ void visualizer_scene_deinit()
 	glDeleteVertexArrays(1, &VAO);
 	glDeleteBuffers(1, &VBO);
 	glDeleteProgram(SHADER);
-	SDL_FreeWAV(wav_buffer);
+	SDL_FreeWAV(g_wav_buffer);
 	free(cfg);
-	meter_deinit();
+	meter_deinit(&g_viz_meters);
 	color_buffer_delete(obuffer);
+}
+
+void get_timedata(kiss_fft_scalar *timedata, SDL_AudioSpec wav_spec, unsigned char *wav_buffer, uint32_t wav_length, float seconds)
+{
+	int bits_per_sample = (wav_spec.format & 0xff);
+	int bytes_per_sample = bits_per_sample / 8 + (bits_per_sample % 8 ? 1 : 0);
+	int stride = bytes_per_sample * wav_spec.channels;
+	double trackhead = stride * wav_spec.freq * (seconds - g_blank_seconds);
+	trackhead = trackhead - fmod(trackhead, stride);
+	// printf("bits_per_sample: %d, bytes_per_sample: %d, trackhead: %d\n", bits_per_sample, bytes_per_sample, trackhead);
+	for (int i = 0; i < nfft; i++) {
+		int32_t sum = 0;
+		int index = (int)trackhead + stride*i - nfft/2;
+		index = index >= 0 ? index : 0;
+		if (index >= 0 && index + bytes_per_sample < wav_length) {
+			for (int j = 0; j < bytes_per_sample; j++) {
+				if (index + j < wav_length)
+					sum |= (wav_buffer[index + j] << (8 * j));
+			}
+			timedata[i] = (kiss_fft_scalar)((double)sum/(INT32_MAX/2)) * hann(i, nfft);
+		} else {
+			timedata[i] = 0;
+		}
+	}
+}
+
+void make_buckets(float *buckets, int num_buckets, float bucket_width, kiss_fft_cpx *freqdata)
+{
+	for (int i = 0; i < num_buckets; i++) {
+		buckets[i] = 0;
+		for (int j = 0; j < bucket_width; j++) {
+			kiss_fft_cpx f = freqdata[(int)(i * bucket_width + j)];
+			buckets[i] += sqrt(f.r*f.r + f.i*f.i);
+		}
+		buckets[i] /= bucket_width;
+	}
+}
+
+void load_buckets_into_texture_buf(float *buckets, int num_buckets, char *tex_buf, int tex_w, int tex_h)
+{
+	for (int h = 0; h < tex_h; h++) {
+		for (int w = 0; w < tex_w; w++) {
+			float val = buckets[(int)((float)w / tex_w / 2 * num_buckets)];
+			float db_val = g_db_multiplier*log10(val) / g_db_divisor;
+			tex_buf[tex_w * h + w] = fmax(db_val, 0.0);
+		}
+	}
 }
 
 void visualizer_scene_update(float dt)
 {
-	// eye_frame.t += (vec3){
-	// 	key_state[SDL_SCANCODE_D] - key_state[SDL_SCANCODE_A],
-	// 	key_state[SDL_SCANCODE_E] - key_state[SDL_SCANCODE_Q],
-	// 	key_state[SDL_SCANCODE_S] - key_state[SDL_SCANCODE_W],
-	// } * 0.15;
 	static float seconds = 0;
 	
 	Uint32 buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
 	bool button = buttons & SDL_BUTTON(SDL_BUTTON_LEFT);
-	int meter_clicked = meter_mouse(mouse_x, mouse_y, button);
-	button = button && !meter_clicked;
-	// int scroll_x = input_mouse_wheel_sum.wheel.x, scroll_y = input_mouse_wheel_sum.wheel.y;
-	// if (trackball_step(&visualizer_trackball, mouse_x, mouse_y, button, scroll_x, scroll_y))
-	// 	clear_accum = true;
+	if (show_tweaks)
+		button = !meter_mouse_relative(&g_viz_meters, mouse_x, mouse_y, button,
+		key_state[SDL_SCANCODE_LSHIFT] || key_state[SDL_SCANCODE_RSHIFT],
+		key_state[SDL_SCANCODE_LCTRL]  || key_state[SDL_SCANCODE_RCTRL]) && button;
 
-	bool record_key_pressed = false;
-	static bool record_key_down_last_frame = false;
-	if (key_state[SDL_SCANCODE_SPACE]) {
-		if (!record_key_down_last_frame)
-			record_key_pressed = true;
-		record_key_down_last_frame = true;
-	} else {
-		record_key_down_last_frame = false;
-	}
-	if (record_key_pressed) {
+	if (key_pressed(SDL_SCANCODE_SPACE))
+	{
 		visualizer_recording = !visualizer_recording;
 		if (visualizer_recording) {
 			seconds = 0;
@@ -359,62 +472,29 @@ void visualizer_scene_update(float dt)
 		}
 	}
 
-	int bits_per_sample = (wav_spec.format & 0xff);
-	int bytes_per_sample = bits_per_sample / 8 + (bits_per_sample % 8 ? 1 : 0);
-	int stride = bytes_per_sample * wav_spec.channels;
-	double trackhead = stride * wav_spec.freq * (seconds - g_blank_seconds);
-	trackhead = trackhead - fmod(trackhead, stride);
-	// printf("bits_per_sample: %d, bytes_per_sample: %d, trackhead: %d\n", bits_per_sample, bytes_per_sample, trackhead);
-	for (int i = 0; i < nfft; i++) {
-		int32_t sum = 0;
-		int index = (int)trackhead + stride*i - nfft/2;
-		index = index >= 0 ? index : 0;
-		if (index >= 0 && index + bytes_per_sample < wav_length) {
-			for (int j = 0; j < bytes_per_sample; j++) {
-				if (index + j < wav_length)
-					sum |= (wav_buffer[index + j] << (8 * j));
-			}
-			timedata[i] = (kiss_fft_scalar)((double)sum/(INT32_MAX/2)) * hann(i, nfft);
-		} else {
-			timedata[i] = 0;
-		}
-	}
-	kiss_fftr(cfg, timedata, freqdata);
-	float buckets[(int)g_num_buckets];
-	int bucket_width = nfft/8/(int)g_num_buckets;
-	for (int i = 0; i < LENGTH(buckets); i++) {
-		buckets[i] = 0;
-		for (int j = 0; j < bucket_width; j++) {
-			kiss_fft_cpx f = freqdata[i * bucket_width + j];
-			// buckets[i] = fmax(buckets[i], sqrt(f.r*f.r + f.i*f.i));
-			buckets[i] += sqrt(f.r*f.r + f.i*f.i);
-		}
-		buckets[i] /= bucket_width;
+	if (key_pressed(SDL_SCANCODE_TAB))
+		show_tweaks = !show_tweaks;
+
+	if (key_state[SDL_SCANCODE_M] && buttons & SDL_BUTTON(SDL_BUTTON_LEFT)) {
+		g_offset_x = mouse_x;
+		g_offset_y = screen_height - mouse_y;
 	}
 
-	// static float max_seen = 0;
-	// static float min_seen = INFINITY;
-	for (int h = 0; h < tex_h; h++) {
-		for (int w = 0; w < tex_w; w++) {
-			float val = buckets[(int)((float)w / tex_w / 2 * g_num_buckets)];
-			float db_val = g_db_multiplier*log10(val) / g_db_divisor;
-			// if (db_val > max_seen) {
-			// 	max_seen = db_val;
-			// 	printf("New max: %f\n", max_seen);
-			// }
-			// if (db_val < min_seen) {
-			// 	min_seen = db_val;
-			// 	printf("New min: %f\n", min_seen);
-			// }
-			tex_data[tex_w * h + w] = fmax(db_val, 0.0);
-		}
-	}
+
+	get_timedata(g_timedata, g_wav_spec, g_wav_buffer, g_wav_length, seconds);
+
+	kiss_fftr(cfg, g_timedata, g_freqdata);
+
+	float buckets[(int)g_num_buckets];
+	float bucket_width = nfft/8.0/(int)g_num_buckets;
+	make_buckets(buckets, LENGTH(buckets), bucket_width, g_freqdata);
+	load_buckets_into_texture_buf(buckets, LENGTH(buckets), g_tex_buf, g_tex_w, g_tex_h);
 
 	// if (visualizer_recording)
 		seconds += 1.0 / 60.0;
 
 	glBindTexture(GL_TEXTURE_2D, tex_handle);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, tex_w, tex_h, 0, GL_RED, GL_UNSIGNED_BYTE, tex_data);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, g_tex_w, g_tex_h, 0, GL_RED, GL_UNSIGNED_BYTE, g_tex_buf);
 }
 
 void visualizer_scene_render()
@@ -433,12 +513,13 @@ void visualizer_scene_render()
 	else
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-
 	glUniform2f(UNIF.TIME, SDL_GetTicks() / 1000.0, accum_frames);
 	glUniform2f(UNIF.RESOLUTION, obuffer_width, obuffer_height);
 	glUniform4f(UNIF.MOUSE, mouse_x, mouse_y, 0, 0);
+	tweaks[0] = g_num_buckets;
 	glUniform4fv(UNIF.TWEAKS, 1, tweaks);
 	glUniform4fv(UNIF.TWEAKS2, 1, tweaks + 4);
+	glUniform1i(UNIF.STYLE, g_viz_style);
 
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
@@ -454,14 +535,17 @@ void visualizer_scene_render()
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, obuffer.fbo);
 	glReadBuffer(GL_COLOR_ATTACHMENT0);
 	glViewport(0, 0, screen_width, screen_height);
-	glBlitFramebuffer(0, 0, obuffer_width, obuffer_height, 0, 0, screen_width, screen_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+	glClearColor(visuals_overflowing ? 0.6 : 0.2, 0.2, 0.2, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+	glBlitFramebuffer(0, 0, obuffer_width, obuffer_height, g_offset_x, g_offset_y, obuffer_width + g_offset_x, obuffer_height + g_offset_y, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 
 	if (visualizer_recording && visualizer_file_buffer && visualizer_file) {
 		glReadPixels(0, 0, obuffer_width, obuffer_height, GL_RGBA, GL_UNSIGNED_BYTE, visualizer_file_buffer);
 		fwrite(visualizer_file_buffer, sizeof(int)*obuffer_width*obuffer_height, 1, visualizer_file);
 	}
 
-	meter_draw_all();
+	if (show_tweaks)
+		meter_draw_all(&g_viz_meters);
 	checkErrors("After meter_draw_all");
 	glBindVertexArray(0);
 }

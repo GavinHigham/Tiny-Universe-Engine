@@ -5,4 +5,5 @@ OBJECTS += \
 	space/space_scene.o \
 	space/star_box.o \
 	space/stars.o \
-	space/triangular_terrain_tile.o
+	space/triangular_terrain_tile.o \
+	space/galaxy_volume.o

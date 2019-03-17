@@ -4,9 +4,9 @@
 #include <string.h>
 //#include <SDL2/SDL_opengl.h>
 //Lua headers
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
+#include <lua-5.3.5/src/lua.h>
+#include <lua-5.3.5/src/lauxlib.h>
+#include <lua-5.3.5/src/lualib.h>
 //Project headers.
 #include "graphics.h"
 #include "init.h"
@@ -81,7 +81,7 @@ static void reload_signal_handler(int signo) {
 	luaconf_run(L, luaconf_path);
 }
 
-int main()
+int main(int argc, char **argv)
 {
 	SDL_GLContext context;
 
@@ -137,8 +137,9 @@ int main()
 		&visualizer_scene
 	};
 
+	char *chosen_scene = (argc > 1) ? argv[1] : default_scene;
 	for (int i = 0; i < LENGTH(scenes); i++)
-		if (!strcmp(default_scene, scenes[i]->name))
+		if (!strcmp(chosen_scene, scenes[i]->name))
 			scene_set(scenes[i]);
 
 	free(default_scene);

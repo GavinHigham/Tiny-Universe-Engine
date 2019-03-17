@@ -1,8 +1,7 @@
 #ifndef ELEMENT_H
 #define ELEMENT_H
 #include <stdlib.h>
-#include <lua.h>
-#include "glla.h"
+#include "glla/glla.h"
 
 /*
 Elements make up the surface of a planet. Different elements have different colors and texture. Elements may affect the 

@@ -11,6 +11,8 @@ Planets:
   ☐ Atmosphere
   ☐ Transform feedback or render-to-texture to create various surface maps, vertex texture fetch.
     ☐ Texture-space ambient occlusion
+  ☐ Virtual texturing for heightmap - can I do a mip chain too? Transfer coarser tiles to different mip levels.
+  ☐ Create 
 
 Texture:
   ☐ Color
@@ -42,6 +44,12 @@ Galaxy Raymarch:
   ☐ Refactor meter creation code, list of names, list of default values, list of targets
   ☐ Move tweaks into single structure
   ☐ Density should probably not be linearly correlated with both absorption and emission
+  ☐ Create manual galaxy-move / galaxy-rotate controls (could go in the controllable component of the galaxy entity?)
+  ☐ Instead of directly rendering into a single accumulation cubemap, ping-pong back and forth. In a shader, read the previous as a texture, and use a "delta" rotation matrix to do better temporal antialiasing. (Maybe not useful if I'm only doing translations within the volume for the actual galaxy implementations)
+  ☐ Test galaxy density function CPU-side, generating a volumetric texture to raymarch (can do coarse-grain volume texture, fine-grain noise)
+    ☐ Also implement navier-stokes and test a bit of fluid sim on the volume
+    ☐ Also generate small number of "guide stars" positioned based on density
+    ☐ Also generate a large number of stars and run an n-body simulation to get a more realistic spiral
 
 Trackball:
   ☐ Fix gimbal lock issue
@@ -58,6 +66,7 @@ Cleanup:
   ☐ Break text rendering into its own module
   ☐ Make quadtree and octree intrusive, to reduce allocations.
   ☐ Remove dependency on ceffectpp, or convert it to a script
+  ☐ Use GLAD instead of GLEW
 
 Ideas:
   ☐ Voronoi-based continents
@@ -65,6 +74,7 @@ Ideas:
   ☐ Subdivide denauley-triangulation of voronoi to produce interesting mesh?
   ☐ Add voronoi points to increase samples?
   ☐ Graph-based diffusion-limited aggregation, to determine the ridgelines of mountains (can I fill in the intermediate areas?)
+  ☐ Find coastlines first, fill in continents from there
   ☐ Use noise function to determine "bumpiness" over the surface, increase sample points in bumpy areas.
   ☐ Use tiling textures instead of noise functions. Can use GitHub tool to generate them, or alter the simplex noise implementation to wrap where I expect it.
     ✔ Try triplanar texturing @done (18-07-16 22:42)
@@ -84,9 +94,12 @@ Various:
   ☐ Refresh my memory on OpenGL streaming best-practices
 
   ☐ Clouds defined as 3D density function, draw by 3D-dithering, then blue noise and temporal antialiasing
+    ☐ Actually seems to be very similar to what I'm doing with the galaxies
 
   ☐ Re-work camera controls
 
   ☐ Model pre-process should determine what type each mesh is, and possibly generate missing data if needed.
 
   ☐ Add stb_truetype, for better text.
+
+  ☐ Rework "drawable" component.

@@ -8,6 +8,7 @@ controllable_callback(noop_control)
 	//Do nothing.
 }
 
+//TODO(Gavin): Move this to its own source file with other "ship" components
 controllable_callback(ship_control)
 {
 	Physical ship = *entity->physical;

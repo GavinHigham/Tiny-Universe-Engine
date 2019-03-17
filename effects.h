@@ -8,6 +8,7 @@ typedef struct effect_data {
 	GLuint handle;
 	union {
 		struct {
+			GLint accum_cube;
 			GLint ambient_pass;
 			GLint bpos_size;
 			GLint camera_position;
@@ -20,6 +21,7 @@ typedef struct effect_data {
 			GLint model_matrix;
 			GLint model_view_normal_matrix;
 			GLint model_view_projection_matrix;
+			GLint num_frames_accum;
 			GLint override_col;
 			GLint projection_view_matrix;
 			GLint sector_size;
@@ -32,7 +34,7 @@ typedef struct effect_data {
 			GLint uOrigin;
 			GLint zpass;
 		};
-		GLint unif[23];
+		GLint unif[25];
 	};
 	union {
 		struct {
@@ -61,7 +63,7 @@ union effect_list {
 
 extern union effect_list effects;
 
-extern const char *uniform_strings[23];
+extern const char *uniform_strings[25];
 extern const char *attribute_strings[5];
 extern const char *shader_file_paths[21];
 

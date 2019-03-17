@@ -19,6 +19,14 @@ Any kind of custom drawing the drawable needs
 What texture setup the drawable needs
 
 I should also have some sort of batch drawing functions, to avoid unnessesary OpenGL state changes
+
+
+Update 2019/02/07
+Drawable components should have some form of sort key including a "batch ID", so that they can be sorted
+and then batched by shader / textures / buffers / transparent-or-not / other pre-or-post condition.
+One-off "only draw one of these" entities like current solar system, nearby stars, galaxy cubemap can just use their
+own batch ID. Batch IDs could even be generated to some extent, I'd need to describe the pre-and-post OpenGL state for each
+drawable, and then form some kind of minimal-state-change ordering based on that.
 */
 
 typedef struct drawable_component {

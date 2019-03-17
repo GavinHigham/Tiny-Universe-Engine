@@ -27,6 +27,9 @@ vec3 bpos_remap(bpos pos, qvec3 new_origin);
 
 vec3 bpos_disp(bpos_origin from, bpos_origin to);
 
+//Distance between two bpos, as a double.
+double bpos_distd(bpos from, bpos to);
+
 //Prints a bpos like so: "[x, y, z]" (no newline).
 void bpos_print(bpos b);
 //Prints a bpos like so: "[x, y, z]" (no newline). Takes a printf format for printing each int64.

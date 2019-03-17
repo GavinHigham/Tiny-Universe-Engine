@@ -15,7 +15,7 @@ struct buffer_group {
 	GLuint vao, aibo, ibo;
 	union {
 		struct {
-			GLuint cbo, nbo, vbo; //Must be in the same order as the attributes in effects.h (until I fix that).
+			GLuint sector_coords, star_pos, cbo, nbo, vbo; //Must be in the same order as the attributes in effects.h (until I fix that).
 		};
 		GLuint buffer_handles[sizeof(attribute_strings)/sizeof(attribute_strings[0])];
 	};

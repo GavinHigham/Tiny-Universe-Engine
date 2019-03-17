@@ -37,13 +37,16 @@ struct buffer_group new_buffer_group(int (*buffering_function)(struct buffer_gro
 		}
 	}
 
+	checkErrors("After setting up vertex attributes");
+
 	tmp.primitive_type = GL_TRIANGLES;
 	tmp.index_count = buffering_function(tmp);
 	tmp.flags = BG_USING_ADJACENCIES | BG_BUFFER_NORMALS | BG_BUFFER_COLORS;
-	//glBindVertexArray(0);
+	// glBindVertexArray(0);
 	return tmp;
 }
 
+// Note for future Gavin: This function is sorta busted (doesn't set up attribute arrays for the effect)
 struct buffer_group new_custom_buffer_group(int (*buffering_function)(struct buffer_group), int buffer_flags, GLenum primitive_type)
 {
 	struct buffer_group tmp = {0};
@@ -51,6 +54,7 @@ struct buffer_group new_custom_buffer_group(int (*buffering_function)(struct buf
 	glBindVertexArray(tmp.vao);
 	glGenBuffers(1, &tmp.vbo);
 	glGenBuffers(1, &tmp.ibo);
+	// setup_attrib_for_draw(effect->vPos, tmp.buffer_handles[i], GL_FLOAT, 3);
 
 	if (buffer_flags & BG_USING_ADJACENCIES)
 		glGenBuffers(1, &tmp.aibo);

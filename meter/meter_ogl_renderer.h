@@ -7,6 +7,7 @@
 struct meter_ogl_renderer_ctx {
 	GLuint shader, vao, vbo, ibo, screen_res, font_tex, font_tex_unif, textured_unif;
 	GLint pos_attr, col_attr, tx_attr;
+	int meters_num_indices, label_chars_num_indices;
 	struct {
 		float width, height;
 	} font;

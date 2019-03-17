@@ -58,6 +58,10 @@ svec3 rand_box_svec3(svec3 corner1, svec3 corner2);
 //Returns an int derived from the 3 coordinates of v.
 int hash_qvec3(qvec3 v);
 
+//A stupid hash for arrays of floats, so I can color them and distinguish them visually.
+//Keeping these here in case I need them for debugging in the future.
+uint32_t float3_hash(float *f, int precision);
+
 // Color
 
 //Converts an rgb color to a cmyk color.

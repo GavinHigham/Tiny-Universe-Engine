@@ -24,7 +24,6 @@ struct {unsigned short x, y;} glyph_coords[128];
 static const char *character_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:?!-_~#\"'&()[]|`\\/@°+=*$£€<> ";
 #define PRIMITIVE_RESTART_INDEX 0xFFFFFFFF
 #define MAX_LABEL_LEN 512
-float meter_value(struct meter *m);
 
 struct meter_vertex {
 	float pos[2];
@@ -32,33 +31,27 @@ struct meter_vertex {
 	unsigned char color[4];
 };
 
-int meter_ogl_renderer_draw_all(struct meter_globals *meter)
+void meter_ogl_renderer_buffers_setup(meter_ctx *M)
 {
-	struct meter_ogl_renderer_ctx *ogl = meter->renderer.renderer_ctx;
-	glBindVertexArray(ogl->vao);
-	glDisable(GL_DEPTH_TEST);
-	glUseProgram(ogl->shader);
-	glBindBuffer(GL_ARRAY_BUFFER, ogl->vbo);
-	glUniform2f(ogl->screen_res, meter->screen_width, meter->screen_height);
-	glEnable(GL_PRIMITIVE_RESTART);
-	glPrimitiveRestartIndex(PRIMITIVE_RESTART_INDEX);
-
+	struct meter_ogl_renderer_ctx *ogl = M->renderer.renderer_ctx;
 	const int nov = 8;       //Num outer verts.
-	const int vpm = nov + 4; //Verts per meter->
+	const int vpm = nov + 4; //Verts per meter.
 	const int ipm = 16;      //Indices per meter: 10 outer, primitive restart, 4 inner, primitive restart.
-	int num_meter_verts = vpm * meter->num_meters;
+	int num_meter_verts = vpm * M->num_meters;
 	int char_quads_offset = num_meter_verts;
-	int qs = ipm * meter->num_meters; //Quads start, keeps track of where new indices for text should be inserted.
-	int qi = vpm * meter->num_meters; //Quads index, keeps track of next unused index for each successive quad.
+	ogl->meters_num_indices = ipm * M->num_meters; //Save num indices for drawing later.
+	int qs = ogl->meters_num_indices; //Quads start, keeps track of where new indices for text should be inserted.
+	int qi = vpm * M->num_meters; //Quads index, keeps track of next unused index for each successive quad.
 
 	char label[MAX_LABEL_LEN];
 	int total_label_chars = 0;
-	for (int i = 0; i < meter->num_meters; i++) {
-		struct meter *m = &meter->meters[i];
+	for (int i = 0; i < M->num_meters; i++) {
+		struct meter *m = &M->meters[i];
 		total_label_chars += snprintf(NULL, 0, m->fmt, m->name, meter_value(m));
 	}
+	ogl->label_chars_num_indices = 5 * total_label_chars; //Save num indices for drawing later.
 	struct meter_vertex vbo[num_meter_verts + 4 * total_label_chars];
-	unsigned int ibo[ipm * meter->num_meters + 5 * total_label_chars];
+	unsigned int ibo[ipm * M->num_meters + 5 * total_label_chars];
 
 
 	/*
@@ -73,9 +66,9 @@ int meter_ogl_renderer_draw_all(struct meter_globals *meter)
 	*/
 
 	//Create index buffer.
-	unsigned int ibo_offsets[15] = {1, 0, 3, 2, 5, 4, 7, 6, 1, 0, PRIMITIVE_RESTART_INDEX, 8, 9, 10, 11};
-	for (int i = 0; i < meter->num_meters; i++) {
-		struct meter *m = &meter->meters[i];
+	unsigned int ibo_offsets[15] = {0, 1, 2, 3, 4, 5, 6, 7, 0, 1, PRIMITIVE_RESTART_INDEX, 8, 9, 10, 11};
+	for (int i = 0; i < M->num_meters; i++) {
+		struct meter *m = &M->meters[i];
 		struct widget_meter_style s = m->style;
 		int label_len = snprintf(label, sizeof(label), m->fmt, m->name, meter_value(m));
 		
@@ -86,7 +79,7 @@ int meter_ogl_renderer_draw_all(struct meter_globals *meter)
 		ibo[ipm*i + 15] = PRIMITIVE_RESTART_INDEX;
 		//Create indices for glyphs.
 		while (qs < LENGTH(ibo)) {
-			memcpy(&ibo[qs], (unsigned int[]){qi, qi+1, qi+2, qi+3, PRIMITIVE_RESTART_INDEX}, 5 * sizeof(unsigned int));
+			memcpy(&ibo[qs], (unsigned int[]){qi, qi+2, qi+1, qi+3, PRIMITIVE_RESTART_INDEX}, 5 * sizeof(unsigned int));
 			qs += 5;
 			qi += 4;
 		}
@@ -136,28 +129,43 @@ int meter_ogl_renderer_draw_all(struct meter_globals *meter)
 		}
 	}
 
+	glBindBuffer(GL_ARRAY_BUFFER, ogl->vbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vbo), vbo, GL_DYNAMIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ogl->ibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(ibo), ibo, GL_DYNAMIC_DRAW);
+}
+
+int meter_ogl_renderer_draw_all(meter_ctx *M)
+{
+	struct meter_ogl_renderer_ctx *ogl = M->renderer.renderer_ctx;
+	glBindVertexArray(ogl->vao);
+	meter_ogl_renderer_buffers_setup(M);
+	glDisable(GL_DEPTH_TEST);
+	glUseProgram(ogl->shader);
+	glUniform2f(ogl->screen_res, M->screen_width, M->screen_height);
+	glEnable(GL_PRIMITIVE_RESTART);
+	glPrimitiveRestartIndex(PRIMITIVE_RESTART_INDEX);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, ogl->font_tex);
 	glUniform1i(ogl->font_tex_unif, 0);
 
+	//Draw meters
 	glUniform1i(ogl->textured_unif, false);
-	glDrawElements(GL_TRIANGLE_STRIP, ipm * meter->num_meters, GL_UNSIGNED_INT, NULL);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ogl->ibo);	
+	glDrawElements(GL_TRIANGLE_STRIP, ogl->meters_num_indices, GL_UNSIGNED_INT, NULL);
 
 	//Draw labels
 	glUniform1i(ogl->textured_unif, true);
-	glDrawElements(GL_TRIANGLE_STRIP, 5 * total_label_chars, GL_UNSIGNED_INT, (GLvoid *)(sizeof(unsigned int) * ipm * meter->num_meters));
+	glDrawElements(GL_TRIANGLE_STRIP, ogl->label_chars_num_indices, GL_UNSIGNED_INT, (GLvoid *)(sizeof(unsigned int) * ogl->meters_num_indices));
 
 	glBindVertexArray(0);
 	return 0;
 }
 
-int meter_ogl_renderer_deinit(struct meter_globals *meter)
+int meter_ogl_renderer_deinit(meter_ctx *M)
 {
-	struct meter_ogl_renderer_ctx *ogl = meter->renderer.renderer_ctx;
+	struct meter_ogl_renderer_ctx *ogl = M->renderer.renderer_ctx;
 	glDeleteVertexArrays(1, &ogl->vao);
 	glDeleteBuffers(1, &ogl->vbo);
 	glDeleteProgram(ogl->shader);
@@ -165,9 +173,9 @@ int meter_ogl_renderer_deinit(struct meter_globals *meter)
 	return 0;
 }
 
-int meter_ogl_renderer_init(struct meter_globals *meter)
+int meter_ogl_renderer_init(meter_ctx *M)
 {
-	struct meter_ogl_renderer_ctx *ogl = meter->renderer.renderer_ctx;
+	struct meter_ogl_renderer_ctx *ogl = M->renderer.renderer_ctx;
 	glGenVertexArrays(1, &ogl->vao);
 	glBindVertexArray(ogl->vao);
 	glGenBuffers(1, &ogl->vbo);

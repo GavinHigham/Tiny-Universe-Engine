@@ -41,6 +41,11 @@ vec3 bpos_disp(bpos_origin from, bpos_origin to)
 	return BPOS_CELL_SIZE * (vec3){tmp.x, tmp.y, tmp.z};
 }
 
+double bpos_distd(bpos from, bpos to)
+{
+	return qvec3_distd(from.origin, to.origin) * BPOS_CELL_SIZE + vec3_dist(from.offset, to.offset);
+}
+
 void bpos_print(bpos b)
 {
 	qvec3_print(b.origin);

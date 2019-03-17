@@ -174,8 +174,6 @@ void make_projection_matrix(float fov, float a, float n, float f, float *buf)
 	memcpy(buf, tmp, sizeof(tmp));
 }
 
-//A stupid hash for arrays of floats, so I can color them and distinguish them visually.
-//Keeping these here in case I need them for debugging in the future.
 uint32_t float3_hash(float *f, int precision)
 {
 	float sum = 0;
