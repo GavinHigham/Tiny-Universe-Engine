@@ -2,6 +2,7 @@
 #include "draw.h"
 #include "entity/drawable.h"
 #include "drawf.h"
+#include "macros.h"
 #include "math/utility.h"
 #include "experiments/spiral_scene.h"
 #include "space/galaxy_volume.h"

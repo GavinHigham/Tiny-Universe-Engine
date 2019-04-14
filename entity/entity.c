@@ -78,7 +78,7 @@ This macro generates functions to "unmake" (delete) components owned by an entit
 	1. Overwrite the component with the last one from that component array.
 	2. Update the entity index table and decrement the component count.
 	3. Set the component pointer to NULL.
-	4. Clear the component bit.\
+	4. Clear the component bit.
 */
 #define ENTITY_GEN_UNMAKE_FN(Capitalized, uncapitalized, count, fn_prefix)                                                                        \
 void fn_prefix##uncapitalized(Entity *e)                                                                                                          \

@@ -83,6 +83,7 @@ void input_event_init()
 void input_event_deinit()
 {
 	free(key_state_prev);
+	key_state = NULL;
 }
 
 void input_event_save_prev_key_state()

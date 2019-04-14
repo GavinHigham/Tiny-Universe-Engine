@@ -12,6 +12,7 @@ Planets:
   ☐ Transform feedback or render-to-texture to create various surface maps, vertex texture fetch.
     ☐ Texture-space ambient occlusion
   ☐ Virtual texturing for heightmap - can I do a mip chain too? Transfer coarser tiles to different mip levels.
+    Probably don't need the entire mip chain, since tiles are already subdivided by distance to camera.
   ☐ Create 
 
 Texture:
@@ -19,6 +20,12 @@ Texture:
   ☐ Roughness
   ☐ Metalness?
   ☐ Quad-drawing module, for UI stuff and billboards.
+
+ ECS:
+   ☐ ECS component and entity pools should not need to know the type, only the size and count.
+     ☐ Use "Memory pool"?
+   ☐ Need a way to persist drawable information in the drawable system (ex. galaxy is drawn as an accumulating framebuffer, but galaxy's drawable component does not need to know that implementation detail)
+   ☐ Properties in a component declared using X-Macros in a separate file, for serialization?
 
 Lua:
   ☐ Should be able to specify meter default values in a Lua file
@@ -67,6 +74,7 @@ Cleanup:
   ☐ Make quadtree and octree intrusive, to reduce allocations.
   ☐ Remove dependency on ceffectpp, or convert it to a script
   ☐ Use GLAD instead of GLEW
+  ☐ Remove test code on release build
 
 Ideas:
   ☐ Voronoi-based continents

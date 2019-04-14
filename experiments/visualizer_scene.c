@@ -30,7 +30,7 @@ static struct color_buffer obuffer;
 static int accum_frames = 0;
 static float tweaks[8] = {1, 1, 1, 1, 1, 1, 1, 1};
 
-#define UNIFORM_GEN(name, decl) GLuint name;
+#define UNIFORM(name, decl) GLuint name;
 #define ATTRIBUTE(name) GLuint name;
 struct visualizer_ogl {
 	GLuint shader, vao, vbo;
@@ -41,13 +41,11 @@ struct visualizer_ogl {
 #undef ATTRIBUTE
 
 #define UNIFORM(name, decl) decl;
-#define ATTRIBUTE(name)
 struct visualizer_tweaks {
 	//Generate storage for uniform variable values.
 	#include "experiments/visualizer_glsl_bp.h"
 } g_visualizer_tweaks;
 #undef UNIFORM
-#undef ATTRIBUTE
 
 /* Recording file */
 FILE *visualizer_file;
@@ -59,15 +57,14 @@ extern lua_State *L;
 
 /* OpenGL Variables */
 
-static GLint POS_ATTR = 1;
-static struct {
-	GLuint RESOLUTION, MOUSE, TIME, TWEAKS, TWEAKS2, TEX, STYLE;
-} UNIF;
-static GLuint SHADER, VAO, VBO;
+// static GLint g_visualizer_ogl.pos = 1;
+// static struct {
+// 	GLuint RESOLUTION, MOUSE, TIME, TWEAKS, TWEAKS2, TEX, STYLE;
+// } UNIF;
+// static GLuint SHADER, g_visualizer_ogl.vao, g_visualizer_ogl.vbo;
 static GLfloat vertices[] = {-1, -1, 1, -1, -1, 1, 1, 1};
 
 /* Texture and audio */
-GLuint tex_handle;
 GLenum tex_fmt = GL_RG8UI;
 const int g_tex_w = 2048, g_tex_h = 2, g_texel_size = 2;
 char g_tex_buf[g_tex_w*g_tex_h*g_texel_size] = {0};
@@ -186,8 +183,8 @@ void rem_viz_meters(widget_meter *widgets, int num_widgets, float *y_offset)
 
 int visualizer_scene_init()
 {
-	glGenVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
+	glGenVertexArrays(1, &g_visualizer_ogl.vao);
+	glBindVertexArray(g_visualizer_ogl.vao);
 
 	/* Shader initialization */
 	glswInit();
@@ -201,42 +198,46 @@ int visualizer_scene_init()
 		glsw_shader_from_keys(GL_VERTEX_SHADER, "versions.glsl330", vsh_key),
 		glsw_shader_from_keys(GL_FRAGMENT_SHADER, "versions.glsl330", fsh_key),
 	};
-	SHADER = glsw_new_shader_program(shader, LENGTH(shader));
+	g_visualizer_ogl.shader = glsw_new_shader_program(shader, LENGTH(shader));
 	glswShutdown();
 	free(vsh_key);
 	free(fsh_key);
 
-	if (!SHADER) {
+	if (!g_visualizer_ogl.shader) {
 		visualizer_scene_deinit();
 		return -1;
 	}
 
 	/* Retrieve uniform variable handles */
 
-	UNIF.RESOLUTION  = glGetUniformLocation(SHADER, "iResolution");
-	UNIF.MOUSE       = glGetUniformLocation(SHADER, "iMouse");
-	UNIF.TIME        = glGetUniformLocation(SHADER, "iTime");
-	UNIF.TWEAKS      = glGetUniformLocation(SHADER, "tweaks");
-	UNIF.TWEAKS2     = glGetUniformLocation(SHADER, "tweaks2");
-	UNIF.TEX         = glGetUniformLocation(SHADER, "frequencies");
-	UNIF.STYLE       = glGetUniformLocation(SHADER, "style");
+	// g_visualizer_ogl.iResolution  = glGetUniformLocation(SHADER, "iResolution");
+	// g_visualizer_ogl.iMouse       = glGetUniformLocation(SHADER, "iMouse");
+	// g_visualizer_ogl.iTime        = glGetUniformLocation(SHADER, "iTime");
+	// g_visualizer_ogl.tweaks      = glGetUniformLocation(SHADER, "tweaks");
+	// g_visualizer_ogl.tweaks2     = glGetUniformLocation(SHADER, "tweaks2");
+	// g_visualizer_ogl.frequencies         = glGetUniformLocation(SHADER, "frequencies");
+	// g_visualizer_ogl.style       = glGetUniformLocation(SHADER, "style");
 
-	g_visualizer_ogl.shader = SHADER;
-	#define UNIFORM(name) g_visualizer_ogl.name = glGetUniformLocation(g_visualizer_ogl.shader, #name);
+	// g_visualizer_ogl.shader = SHADER;
+
+	#define UNIFORM(name, ...) g_visualizer_ogl.name = glGetUniformLocation(g_visualizer_ogl.shader, #name);
+	#include "visualizer_glsl_bp.h"
+	#undef UNIFORM
 
 	checkErrors("After getting uniform handles");
-	glUseProgram(SHADER);
+	glUseProgram(g_visualizer_ogl.shader);
 
 	/* Vertex data */
 
-	glGenBuffers(1, &VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glGenBuffers(1, &g_visualizer_ogl.vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, g_visualizer_ogl.vbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
 	/* Vertex attributes */
 
-	glEnableVertexAttribArray(POS_ATTR);
-	glVertexAttribPointer(POS_ATTR, 2, GL_FLOAT, GL_FALSE, 0, false);
+	g_visualizer_ogl.pos = glGetAttribLocation(g_visualizer_ogl.shader, "pos");
+	glEnableVertexAttribArray(g_visualizer_ogl.pos);
+	glVertexAttribPointer(g_visualizer_ogl.pos, 2, GL_FLOAT, GL_FALSE, 0, false);
 	checkErrors("After pos attr");
 
 	/* Audio */
@@ -282,8 +283,8 @@ int visualizer_scene_init()
 
 	/* Texture creation */
 
-	glGenTextures(1, &tex_handle);
-	glBindTexture(GL_TEXTURE_2D, tex_handle);
+	glGenTextures(1, &g_visualizer_tweaks.frequencies);
+	glBindTexture(GL_TEXTURE_2D, g_visualizer_tweaks.frequencies);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, g_tex_w, g_tex_h, 0, GL_RED, GL_UNSIGNED_BYTE, g_tex_buf);
@@ -357,6 +358,16 @@ int visualizer_scene_init()
 			.target = &tweaks[5], 
 			.style = wstyles, .color = {.fill = {187, 187, 187, 255}, .border = {65, 65, 95, 255}, .font = {255, 255, 255}}
 		},
+		{
+			.name = "Circle Fraction", .x = 5.0, .y = 0, .min = 0.0, .max = 1.0, .value = getglob(L, "circle_fraction", 1.0),
+			.target = &tweaks[6], 
+			.style = wstyles, .color = {.fill = {187, 187, 187, 255}, .border = {65, 65, 95, 255}, .font = {255, 255, 255}}
+		},
+		{
+			.name = "Bar Power", .x = 5.0, .y = 0, .min = 0.0, .max = 128.0, .value = getglob(L, "bar_power", 1.0),
+			.target = &tweaks[7], 
+			.style = wstyles, .color = {.fill = {187, 187, 187, 255}, .border = {65, 65, 95, 255}, .font = {255, 255, 255}}
+		},
 	};
 	init_viz_meters(&g_viz_meters, widgets, LENGTH(widgets), &g_y_offset);
 	meter_label(&g_viz_meters, "Style", "%s %.0f");
@@ -381,9 +392,9 @@ void visualizer_scene_resize(float width, float height)
 
 void visualizer_scene_deinit()
 {
-	glDeleteVertexArrays(1, &VAO);
-	glDeleteBuffers(1, &VBO);
-	glDeleteProgram(SHADER);
+	glDeleteVertexArrays(1, &g_visualizer_ogl.vao);
+	glDeleteBuffers(1, &g_visualizer_ogl.vbo);
+	glDeleteProgram(g_visualizer_ogl.shader);
 	SDL_FreeWAV(g_wav_buffer);
 	free(cfg);
 	meter_deinit(&g_viz_meters);
@@ -493,7 +504,7 @@ void visualizer_scene_update(float dt)
 	// if (visualizer_recording)
 		seconds += 1.0 / 60.0;
 
-	glBindTexture(GL_TEXTURE_2D, tex_handle);
+	glBindTexture(GL_TEXTURE_2D, g_visualizer_tweaks.frequencies);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, g_tex_w, g_tex_h, 0, GL_RED, GL_UNSIGNED_BYTE, g_tex_buf);
 }
 
@@ -502,30 +513,35 @@ void visualizer_scene_render()
 	// Draw to offscreen buffer.
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, obuffer.fbo);
 	glViewport(0, 0, obuffer_width, obuffer_height);
-	glBindVertexArray(VAO);
-	glUseProgram(SHADER);
+	glBindVertexArray(g_visualizer_ogl.vao);
+	glUseProgram(g_visualizer_ogl.shader);
 	glClearColor(0, 0, 0, 0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
+	CHECK_ERRORS()
 	//Draw in wireframe if 'z' is held down.
 	if (key_state[SDL_SCANCODE_Z])
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	else
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-	glUniform2f(UNIF.TIME, SDL_GetTicks() / 1000.0, accum_frames);
-	glUniform2f(UNIF.RESOLUTION, obuffer_width, obuffer_height);
-	glUniform4f(UNIF.MOUSE, mouse_x, mouse_y, 0, 0);
+	CHECK_ERRORS()
+	glUniform2f(g_visualizer_ogl.iTime, SDL_GetTicks() / 1000.0, accum_frames);
+	glUniform2f(g_visualizer_ogl.iResolution, obuffer_width, obuffer_height);
+	glUniform4f(g_visualizer_ogl.iMouse, mouse_x, mouse_y, 0, 0);
 	tweaks[0] = g_num_buckets;
-	glUniform4fv(UNIF.TWEAKS, 1, tweaks);
-	glUniform4fv(UNIF.TWEAKS2, 1, tweaks + 4);
-	glUniform1i(UNIF.STYLE, g_viz_style);
+	CHECK_ERRORS()
+	glUniform4fv(g_visualizer_ogl.tweaks, 1, tweaks);
+	glUniform4fv(g_visualizer_ogl.tweaks2, 1, tweaks + 4);
+	glUniform1i(g_visualizer_ogl.style, g_viz_style);
 
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, g_visualizer_ogl.vbo);
+	CHECK_ERRORS()
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, tex_handle);
-	glUniform1i(UNIF.TEX, 0);
+	glBindTexture(GL_TEXTURE_2D, g_visualizer_tweaks.frequencies);
+	glUniform1i(g_visualizer_ogl.frequencies, 0);
+	CHECK_ERRORS()
 
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 			

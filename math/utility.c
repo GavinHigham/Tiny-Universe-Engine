@@ -1,12 +1,13 @@
 #include "utility.h"
 #include "glla.h"
+#include "graphics.h"
+#include "macros.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <stdbool.h>
 #include <string.h>
 #include <SDL2/SDL.h>
-#include "graphics.h"
 
 #define RANDOM_SEED 42 * 1337 + 0xBAE + 'G'+'r'+'e'+'e'+'n' //An excellent random seed
 static int seed = RANDOM_SEED;

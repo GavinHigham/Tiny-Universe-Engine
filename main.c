@@ -19,13 +19,16 @@
 #include "experiments/proctri_scene.h"
 #include "experiments/spiral_scene.h"
 #include "experiments/visualizer_scene.h"
-
+//Tests
+#include "test/test_main.h"
+//Configuration
 #include "configuration/lua_configuration.h"
 
 static const int MS_PER_SECOND = 1000;
 static const int FRAMES_PER_SECOND = 60; //Frames per second.
 //static const int MS_PER_UPDATE = MS_PER_SECOND / FRAMES_PER_SECOND;
 static int wake_early_ms = 2; //How many ms early should the main loop wake from sleep to avoid oversleeping.
+static bool testmode = false; //If true, skip creating the window and just run the tests.
 
 //Average number of tight loop iterations. Global so it can be accessed from handle_event.c
 int loop_iter_ave = 0;
@@ -83,13 +86,18 @@ static void reload_signal_handler(int signo) {
 
 int main(int argc, char **argv)
 {
-	SDL_GLContext context;
+	SDL_GLContext context = NULL;
+	int error = 0;
 
 	sig_atomic_t quit = false; //Use an atomic so that changes from another thread will be seen.
 
+	if (argc > 1 && !strcmp(argv[1], "test"))
+		testmode = true;
+
 	int result = 0;
 	if ((result = SDL_Init(SDL_INIT_EVERYTHING)) != 0) {
-		printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
+		fprintf(stderr, "SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
+		error = -1;
 		return result;
 	}
 
@@ -103,7 +111,9 @@ int main(int argc, char **argv)
 	float screen_height = getglob(L, "screen_height", 600);
 	char *default_scene = getglob(L, "default_scene", "icosphere_scene");
 
-	window = SDL_CreateWindow(
+	//Skip window creation, OpenGL init, and and GLEW init in test mode.
+	if (!testmode) {
+		window = SDL_CreateWindow(
 		screen_title,
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
@@ -111,22 +121,34 @@ int main(int argc, char **argv)
 		screen_height,
 		SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
-	free(screen_title);
+		free(screen_title);
 
-	if (window == NULL) {
-		printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
+		if (window == NULL) {
+			fprintf(stderr, "Window could not be created! SDL_Error: %s\n", SDL_GetError());
+			error = -2;
+			goto error;
+		}
+
+		if (gl_init(&context, window)) {
+			fprintf(stderr, "OpenGL could not be initiated!\n");
+			return -1;
+		}
+	}
+
+	result = engine_init();
+	if (result < 0) {
+		fprintf(stderr, "Something went wrong in init_engine! Aborting.\n");
 		return -1;
 	}
 
-	result = engine_init(&context, window);
-	if (result < 0) {
-		printf("Something went wrong in init_engine! Aborting.\n");
-		return -1;
+	if (testmode) {
+		error = test_main(argc, argv);
+		goto error;
 	}
 	
 	//When we receive SIGUSR1, reload the scene.
 	if (signal(SIGUSR1, reload_signal_handler) == SIG_ERR) {
-		printf("An error occurred while setting a signal handler.\n");
+		fprintf(stderr, "An error occurred while setting a signal handler.\n");
 	}
 
 	struct game_scene *scenes[] = {
@@ -137,6 +159,7 @@ int main(int argc, char **argv)
 		&visualizer_scene
 	};
 
+	//Scenes usually depend on OpenGL being init'd.
 	char *chosen_scene = (argc > 1) ? argv[1] : default_scene;
 	for (int i = 0; i < LENGTH(scenes); i++)
 		if (!strcmp(chosen_scene, scenes[i]->name))
@@ -208,9 +231,10 @@ int main(int argc, char **argv)
 	// 	SDL_GL_SwapWindow(window);
 	// }
 
+error:
 	scene_set(NULL);
 	SDL_GL_DeleteContext(context);
 	SDL_DestroyWindow(window);
 	engine_deinit();
-	return 0;
+	return error;
 }

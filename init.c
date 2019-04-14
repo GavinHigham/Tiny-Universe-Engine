@@ -18,21 +18,13 @@ struct osn_context *osnctx;
 int gl_init(SDL_GLContext *context, SDL_Window *window);
 int glew_init();
 
-int engine_init(SDL_GLContext *context, SDL_Window *window)
+int engine_init()
 {
 	int img_flags = IMG_INIT_PNG;
 	if (!(IMG_Init(img_flags) & img_flags)) {
 		printf("SD_image could not initialize! SDL_image Error: %s\n", IMG_GetError());
 		return -1;
 	}
-
-	if (gl_init(context, window))
-		return -1;
-	checkErrors("gl_init");
-
-	if (glew_init())
-		return -1;
-	checkErrors("glew_init");
 
 	open_simplex_noise(open_simplex_noise_seed, &osnctx);
 
@@ -60,6 +52,11 @@ int gl_init(SDL_GLContext *context, SDL_Window *window)
 	}
 
 	checkErrors("After init_gl");
+
+	if (glew_init())
+		return -1;
+	checkErrors("glew_init");
+
 	return 0;
 }
 

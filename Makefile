@@ -22,10 +22,16 @@ include experiments/experiments.mk
 include trackball/trackball.mk
 include meter/meter.mk
 include components/components.mk
+include test/test.mk
 
 CFLAGS 	= -Wall -c -std=c11 -g -pthread $(MACOS_CFLAGS) $(INCLUDES) #-march=native -O3
 all: $(OBJECTS) #ceffectpp/ceffectpp
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(EXE)
+
+test: $(OBJECTS) test/test_main.o
+	$(CC) $(LDFLAGS) test/test_main.o $(filter-out main.o,$(OBJECTS)) -o $(EXE)test
+
+.DUMMY: all clean test
 
 #I want "all" to be the default rule, so any module-specific build rules should be specified in a separate makefile.
 include models/Makefile

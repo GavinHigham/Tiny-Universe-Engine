@@ -12,6 +12,7 @@
 	// #include "glad/glad.h"
 	#include <GL/glew.h>
 #endif
+#define CHECK_ERRORS() {int error = glGetError(); if (error != GL_NO_ERROR) printf("%s[%d]: %d\n", __FUNCTION__, __LINE__, error);}
 
 #include <SDL2/SDL.h>
 #include <SDL2_image/SDL_image.h>

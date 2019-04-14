@@ -57,11 +57,12 @@ visualizer_circle_width = 512
 -- wav_filename = "Greenseomusic_Oceanwide.wav"
 -- wav_filename = "Twit_cover.wav"
 -- wav_filename = "Greenseomusic_Happy New Start.wav"
-wav_filename = "DallaDalla_cover.wav"
+-- wav_filename = "DallaDalla_cover.wav"
+wav_filename = "SpringDay_cover_1.wav"
 if (default_scene == "visualizer") then
 	recording_width, recording_height = 512, 512
 	-- screen_width, screen_height = recording_width + 100, recording_height + 100
-recording_cmd = "ffmpeg -r 60 -f rawvideo -pix_fmt rgba -s " .. recording_width .. "x" .. recording_height .. " -i - -threads 0 -preset fast -y -pix_fmt yuv420p -crf 21 -vf vflip " .. wav_filename .. ".mp4"
+	recording_cmd = "ffmpeg -r 60 -f rawvideo -pix_fmt rgba -s " .. recording_width .. "x" .. recording_height .. " -i - -threads 0 -preset fast -y -pix_fmt yuv420p -crf 21 -vf vflip " .. wav_filename .. ".mp4"
 end
 
 
