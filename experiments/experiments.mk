@@ -3,6 +3,7 @@ OBJECTS += \
 	experiments/proctri_scene.o \
 	experiments/spiral_scene.o \
 	experiments/visualizer_scene.o \
-	experiments/deferred_framebuffer.o
+	experiments/deferred_framebuffer.o \
+	experiments/universe_scene/universe_scene.o \
 	#experiments/terrain_erosion.o \
 	#experiments/procedural_terrain.o \

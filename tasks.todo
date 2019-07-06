@@ -31,6 +31,7 @@ Lua:
   ☐ Should be able to specify meter default values in a Lua file
     ☐ Should be able to save current value to a Lua file
   ☐ Could create meters in a Lua file, loaded per-module
+  ☐ When ECS is more developed, describe scenes / systems / components from Lua
 
 Galaxy Raymarch:
   ✔ Multiple octaves of noise @done (19-01-02 00:28)
@@ -47,6 +48,10 @@ Galaxy Raymarch:
     ☐ galaxy should be parametrized
     ☐ sample galaxy function from CPU-side to drive star generation
   ☐ Integrate into space scene
+    ✔ Cubemap rendering @done (19-06-29 14:38)
+    ✔ Skybox @done (19-06-29 14:38)
+    ☐ Render accurately by camera position
+    ☐ Render new frames when camera moves
   ✔ Render into cubemap of configurable size @done (19-01-02 00:28)
   ☐ Refactor meter creation code, list of names, list of default values, list of targets
   ☐ Move tweaks into single structure
@@ -57,6 +62,8 @@ Galaxy Raymarch:
     ☐ Also implement navier-stokes and test a bit of fluid sim on the volume
     ☐ Also generate small number of "guide stars" positioned based on density
     ☐ Also generate a large number of stars and run an n-body simulation to get a more realistic spiral
+    ☐ Also, could render 2D texture slices on GPU
+   ☐ Better spiral, look up real values
 
 Trackball:
   ☐ Fix gimbal lock issue

@@ -5,6 +5,8 @@
 
 typedef struct physical_component {
 	float bounding_sphere; //Stored as radius squared, centered on position.t
+	float mass;
+	mat3 moment;
 	amat4 position;
 	amat4 velocity;
 	amat4 acceleration;

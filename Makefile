@@ -1,7 +1,7 @@
 CC = gcc
 
 MACOS_CFLAGS  = -F/Library/Frameworks
-MACOS_LDFLAGS = -F/Library/Frameworks -framework SDL2 -framework SDL2_image -lGLEW -framework OpenGL
+MACOS_LDFLAGS = -F/Library/Frameworks -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW
 
 INCLUDES = -Iglla -I$(CURDIR)
 LDFLAGS	 = $(SDL) -Llua-5.3.5/src -llua $(MACOS_LDFLAGS)
@@ -24,12 +24,14 @@ include meter/meter.mk
 include components/components.mk
 include test/test.mk
 
-CFLAGS 	= -Wall -c -std=c11 -g -pthread $(MACOS_CFLAGS) $(INCLUDES) #-march=native -O3
+CFLAGS = -Wall -c -std=c11 -g -pthread $(MACOS_CFLAGS) $(INCLUDES) #-march=native -O3
 all: $(OBJECTS) #ceffectpp/ceffectpp
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(EXE)
 
-test: $(OBJECTS) test/test_main.o
-	$(CC) $(LDFLAGS) test/test_main.o $(filter-out main.o,$(OBJECTS)) -o $(EXE)test
+test_main.o: $(wildcard test/*.test.c)
+
+test: $(OBJECTS) test_main.o Makefile
+	./$(EXE) test
 
 .DUMMY: all clean test
 
@@ -37,7 +39,7 @@ test: $(OBJECTS) test/test_main.o
 include models/Makefile
 
 .depend:
-	gcc -MMD $(INCLUDES) $(LDFLAGS) $(OBJECTS) > .depend #Generate dependencies from all .c files, searching recursively.
+	gcc -MM $(INCLUDES) $(CFLAGS) $(patsubst %.o,%.c,$(OBJECTS)) > .depend #Generate dependencies from all .c files, searching recursively.
 
 effects.c: $(SHADERS) effects.h lua-5.3.5 ceffectpp/ceffectpp
 	ceffectpp/ceffectpp -c $(SHADERS) > effects.c

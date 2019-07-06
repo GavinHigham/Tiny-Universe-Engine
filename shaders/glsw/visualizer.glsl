@@ -115,6 +115,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 			fragCoord.x > 0.0 &&
 			distance(fragCoord.x, roundToMultiple(fragCoord.x, bar_width_total)) < bar_width) {
 			fragColor = vec4(1.0);
+			fragColor *= vec4(color_left_to_right(uv.x), 1.0);
 		// else if (uv.y > 0.5)
 		//     fragColor = vec4(0.0, uvx_floor, 0.0, 1.0);
 		// else if (uv.y < 0.5)
@@ -135,8 +136,10 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 		if (val + bar_min_height / iResolution.y > length(p) - inner_radius &&
 			distance(t, roundToMultiple(t, 1.0 / num_buckets)) < 1/num_buckets/bar_spacing &&
 			t <= 1.0 &&
-			length(p) > inner_radius)
+			length(p) > inner_radius) {
 			fragColor = vec4(1.0);
+			fragColor *= vec4(color_left_to_right(t), 1.0);
+		}
 		else
 			fragColor = vec4(0.0, 0.0, 0.0, 1.0);
 	}
@@ -145,7 +148,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 	// graph += bloom(uv);
 }
 
-// #define MULTISAMPLE
+#define MULTISAMPLE
 #define SAMPLES_PER_AXIS 4
 void main() {
 	vec2 uv = 2.0 * gl_FragCoord.xy / iResolution - 1.0;

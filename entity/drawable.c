@@ -7,6 +7,11 @@
 #include "buffer_group.h"
 #include "entity/entity.h"
 
+/*
+Gavin Update notes:
+The drawable system should be made to collaborate with the ECS
+*/
+
 extern bpos_origin eye_sector;
 
 void init_drawable(Drawable *d, void (*draw)(EFFECT *, struct buffer_group, amat4), EFFECT *effect, amat4 *frame, bpos_origin *sector, struct buffer_group *buffers)

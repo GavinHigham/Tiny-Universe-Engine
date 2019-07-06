@@ -7,7 +7,7 @@ grab_mouse = false
 
 default_scene = "space" --"twotri" --"proctri"
 -- default_scene = "visualizer"
--- default_scene = "spiral"
+default_scene = "spiral"
 
 --ffmpeg recording
 ffmpeg_cmd = "ffmpeg -r 15 -f rawvideo -pix_fmt rgba -s " .. screen_width .. "x" .. screen_height .. " -i - -threads 0 -preset fast -y -pix_fmt yuv420p -crf 21 -vf vflip output.mp4"
@@ -27,13 +27,15 @@ cubemap_mode = false
 max_accum_frames = 20
 accumulate = true
 galaxy_defaults = {
-	arm_width = 2.0,
-	rotation = 300.0,	
-	noise_scale = 4.7,
+	arm_width = 2.85,
+	rotation = 543.0,
+	diameter = 80.0,
+	noise_scale = 4.45,
 	noise_strength = 4.7,
+	disk_height = 5.24,
 	spiral_density = 2.8,
-	bulge_mask_radius = 12.0,
-	bulge_height = 14.0,
+	bulge_mask_radius = 9.69,
+	bulge_mask_power = 3.43,
 	bulge_width = 23.0,
 	-- samples = 50,
 	-- brightness = 100

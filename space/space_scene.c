@@ -75,6 +75,7 @@ Entity *star_box_entity = NULL;
 Entity *galaxy_box_entity = NULL;
 
 struct buffer_group cube_buffer_group;
+struct buffer_group ship_buffer_group;
 
 GLfloat proj_mat[16];
 GLfloat proj_view_mat[16];
@@ -102,6 +103,17 @@ void entities_init()
 	entity_make_controllable(ship_entity, (Controllable){
 		.control = ship_control,
 	});
+
+	ship_buffer_group = new_buffer_group(buffer_newship, &effects.forward);
+	entity_make_drawable(ship_entity, (Drawable){
+		.effect = &effects.forward,
+		.frame = &ship_entity->physical->position,
+		.sector = &ship_entity->physical->origin,
+		.bg = &ship_buffer_group,
+		.bg_from_malloc = true,
+		.draw = draw_forward,
+	});
+	checkErrors("After entity_make_drawable for ship_entity");
 
 	camera_entity = entity_new();
 	entity_make_physical(camera_entity, (Physical){
@@ -149,6 +161,7 @@ void entities_init()
 void entities_deinit()
 {
 	delete_buffer_group(cube_buffer_group);
+	delete_buffer_group(ship_buffer_group);
 	entity_reset();
 }
 
@@ -271,7 +284,7 @@ static void forward_update_point_light(EFFECT *effect, struct point_light_attrib
 }
 
 //Eventually I'll have an algorithm to calculate potential visible set, etc.
-//static Drawable *pvs[] = {&d_newship, &d_room};
+// static Drawable *pvs[] = {&d_newship, &d_room};
 static Drawable *pvs[] = {}; //{&d_ship};
 
 void space_scene_render()
@@ -346,6 +359,8 @@ void space_scene_render()
 		for (int i = 0; i < LENGTH(pvs); i++)
 			draw_drawable(pvs[i]);
 
+		draw_drawable(ship_entity->drawable);
+
 		//glDisable(GL_CULL_FACE);
 
 		checkErrors("Before planets draw");
@@ -386,6 +401,8 @@ void space_scene_render()
 			for (int i = 0; i < LENGTH(pvs); i++)
 				draw_forward_adjacent(&effects.shadow, *pvs[i]->bg, *pvs[i]->frame);
 
+			draw_forward_adjacent(&effects.shadow, *ship_entity->drawable->bg, ship_entity->physical->position);
+
 			glDisable(GL_DEPTH_CLAMP);
 			glEnable(GL_CULL_FACE);
 			checkErrors("After rendering shadow volumes");
@@ -408,6 +425,9 @@ void space_scene_render()
 				draw_drawable(pvs[i]);
 				checkErrors("After forward draw shadowed");
 			}
+
+			draw_drawable(ship_entity->drawable);
+			draw_forward_adjacent(&effects.outline, *ship_entity->drawable->bg, ship_entity->physical->position);
 
 			// //Draw procedural planet
 			// for (DRAWLIST l = terrain_list; l; l = l->next) {

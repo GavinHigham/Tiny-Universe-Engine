@@ -154,6 +154,22 @@ void spiral_scene_update(float dt)
 	if (trackball_step(&spiral_trackball, mouse_x, mouse_y, button, scroll_x, scroll_y))
 		clear_active_accumulation_buffer = true;
 
+	// amat4_print(spiral_trackball.camera);
+	// puts("\n");
+	// for (int i = 0; i < LENGTH(g_galaxy_tweaks.tweaks1); ++i)
+	// {
+	// 	printf("%f ", g_galaxy_tweaks.tweaks1[i]);
+	// }
+	// for (int i = 0; i < LENGTH(g_galaxy_tweaks.tweaks2); ++i)
+	// {
+	// 	printf("%f ", g_galaxy_tweaks.tweaks2[i]);
+	// }
+	// for (int i = 0; i < LENGTH(g_galaxy_tweaks.bulge); ++i)
+	// {
+	// 	printf("%f ", g_galaxy_tweaks.bulge[i]);
+	// }
+	// puts("\n");
+
 	if (key_pressed(SDL_SCANCODE_TAB))
 		show_tweaks = !show_tweaks;
 
@@ -187,7 +203,10 @@ void galaxy_render_to_cubemap(struct galaxy_tweaks gt, struct galaxy_ogl gal, st
 	checkErrors("After clear");
 
 	glUniform1f(gal.unif.rotation, gt.rotation);
+	glUniform1f(gal.unif.diameter, gt.diameter);
 	glUniform1f(gal.unif.bright, gt.brightness);
+	glUniform1f(gal.unif.render_dist, gt.render_dist);
+	checkErrors("After sending render_dist");
 	glUniform2f(gal.unif.time, SDL_GetTicks() / 1000.0, framecount);
 	glUniform4f(gal.unif.mouse, mouse_x, mouse_y, 0, 0);
 
@@ -317,7 +336,10 @@ void galaxy_render_to_texture(struct galaxy_tweaks gt, struct galaxy_ogl gal, st
 	glUniform1f(gal.unif.fresh, gt.freshness);
 	glUniform1i(gal.unif.samples, gt.samples);
 	glUniform1f(gal.unif.rotation, gt.rotation);
+	glUniform1f(gal.unif.diameter, gt.diameter);
 	glUniform1f(gal.unif.bright, gt.brightness);
+	glUniform1f(gal.unif.render_dist, gt.render_dist);
+	checkErrors("After sending render_dist");
 	glUniform2f(gal.unif.time, SDL_GetTicks() / 1000.0, framecount);
 	glUniform4f(gal.unif.mouse, mouse_x, mouse_y, 0, 0);
 

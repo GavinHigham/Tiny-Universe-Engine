@@ -18,6 +18,7 @@ struct galaxy_tweaks {
 	float focal_length;
 	float brightness;
 	float rotation;
+	float diameter;
 
 	union {
 		struct {
@@ -48,6 +49,7 @@ struct galaxy_tweaks {
 	};
 	float freshness;
 	float samples;
+	float render_dist;
 };
 
 struct galaxy_ogl {
@@ -55,7 +57,7 @@ struct galaxy_ogl {
 		GLint pos; //location = 1
 	} attr;
 	struct {
-		GLuint resolution, mouse, time, focal, dir, eye, bright, rotation, tweaks, tweaks2, bulge, absorb, fresh, samples;
+		GLuint resolution, mouse, time, focal, dir, eye, bright, rotation, diameter, tweaks, tweaks2, bulge, absorb, fresh, samples, render_dist;
 		GLuint dresolution, dab, dnframes;
 		GLuint dab_cube, dnframes_cube;
 	} unif;

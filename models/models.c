@@ -3,6 +3,7 @@
 #define MODELS_H
 
 #include "graphics.h"
+#include "buffer_group.h"
 
 GLfloat ball_positions[] = {
 	0.239714, -0.239714, 0.000000,
@@ -3388,6 +3389,21 @@ GLuint ball_indices[] = {
 	469, 472, 3,
 };
 
+int buffer_ball(struct buffer_group bg)
+{
+	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(ball_positions), ball_positions, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(ball_colors), ball_colors, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(ball_normals), ball_normals, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(ball_indices_adjacent), ball_indices_adjacent, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(ball_indices), ball_indices, GL_STATIC_DRAW);
+	return sizeof(ball_indices)/sizeof(ball_indices[0]);
+}
+
 GLfloat cube_positions[] = {
 	1.000000, 1.000000, -1.000000,
 	-1.000000, 1.000000, -1.000000,
@@ -3428,6 +3444,17 @@ GLuint cube_indices[] = {
 	4, 2, 5,
 	7, 5, 0,
 };
+
+int buffer_cube(struct buffer_group bg)
+{
+	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cube_positions), cube_positions, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_indices_adjacent), cube_indices_adjacent, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_indices), cube_indices, GL_STATIC_DRAW);
+	return sizeof(cube_indices)/sizeof(cube_indices[0]);
+}
 
 GLfloat icosphere_positions[] = {
 	0.000000, 0.000000, -1.075000,
@@ -3639,6 +3666,17 @@ GLuint icosphere_indices[] = {
 	2, 1, 10,
 	1, 3, 10,
 };
+
+int buffer_icosphere(struct buffer_group bg)
+{
+	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(icosphere_positions), icosphere_positions, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(icosphere_indices_adjacent), icosphere_indices_adjacent, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(icosphere_indices), icosphere_indices, GL_STATIC_DRAW);
+	return sizeof(icosphere_indices)/sizeof(icosphere_indices[0]);
+}
 
 GLfloat newroom_positions[] = {
 	-32.993244, 44.778030, -34.998646,
@@ -8325,6 +8363,21 @@ GLuint newroom_indices[] = {
 	670, 667, 205,
 };
 
+int buffer_newroom(struct buffer_group bg)
+{
+	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(newroom_positions), newroom_positions, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(newroom_colors), newroom_colors, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(newroom_normals), newroom_normals, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(newroom_indices_adjacent), newroom_indices_adjacent, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(newroom_indices), newroom_indices, GL_STATIC_DRAW);
+	return sizeof(newroom_indices)/sizeof(newroom_indices[0]);
+}
+
 GLfloat newship_positions[] = {
 	0.198834, 0.395931, -1.770564,
 	-0.000000, 0.427865, -1.781968,
@@ -12476,6 +12529,21 @@ GLuint newship_indices[] = {
 	790, 734, 736,
 	789, 737, 727,
 };
+
+int buffer_newship(struct buffer_group bg)
+{
+	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(newship_positions), newship_positions, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(newship_colors), newship_colors, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(newship_normals), newship_normals, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(newship_indices_adjacent), newship_indices_adjacent, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(newship_indices), newship_indices, GL_STATIC_DRAW);
+	return sizeof(newship_indices)/sizeof(newship_indices[0]);
+}
 
 GLfloat room_positions[] = {
 	27.149179, -2.019372, 27.149179,
@@ -17279,6 +17347,21 @@ GLuint room_indices[] = {
 	276, 709, 279,
 };
 
+int buffer_room(struct buffer_group bg)
+{
+	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(room_positions), room_positions, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(room_colors), room_colors, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(room_normals), room_normals, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(room_indices_adjacent), room_indices_adjacent, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(room_indices), room_indices, GL_STATIC_DRAW);
+	return sizeof(room_indices)/sizeof(room_indices[0]);
+}
+
 GLfloat ship_positions[] = {
 	1.000000, 0.469779, 2.692342,
 	0.000000, 0.720910, 3.456911,
@@ -18619,6 +18702,21 @@ GLuint ship_indices[] = {
 	284, 140, 248,
 	285, 249, 251,
 };
+
+int buffer_ship(struct buffer_group bg)
+{
+	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(ship_positions), ship_positions, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(ship_colors), ship_colors, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(ship_normals), ship_normals, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(ship_indices_adjacent), ship_indices_adjacent, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(ship_indices), ship_indices, GL_STATIC_DRAW);
+	return sizeof(ship_indices)/sizeof(ship_indices[0]);
+}
 
 GLfloat teardropship_positions[] = {
 	0.511714, -0.045206, -0.509586,
@@ -75922,6 +76020,21 @@ GLuint teardropship_indices[] = {
 	8268, 4241, 8078,
 };
 
+int buffer_teardropship(struct buffer_group bg)
+{
+	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(teardropship_positions), teardropship_positions, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(teardropship_colors), teardropship_colors, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(teardropship_normals), teardropship_normals, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(teardropship_indices_adjacent), teardropship_indices_adjacent, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(teardropship_indices), teardropship_indices, GL_STATIC_DRAW);
+	return sizeof(teardropship_indices)/sizeof(teardropship_indices[0]);
+}
+
 GLfloat thrust_flare_positions[] = {
 	0.477647, -0.018501, 3.215790,
 	0.434526, -0.202746, 3.215790,
@@ -76019,6 +76132,21 @@ GLuint thrust_flare_indices[] = {
 	5, 0, 13,
 };
 
+int buffer_thrust_flare(struct buffer_group bg)
+{
+	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(thrust_flare_positions), thrust_flare_positions, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(thrust_flare_colors), thrust_flare_colors, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(thrust_flare_normals), thrust_flare_normals, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(thrust_flare_indices_adjacent), thrust_flare_indices_adjacent, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(thrust_flare_indices), thrust_flare_indices, GL_STATIC_DRAW);
+	return sizeof(thrust_flare_indices)/sizeof(thrust_flare_indices[0]);
+}
+
 GLfloat thrust_flare_forward_positions[] = {
 	0.523936, -0.139464, 2.257980,
 	0.423095, -0.200889, 2.257980,
@@ -76115,5 +76243,20 @@ GLuint thrust_flare_forward_indices[] = {
 	1, 4, 13,
 	5, 0, 13,
 };
+
+int buffer_thrust_flare_forward(struct buffer_group bg)
+{
+	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(thrust_flare_forward_positions), thrust_flare_forward_positions, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(thrust_flare_forward_colors), thrust_flare_forward_colors, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(thrust_flare_forward_normals), thrust_flare_forward_normals, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(thrust_flare_forward_indices_adjacent), thrust_flare_forward_indices_adjacent, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(thrust_flare_forward_indices), thrust_flare_forward_indices, GL_STATIC_DRAW);
+	return sizeof(thrust_flare_forward_indices)/sizeof(thrust_flare_forward_indices[0]);
+}
 
 #endif

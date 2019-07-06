@@ -65,6 +65,7 @@ struct galaxy_tweaks galaxy_load_tweaks(lua_State *L, const char *tweaks_table_n
 		load_val(brightness, 5.0),
 		load_val(rotation, 400.0),
 		load_val(arm_width, 2.0),
+		load_val(diameter, 80.0),
 		load_val(noise_scale, 9.0),
 		load_val(noise_strength, 9.0),
 		load_val(light_step_distance, 0.2),
@@ -77,6 +78,7 @@ struct galaxy_tweaks galaxy_load_tweaks(lua_State *L, const char *tweaks_table_n
 		load_val(spiral_density, 1.0),
 		load_val(samples, 10.0),
 		load_val(freshness, 0.04),
+		load_val(render_dist, 160.0),
 		.light_absorption = {
 			getopttopfield(L, "light_absorption_r", 0.2),
 			getopttopfield(L, "light_absorption_g", 0.1),
@@ -111,6 +113,11 @@ void galaxy_meters_init(lua_State *L, meter_ctx *M, struct galaxy_tweaks *gt, fl
 		{
 			.name = "Arm Width", .x = 5.0, .y = 0, .min = 0.0, .max = 32.0,
 			.callback = clear_callback, .target = &gt->arm_width,
+			.style = wstyles, .color = {.fill = {79, 79, 207, 255}, .border = {47, 47, 95, 255}, .font = {255, 255, 255, 255}}
+		},
+		{
+			.name = "Galaxy Diameter", .x = 5.0, .y = 0, .min = 0.0, .max = 160.0,
+			.callback = clear_callback, .target = &gt->diameter,
 			.style = wstyles, .color = {.fill = {79, 79, 207, 255}, .border = {47, 47, 95, 255}, .font = {255, 255, 255, 255}}
 		},
 		{
@@ -187,6 +194,11 @@ void galaxy_meters_init(lua_State *L, meter_ctx *M, struct galaxy_tweaks *gt, fl
 			.name = "Samples", .x = 5.0, .y = 0, .min = 0.0, .max = 100,
 			.target = &gt->samples,
 			.style = wstyles, .color = tweak_colors
+		},
+		{
+			.name = "Render Distance", .x = 5.0, .y = 0, .min = 0.0, .max = 250,
+			.target = &gt->render_dist,
+			.style = wstyles, .color = tweak_colors
 		}
 	};
 	for (int i = 0; i < LENGTH(widgets); i++) {
@@ -248,12 +260,14 @@ int galaxy_shader_init(struct galaxy_ogl *gal)
 	gal->unif.eye         = glGetUniformLocation(gal->shader, "eye_pos");
 	gal->unif.bright      = glGetUniformLocation(gal->shader, "brightness");
 	gal->unif.rotation    = glGetUniformLocation(gal->shader, "rotation");
+	gal->unif.diameter    = glGetUniformLocation(gal->shader, "galaxy_diameter");
 	gal->unif.tweaks      = glGetUniformLocation(gal->shader, "tweaks1");
 	gal->unif.tweaks2     = glGetUniformLocation(gal->shader, "tweaks2");
 	gal->unif.bulge       = glGetUniformLocation(gal->shader, "bulge");
 	gal->unif.absorb      = glGetUniformLocation(gal->shader, "absorption");
 	gal->unif.fresh       = glGetUniformLocation(gal->shader, "freshness");
 	gal->unif.samples     = glGetUniformLocation(gal->shader, "samples");
+	gal->unif.render_dist = glGetUniformLocation(gal->shader, "render_dist");
 	checkErrors("After getting uniform handles");
 
 	gal->unif.dresolution = glGetUniformLocation(gal->dshader, "iResolution");

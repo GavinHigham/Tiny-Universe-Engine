@@ -6,12 +6,36 @@ function modelNameFromPath(file)
 	return tokens[#tokens-1] --The second to last one is the pure modelName.
 end
 
+function print_buffering_function(modelName, usingPositions, usingNormals, usingColors)
+	print("int buffer_" .. modelName .. "(struct buffer_group bg)\n{")
+	if usingPositions then print([[
+	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(]]..modelName..[[_positions), ]]..modelName..[[_positions, GL_STATIC_DRAW);]])
+	end
+	if usingColors then print([[
+	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(]]..modelName..[[_colors), ]]..modelName..[[_colors, GL_STATIC_DRAW);]])
+	end
+	if usingNormals then print ([[
+	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(]]..modelName..[[_normals), ]]..modelName..[[_normals, GL_STATIC_DRAW);]])
+	end
+	print([[
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(]]..modelName..[[_indices_adjacent), ]]..modelName..[[_indices_adjacent, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(]]..modelName..[[_indices), ]]..modelName..[[_indices, GL_STATIC_DRAW);
+	return sizeof(]]..modelName..[[_indices)/sizeof(]]..modelName..[[_indices[0]);]])
+	print("}\n")
+end
+
 print([[
 //GENERATED FILE, CHANGES WILL BE LOST ON NEXT RUN OF MAKE.
 #ifndef MODELS_H
 #define MODELS_H
 
 #include "graphics.h"
+#include "buffer_group.h"
 ]])
 
 for _, file in ipairs(arg) do
@@ -126,6 +150,8 @@ for _, file in ipairs(arg) do
 		print("\t" .. face[1] .. ", " .. face[2] .. ", " .. face[3] .. ",")
 	end
 	print("};\n")
+
+	print_buffering_function(modelName, usingPositions, usingNormals, usingColors)
 end
 
 print("#endif")
