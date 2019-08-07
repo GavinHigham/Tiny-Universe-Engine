@@ -166,7 +166,7 @@ void make_projection_matrix(float fov, float a, float n, float f, float *buf)
 		0, nn,           0,              0,
 		0,  0,   (n)/(n-f),  (n*f)/(n-f),
 		//0,  0, (f+n)/(f-n), (-2*f*n)/(f-n),
-		0,  0,          -1,              1
+		0,  0,          -1,              0
 	};
 	if (a >= 0)
 		tmp[0] /= a;
