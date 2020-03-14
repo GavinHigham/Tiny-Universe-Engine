@@ -49,7 +49,7 @@ void drawf_mat(GLint name, int transp, GLfloat *val, int x, int y)
 		glUniformMatrix4fv
 	};
 
-	//No parameter checking for x and y because suck my diiiiiiiick
+	//No parameter checking for x and y because laziness
 	matrix_func[3*(x-2) + (y-2)](name, 1, transp, val);
 }
 

@@ -4,6 +4,7 @@
 #include "drawf.h"
 #include "macros.h"
 #include "math/utility.h"
+#include "shader_utils.h"
 #include "experiments/spiral_scene.h"
 #include "space/galaxy_volume.h"
 
@@ -37,11 +38,16 @@ void draw_forward(EFFECT *e, struct buffer_group bg, amat4 model_matrix)
 void draw_forward_adjacent(EFFECT *e, struct buffer_group bg, amat4 model_matrix)
 {
 	glBindVertexArray(bg.vao);
+	checkErrors("%d", __LINE__);
 	GLfloat mm[16], mvpm[16], mvnm[16];
 	prep_matrices(model_matrix, proj_view_mat, mm, mvpm, mvnm);
+	checkErrors("%d", __LINE__);
 	drawf("-m-m-m", e->model_matrix, mm, e->model_view_projection_matrix, mvpm, e->model_view_normal_matrix, mvnm);
+	checkErrors("%d", __LINE__);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
+	checkErrors("%d", __LINE__);
 	glDrawElements(GL_TRIANGLES_ADJACENCY, bg.index_count*2, GL_UNSIGNED_INT, NULL);
+	checkErrors("%d", __LINE__);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
 	checkErrors("After drawing with aibo");
 }

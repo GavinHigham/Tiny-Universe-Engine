@@ -7,10 +7,12 @@
 #include "graphics.h"
 #include "effects.h"
 #include "math/utility.h"
+#include "shader_utils.h"
 
 #ifndef LENGTH
 	#define LENGTH(array) (sizeof(array)/sizeof(array[0]))
 #endif
+
 
 void printLog(GLuint handle, bool is_program)
 {
@@ -74,7 +76,7 @@ static void read_in_shaders(const char *paths[], GLchar *shader_texts[], int num
 	}
 }
 
-GLuint shader_new(GLenum type, const GLchar **strings, const char *path)
+GLuint shader_new(GLenum type, const GLchar **strings, const char *path, bool *failed)
 {
 	if (strings && path) {
 		GLint success = false;
@@ -87,8 +89,8 @@ GLuint shader_new(GLenum type, const GLchar **strings, const char *path)
 			printf("Unable to compile %s %d! (Path: %s)\n", shader_enum_to_string(type), shader, path);
 			printLog(shader, false);
 			glDeleteShader(shader);
-			//BUG(Gavin): This returns a negative value, but GLuint is unsigned...
-			return -1; //Means compilation failure.
+			*failed = true;
+			return 0;
 		}
 		return shader;
 	}
@@ -98,18 +100,17 @@ GLuint shader_new(GLenum type, const GLchar **strings, const char *path)
 static int compile_effect(const char *file_paths[], GLchar *shader_texts[], GLenum shader_types[], int num, GLuint program_handle)
 {
 	GLint success = true;
-	GLuint shader_handles[num];
+	bool failed = false;
+	GLint shader_handles[num];
 
-	for (int i = 0; i < num; i++) {
-		shader_handles[i] = shader_new(shader_types[i], (const GLchar **)&shader_texts[i], file_paths[i]);
-		glAttachShader(program_handle, shader_handles[i]);
-		success = success && (shader_handles[i] != -1);
-	}
+	for (int i = 0; i < num; i++)
+		if ((shader_handles[i] = shader_new(shader_types[i], (const GLchar **)&shader_texts[i], file_paths[i], &failed)))
+			glAttachShader(program_handle, shader_handles[i]);
 
-	if (success) { //If we've successfully compiled all shaders (it's possible to fail compile but succeed linking, which is ugly.)
+	if (!failed) { //If we've successfully compiled all shaders (it's possible to fail compile but succeed linking, which is ugly.)
 		glLinkProgram(program_handle);
 		glGetProgramiv(program_handle, GL_LINK_STATUS, &success);
-		if (success != true) {
+		if (!success) {
 			printf("Unable to link program %d!\n", program_handle);
 			printLog(program_handle, true);
 		}

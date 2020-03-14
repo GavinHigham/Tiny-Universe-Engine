@@ -1,0 +1,3 @@
+# Terrain Erosion Idea #
+
+Terrain erosion could be done in parallel on the GPU (without compute). Each raindrop is represented by a vertex - the vertex shader uses vertex texture fetch to determine the path of the raindrop. Transform feedback is used to save heightmap alterations into a seperate vertex array. Then, GL_POINTS or a geometry shader is used to draw modifications onto the heightmap, where they can be used to influence the direction of raindrops in the next iteration.

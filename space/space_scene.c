@@ -59,6 +59,7 @@ vec3 sun_direction = {0.1, 0.8, 0.1};
 vec3 sun_color     = {0.1, 0.8, 0.1};
 vec3 sun_position; // = bpos_remap((bpos){{0,0,0}, ssystem.origin}, eye_sector);
 struct point_light_attributes point_lights = {.num_lights = 0};
+struct star_box_ctx star_box_context;
 
 
 const float planet_radius = 6000000;
@@ -91,6 +92,12 @@ extern lua_State *L;
 /* UI */
 // static bool show_tweaks = false;
 
+scriptable_callback(star_box_script)
+{
+	Physical *camera = ((Entity *)entity->scriptable->context)->physical;
+	star_box_update(&star_box_context, camera->origin);
+}
+
 void entities_init()
 {
 	ship_entity = entity_new();
@@ -104,7 +111,7 @@ void entities_init()
 		.control = ship_control,
 	});
 
-	ship_buffer_group = new_buffer_group(buffer_newship, &effects.forward);
+	ship_buffer_group = new_buffer_group(buffer_teardropship, &effects.forward);
 	entity_make_drawable(ship_entity, (Drawable){
 		.effect = &effects.forward,
 		.frame = &ship_entity->physical->position,
@@ -223,7 +230,7 @@ int space_scene_init()
 	checkErrors("Lights");
 	//stars_init();
 	checkErrors("Init stars");
-	star_box_init(eye_sector);
+	star_box_init(&star_box_context, eye_sector);
 	checkErrors("Init star_box");
 	debug_graphics_init();
 	checkErrors("Init debug_graphics");
@@ -236,6 +243,11 @@ int space_scene_init()
 	glUniform1f(effects.forward.log_depth_intermediate_factor, log_depth_intermediate_factor);
 
 	checkErrors("forward log_depth_intermediate_factor");
+
+	glUseProgram(effects.shadow.handle);
+	glUniform1f(effects.shadow.log_depth_intermediate_factor, log_depth_intermediate_factor);
+
+	checkErrors("shadow log_depth_intermediate_factor");
 
 	glUseProgram(effects.skybox.handle);
 	glUniform1f(effects.skybox.log_depth_intermediate_factor, log_depth_intermediate_factor);
@@ -268,7 +280,7 @@ void space_scene_deinit()
 	solar_system_star = 0;
 	//stars_deinit();
 	proc_planet_deinit();
-	star_box_deinit();
+	star_box_deinit(&star_box_context);
 	debug_graphics_deinit();
 	point_lights.num_lights = 0;
 	spiral_scene_deinit();
@@ -323,17 +335,21 @@ void space_scene_render()
 		amat4_buf_mult(proj_mat, tmp, proj_view_mat);
 	}
 
+	//Depth buffer enabled for writing
 	glDepthMask(GL_TRUE);
 	glClearStencil(0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+	//Depth testing, backface culling, lower
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
+	//Since our projection matrix points down -Z, lower depth means closer to the camera.
 	glDepthFunc(GL_LESS);
 
 	//If we're outside the shadow volume, we can use z-pass instead of z-fail.
-	//z-pass is faster, and not patent-encumbered.
+	//z-pass is faster, and not patent-encumbered (z-fail patent expires 2022).
+	//TODO(Gavin): UI for hotkeys?
 	int zpass = key_state[SDL_SCANCODE_7];
-	int apass = !key_state[SDL_SCANCODE_5]; //Ambient pass
+	int apass = key_state[SDL_SCANCODE_5]; //Ambient pass
 
 	//Draw in wireframe if 'z' is held down.
 	wireframe = key_state[SDL_SCANCODE_Z];
@@ -365,8 +381,7 @@ void space_scene_render()
 
 		checkErrors("Before planets draw");
 		proc_planet_draw(eye_frame, proj_view_mat, ssystem.planets, ssystem.planet_positions, ssystem.num_planets);
-		glUseProgram(effects.forward.handle);
-
+		//Reset override color in case proc_planet_draw set it.
 		glUniform3f(effects.forward.override_col, 1.0, 1.0, 1.0);
 
 		checkErrors("After drawing into depth");
@@ -387,14 +402,22 @@ void space_scene_render()
 			glStencilFunc(GL_ALWAYS, 0, 0xff);
 
 			if (zpass) {
+				//Every back-facing shadow volume pixel increments the stencil.
 				glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
+				//Every front-facing shadow volume pixel decrements the stencil.
 				glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_DECR_WRAP); 
+				//If volume entry and exit is balanced, you're not in shadow
+				//(unless the camera is inside the shadow volume).
 			} else {
+				//Every back-facing shadow volume pixel that fails the depth test increments the stencil
 				glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
 				glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
 			}
 
 			glUseProgram(effects.shadow.handle);
+			// //See if I can do shadows with the sun
+			// vec3 sun = bpos_remap((bpos){{0,0,0}, ssystem.origin}, eye_sector);
+			// glUniform3f(effects.shadow.gLightPos, VEC3_COORDS(sun));
 			glUniform3f(effects.shadow.gLightPos, VEC3_COORDS(point_lights.position[i]));
 			glUniform1i(effects.shadow.zpass, zpass);
 
@@ -409,10 +432,12 @@ void space_scene_render()
 		}
 		//Draw the shadowed scene.
 		if (point_lights.enabled_for_draw[i]) {
+			//Re-enable rendering to color buffer, in case it was disabled earlier.
 			glDrawBuffer(GL_BACK);
 			glStencilFunc(GL_EQUAL, 0x0, 0xFF);
-			glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_KEEP);
-			glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_KEEP);
+			// glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_KEEP);
+			// glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_KEEP);
+			glStencilOpSeparate(GL_FRONT_AND_BACK, GL_KEEP, GL_KEEP, GL_KEEP);
 			glUseProgram(effects.forward.handle);
 			forward_update_point_light(&effects.forward, &point_lights, i);
 			glEnable(GL_BLEND);
@@ -426,14 +451,18 @@ void space_scene_render()
 				checkErrors("After forward draw shadowed");
 			}
 
-			draw_drawable(ship_entity->drawable);
-			draw_forward_adjacent(&effects.outline, *ship_entity->drawable->bg, ship_entity->physical->position);
+			glUniform1i(effects.forward.ambient_pass, 1);
+			glUniform3f(effects.forward.uLight_col, VEC3_COORDS(sun_color));
+			vec3 sun = bpos_remap((bpos){{0,0,0}, ssystem.origin}, eye_sector);
+			glUniform3f(effects.forward.uLight_pos, VEC3_COORDS(sun)); //was sun_direction
 
-			// //Draw procedural planet
-			// for (DRAWLIST l = terrain_list; l; l = l->next) {
-			// 	draw_forward(&effects.forward, l->t->bg, tri_frame);
-			// 	checkErrors("After drawing a tri_tile");
-			// }
+			draw_drawable(ship_entity->drawable);
+			// draw_forward_adjacent(&effects.outline, *ship_entity->drawable->bg, ship_entity->physical->position);
+
+			checkErrors("Before planets draw");
+			proc_planet_draw(eye_frame, proj_view_mat, ssystem.planets, ssystem.planet_positions, ssystem.num_planets);
+			//Reset override color in case proc_planet_draw set it.
+			glUniform3f(effects.forward.override_col, 1.0, 1.0, 1.0);
 
 			glDisable(GL_BLEND);
 			checkErrors("After drawing shadowed");
@@ -450,7 +479,7 @@ void space_scene_render()
 	glDepthMask(GL_FALSE);
 	draw_drawable(galaxy_box_entity->drawable);
 	//stars_draw(eye_frame, proj_view_mat);
-	star_box_draw(eye_sector, proj_view_mat);
+	star_box_draw(&star_box_context, eye_sector, proj_view_mat);
 	// star_box_draw((bpos_origin){0,0,0}, proj_view_mat);
 
 	debug_graphics.lines.ship_to_planet.start = bpos_remap((bpos){ship_entity->physical->position.t, ship_entity->physical->origin}, eye_sector);
@@ -493,10 +522,30 @@ void space_scene_update(float dt)
 
 	entity_update_components();
 
-	//bpos ray_start = {ship_entity->Physical->position.t - test_planets[0].pos.offset, ship_entity->Physical->origin - test_planets[0].pos.origin};
-	//bpos intersection = {0};
-	//float ship_altitude = proc_planet_altitude(test_planets[0].planet, ray_start, &intersection);
-	//printf("Current ship altitude to planet 0: %f\n", ship_altitude);
+	// if (key_pressed(SDL_SCANCODE_H)) {
+		for (int i = 0; i < ssystem.num_planets; i++)
+		{
+			bpos ray_start = {
+				ship_entity->physical->position.t - ssystem.planet_positions[i].offset,
+				ship_entity->physical->origin - ssystem.planet_positions[i].origin
+			};
+			bpos intersection = {0};
+			float ship_altitude = proc_planet_altitude(ssystem.planets[i], ray_start, &intersection);
+			// printf("Current ship altitude to planet %d: %f\n", i, ship_altitude);
+			if (ship_altitude < 0) {
+				printf("Fixing ship position!\n");
+				intersection.origin += ssystem.planet_positions[i].origin;
+				bpos_fix(&intersection);
+				ship_entity->physical->position.t = intersection.offset;
+				ship_entity->physical->origin = intersection.origin;
+				// vec3 planet_to_ship = vec3_normalize(bpos_remap(ray_start, ssystem.planet_positions[i].origin));
+				// ship_entity->physical->position.t -= planet_to_ship*ship_altitude;
+				// bpos_split_fix(&ship_entity->physical->position.t, &ship_entity->physical->origin);
+				// printf("\n\nIntersection: "); bpos_print(intersection);
+				// printf("\nShip: "); bpos_print((bpos){ship_entity->physical->position.t, ship_entity->physical->origin});
+			}
+		}
+	// }
 
 	eye_frame = (amat4){camera_entity->physical->position.a, amat4_multpoint(ship_entity->physical->position, camera_entity->physical->position.t)};
 	eye_sector = ship_entity->physical->origin;

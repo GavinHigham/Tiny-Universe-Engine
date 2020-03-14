@@ -1,25 +1,24 @@
-#include "spiral_scene.h"
-#include "scene.h"
+#include "configuration/lua_configuration.h"
+#include "deferred_framebuffer.h"
+#include "drawf.h"
 #include "glsw/glsw.h"
 #include "glsw_shaders.h"
+#include "graphics.h"
+#include "input_event.h"
 #include "macros.h"
 #include "math/utility.h"
-#include "drawf.h"
-#include "input_event.h"
-//#include "space/triangular_terrain_tile.h"
-#include "configuration/lua_configuration.h"
-#include "trackball/trackball.h"
 #include "meter/meter.h"
 #include "meter/meter_ogl_renderer.h"
-#include "deferred_framebuffer.h"
-#include "graphics.h"
+#include "scene.h"
+#include "shader_utils.h"
 #include "space/galaxy_volume.h"
+#include "spiral_scene.h"
+#include "trackball/trackball.h"
 
+#include <assert.h>
 #include <glla/glla.h>
 #include <math.h>
 #include <stdio.h>
-#include <assert.h>
-//#include <SDL2_image/SDL_image.h>
 
 /* Implementing scene "interface" */
 

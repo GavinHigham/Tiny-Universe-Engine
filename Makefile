@@ -1,7 +1,8 @@
 CC = gcc
 
+SANITIZE = -fsanitize=address -fsanitize=undefined
 MACOS_CFLAGS  = -F/Library/Frameworks
-MACOS_LDFLAGS = -F/Library/Frameworks -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW
+MACOS_LDFLAGS = -F/Library/Frameworks -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW 
 
 INCLUDES = -Iglla -I$(CURDIR)
 LDFLAGS	 = $(SDL) -Llua-5.3.5/src -llua $(MACOS_LDFLAGS)

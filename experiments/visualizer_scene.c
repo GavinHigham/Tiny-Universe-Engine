@@ -1,23 +1,22 @@
-#include "visualizer_scene.h"
-#include "scene.h"
+#include "configuration/lua_configuration.h"
+#include "deferred_framebuffer.h"
+#include "drawf.h"
 #include "glsw/glsw.h"
 #include "glsw_shaders.h"
+#include "input_event.h"
+#include "kiss_fftr.h"
 #include "macros.h"
 #include "math/utility.h"
-#include "drawf.h"
-#include "input_event.h"
-//#include "space/triangular_terrain_tile.h"
-#include "configuration/lua_configuration.h"
 #include "meter/meter.h"
 #include "meter/meter_ogl_renderer.h"
-#include "deferred_framebuffer.h"
-#include "kiss_fftr.h"
+#include "scene.h"
+#include "shader_utils.h"
+#include "visualizer_scene.h"
 
-#include <glla.h>
-#include <GL/glew.h>
-#include <stdio.h>
 #include <assert.h>
-//#include <SDL2_image/SDL_image.h>
+#include <GL/glew.h>
+#include <glla.h>
+#include <stdio.h>
 
 /* Implementing scene "interface" */
 
@@ -125,7 +124,7 @@ void init_viz_meters(meter_ctx *M, widget_meter *widgets, int num_widgets, float
 		meter_target(M, w->name, w->target);
 		meter_position(M, w->name, w->x, w->y + *y_offset);
 		meter_callback(M, w->name, w->callback, w->callback_context);
-		meter_style(M, w->name, w->color.fill, w->color.border, w->color.font, w->style.padding);
+		meter_style(M, w->name, w->color.fill, w->color.border, w->color.font, w->style.padding, 0);
 		*y_offset += 25;
 	}
 }

@@ -1,4 +1,4 @@
--- noise.GL33 --
+-- noise --
 
 //
 // Description : Array and textureless GLSL 2D/3D/4D simplex 
@@ -192,8 +192,43 @@ vec4 snoise_grad(vec3 v)
 -- utility --
 
 float rand(vec2 co){
-		return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+	return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
 }
+
+//Returns discriminant in x, lambda1 in y, lambda2 in z.
+vec3 sphereIntersection(vec3 p, vec3 d, vec4 s)
+{
+	//Solve the quadratic equation to find a lambda if there are intersections.
+	//Since d is unit length, a = dot(d,d) is always 1
+	vec3 o = p-s.xyz;
+	//If we move the 2-factor off b, and the 4-factor off c in the discriminant,
+	//We can eliminate one multiply, and move the other into the "if", making it slightly faster.
+	float b = dot(d,o);
+	float c = dot(o,o) - s.w*s.w;
+
+	float discriminant = b*b - c;
+	if (discriminant >= 0.0) {
+		float sqd = sqrt(discriminant);
+		//If discriminant == 0, there's only one intersection, and lambda1 == lambda2.
+		//This should be fairly uncommon.
+		float lambda1 = -b-sqd;
+		float lambda2 = -b+sqd;
+		return vec3(discriminant, lambda1, lambda2);
+	}
+	//No intersection.
+	return vec3(discriminant, 0.0, 0.0);
+}
+
+float roundToMultiple(float number, float factor)
+{
+	return floor(number / factor) * factor;
+}
+
+//Returns discriminant in x, lambda1 in y, lambda2 in z.
+// vec3 cylinderIntersection(vec3 p, vec3 d, )
+// {
+
+// }
 
 -- lighting --
 
@@ -212,13 +247,13 @@ void point_light_phong(in vec3 l, in vec3 v, in vec3 normal, out float specular,
 	diffuse = max(0.0, dot(l, normal));
 }
 
-// set important material values
-// float roughnessValue = 0.8; // 0 : smooth, 1: rough
-// float F0 = 0.2; // fresnel reflectance at normal incidence
-// float k = 0.2; // fraction of diffuse reflection (specular reflection = 1 - k)
+// params.xyz:
+//  x is roughnessValue = 0.8; // 0 : smooth, 1: rough
+//  y is F0 = 0.2; // fresnel reflectance at normal incidence
+//  z is k = 0.2; // fraction of diffuse reflection (specular reflection = 1 - k)
 
 //TODO(Gavin): Figure out what this sort of shading is also called.
-void point_light_fresnel(in vec3 l, in vec3 v, in vec3 normal, out float specular, out float diffuse)
+void point_light_fresnel_p(in vec3 l, in vec3 v, in vec3 normal, in vec3 params, out float specular, out float diffuse)
 {
 	vec3 h = normalize(l + v); //Halfway vector.
 	
@@ -231,7 +266,7 @@ void point_light_fresnel(in vec3 l, in vec3 v, in vec3 normal, out float specula
 		float NdotH = max(dot(normal, h), 0.0); 
 		float NdotV = max(dot(normal, v), 0.0); // note: this could also be NdotL, which is the same value
 		float VdotH = max(dot(v, h), 0.0);
-		float mSquared = roughnessValue * roughnessValue;
+		float mSquared = params.x * params.x;
 		
 		// geometric attenuation
 		float NH2 = 2.0 * NdotH;
@@ -248,14 +283,56 @@ void point_light_fresnel(in vec3 l, in vec3 v, in vec3 normal, out float specula
 		// fresnel
 		// Schlick approximation
 		float fresnel = pow(1.0 - VdotH, 5.0);
-		fresnel *= (1.0 - F0);
-		fresnel += F0;
+		fresnel *= (1.0 - params.y);
+		fresnel += params.y;
 		
 		specular = (fresnel * geoAtt * roughness) / (NdotV * NdotL * M_PI);
 	}
 	
-	specular = max(0.0, NdotL * (k + specular * (1.0 - k)));
+	specular = max(0.0, NdotL * (params.z + specular * (1.0 - params.z)));
 	diffuse = max(0.0, dot(l, normal));
+}
+
+//Shim to keep compatibility with my older shaders that used globals, before I moved this function to common.
+#define G_ROUGHNESS 0.8
+#define G_F0 0.2
+#define G_K 0.2
+void point_light_fresnel(in vec3 l, in vec3 v, in vec3 normal, out float specular, out float diffuse)
+{
+	point_light_fresnel_p(l, v, normal, vec3(G_ROUGHNESS, G_F0, G_K), specular, diffuse);
+}
+
+-- debugging --
+
+//Slightly tweaked turbo color map (indentation and saturate replaced by clamp)
+
+// Copyright 2019 Google LLC.
+// SPDX-License-Identifier: Apache-2.0
+
+// Polynomial approximation in GLSL for the Turbo colormap
+// Original LUT: https://gist.github.com/mikhailov-work/ee72ba4191942acecc03fe6da94fc73f
+
+// Authors:
+//   Colormap Design: Anton Mikhailov (mikhailov@google.com)
+//   GLSL Approximation: Ruofei Du (ruofei@google.com)
+
+vec3 TurboColormap(in float x)
+{
+	const vec4 kRedVec4 = vec4(0.13572138, 4.61539260, -42.66032258, 132.13108234);
+	const vec4 kGreenVec4 = vec4(0.09140261, 2.19418839, 4.84296658, -14.18503333);
+	const vec4 kBlueVec4 = vec4(0.10667330, 12.64194608, -60.58204836, 110.36276771);
+	const vec2 kRedVec2 = vec2(-152.94239396, 59.28637943);
+	const vec2 kGreenVec2 = vec2(4.27729857, 2.82956604);
+	const vec2 kBlueVec2 = vec2(-89.90310912, 27.34824973);
+
+	x = clamp(x, 0.0, 1.0);
+	vec4 v4 = vec4( 1.0, x, x * x, x * x * x);
+	vec2 v2 = v4.zw * v4.z;
+	return vec3(
+		dot(v4, kRedVec4)   + dot(v2, kRedVec2),
+		dot(v4, kGreenVec4) + dot(v2, kGreenVec2),
+		dot(v4, kBlueVec4)  + dot(v2, kBlueVec2)
+	);
 }
 
 --

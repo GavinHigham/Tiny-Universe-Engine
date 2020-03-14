@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+//This isn't actually used yet.
+
 #define MAX_TOKENS_PER_LINE 20
 #define VPROPERTY_POSITION_X 1 << 1
 #define VPROPERTY_POSITION_Y 1 << 2

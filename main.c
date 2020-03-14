@@ -19,6 +19,9 @@
 #include "experiments/proctri_scene.h"
 #include "experiments/spiral_scene.h"
 #include "experiments/visualizer_scene.h"
+#include "experiments/atmosphere/atmosphere_scene.h"
+#include "experiments/universe_scene/universe_scene.h"
+#include "experiments/spawngrid/spawngrid_scene.h"
 //Tests
 #include "test/test_main.h"
 //Configuration
@@ -156,7 +159,10 @@ int main(int argc, char **argv)
 		&proctri_scene,
 		&spiral_scene,
 		&icosphere_scene,
-		&visualizer_scene
+		&visualizer_scene,
+		&atmosphere_scene,
+		&universe_scene,
+		&spawngrid_scene,
 	};
 
 	//Scenes usually depend on OpenGL being init'd.
@@ -164,10 +170,9 @@ int main(int argc, char **argv)
 	for (int i = 0; i < LENGTH(scenes); i++)
 		if (!strcmp(chosen_scene, scenes[i]->name))
 			scene_set(scenes[i]);
+	scene_resize(screen_width, screen_height);
 
 	free(default_scene);
-
-	scene_resize(screen_width, screen_height);
 
 	SDL_AddEventWatch(quit_event, &quit);
 
@@ -187,16 +192,17 @@ int main(int argc, char **argv)
 
 		if (since_update_ms >= frame_time_ms - 1) {
 				//Since user input is handled above, game state is "locked" when we enter this block.
-				last_swap_timestamp = SDL_GetTicks();
+				scene_update(1.0/FRAMES_PER_SECOND); //At 16 ms intervals, begin an update. HOPEFULLY DOESN'T TAKE MORE THAN 16 MS.
+				scene_render(); //This will be a picture of the state as of (hopefully exactly) 16 ms ago.
 		 		SDL_GL_SwapWindow(window); //Display a new screen to the user every 16 ms, on the dot.
+				last_swap_timestamp = SDL_GetTicks();
+
 		 		if (ffmpeg_recording && ffmpeg_buffer && ffmpeg_file) {
-		 			int width = getglob(L, "screen_width", 800), height = getglob(L, "screen_height", 600);
+		 			int width = getglob(L, "screen_width", screen_width), height = getglob(L, "screen_height", screen_height);
 			 		glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, ffmpeg_buffer);
 			 		fwrite(ffmpeg_buffer, sizeof(int)*width*height, 1, ffmpeg_file);
 			 		printf(".");
 		 		}
-				scene_update(1.0/FRAMES_PER_SECOND); //At 16 ms intervals, begin an update. HOPEFULLY DOESN'T TAKE MORE THAN 16 MS.
-				scene_render(); //This will be a picture of the state as of (hopefully exactly) 16 ms ago.
 				//Get a rolling average of the number of tight loop iterations per frame.
 				loop_iter_ave = (loop_iter_ave + loop_iter)/2; //Average the current number of loop iterations with the average.
 				loop_iter = 0;

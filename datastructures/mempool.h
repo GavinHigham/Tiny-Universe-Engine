@@ -2,6 +2,7 @@
 #define MEMPOOL_H
 #include <stdbool.h>
 #include <stddef.h>
+#include <inttypes.h>
 
 /*
 Note: Check the comment in "hmempool.h", see that it is in sync with this one.
@@ -46,5 +47,7 @@ int mempool_remove(struct mempool *m, int i);
 void * mempool_get(struct mempool *m, int i);
 //Copies out the data of the last item in the pool, then deletes it from the pool.
 void mempool_pop(struct mempool *m, void *item);
+//Fills a mempool with values from highest to lowest (inclusive both), used to generate handles.
+void mempool_fill_uint32_t_descending(struct mempool *m, uint32_t lowest, uint32_t highest);
 
 #endif

@@ -6,6 +6,7 @@
 #include "macros.h"
 #include "meter/meter.h"
 #include "meter/meter_ogl_renderer.h"
+#include "shader_utils.h"
 #include "math/utility.h"
 #include "experiments/deferred_framebuffer.h"
 
@@ -80,9 +81,9 @@ struct galaxy_tweaks galaxy_load_tweaks(lua_State *L, const char *tweaks_table_n
 		load_val(freshness, 0.04),
 		load_val(render_dist, 160.0),
 		.light_absorption = {
-			getopttopfield(L, "light_absorption_r", 0.2),
-			getopttopfield(L, "light_absorption_g", 0.1),
-			getopttopfield(L, "light_absorption_b", 0.01),
+			getopttopfield(L, "light_absorption_r", 0.16),
+			getopttopfield(L, "light_absorption_g", 0.19),
+			getopttopfield(L, "light_absorption_b", 0.17),
 		}
 	};
 	#undef load_val
@@ -207,7 +208,7 @@ void galaxy_meters_init(lua_State *L, meter_ctx *M, struct galaxy_tweaks *gt, fl
 		meter_target(M, w->name, w->target);
 		meter_position(M, w->name, w->x, w->y + y_offset);
 		meter_callback(M, w->name, w->callback, w->callback_context);
-		meter_style(M, w->name, w->color.fill, w->color.border, w->color.font, w->style.padding);
+		meter_style(M, w->name, w->color.fill, w->color.border, w->color.font, w->style.padding, 0);
 		y_offset += 25;
 	}
 }
@@ -218,20 +219,20 @@ int galaxy_shader_init(struct galaxy_ogl *gal)
 
 	glswInit();
 	glswSetPath("shaders/glsw/", ".glsl");
-	glswAddDirectiveToken("glsl330", "#version 330");
+	glswAddDirectiveToken("GL33", "#version 330");
 
 	char *vsh_key = getglobstr(L, "spiral_vsh_key", "");
 	char *fsh_key = getglobstr(L, "spiral_fsh_key", "");
 
 	GLuint shader[] = {
-		glsw_shader_from_keys(GL_VERTEX_SHADER, "versions.glsl330", vsh_key),
-		glsw_shader_from_keys(GL_FRAGMENT_SHADER, "versions.glsl330", "common.noise.GL33", fsh_key),
+		glsw_shader_from_keys(GL_VERTEX_SHADER, vsh_key),
+		glsw_shader_from_keys(GL_FRAGMENT_SHADER, fsh_key, "common.noise.GL33", "common.utility.GL33"),
 	}, shader_deferred[] = {
-		glsw_shader_from_keys(GL_VERTEX_SHADER, "versions.glsl330", vsh_key),
-		glsw_shader_from_keys(GL_FRAGMENT_SHADER, "versions.glsl330", "spiral.deferred.GL33"),
+		glsw_shader_from_keys(GL_VERTEX_SHADER, vsh_key),
+		glsw_shader_from_keys(GL_FRAGMENT_SHADER, "spiral.deferred.GL33"),
 	}, shader_deferred_cube[] = {
-		glsw_shader_from_keys(GL_VERTEX_SHADER, "versions.glsl330", vsh_key),
-		glsw_shader_from_keys(GL_FRAGMENT_SHADER, "versions.glsl330", "spiral.deferred.cubemap.GL33"),
+		glsw_shader_from_keys(GL_VERTEX_SHADER, vsh_key),
+		glsw_shader_from_keys(GL_FRAGMENT_SHADER, "spiral.deferred.cubemap.GL33"),
 	};
 	gal->shader = glsw_new_shader_program(shader, LENGTH(shader));
 	checkErrors("After creating spiral shader program");

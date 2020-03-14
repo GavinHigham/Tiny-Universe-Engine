@@ -34,6 +34,8 @@ struct meter_vertex {
 void meter_ogl_renderer_buffers_setup(meter_ctx *M)
 {
 	struct meter_ogl_renderer_ctx *ogl = M->renderer.renderer_ctx;
+	int clicked_meter_index = meter_get_index(M, M->clicked_meter_name);
+	bool mousedown = M->state == METER_CLICK_STARTED || M->state == METER_DRAGGED;
 	const int nov = 8;       //Num outer verts.
 	const int vpm = nov + 4; //Verts per meter.
 	const int ipm = 16;      //Indices per meter: 10 outer, primitive restart, 4 inner, primitive restart.
@@ -85,7 +87,7 @@ void meter_ogl_renderer_buffers_setup(meter_ctx *M)
 		}
 
 		//Create vertex buffer.
-		float scale = (meter_value(m)-m->min) / (m->max - m->min);
+		float scale = meter_fraction(m);
 		float positions[] = {
 			m->x,                                                 m->y,            
 			m->x + s.padding,                                     m->y + s.padding,            
@@ -97,18 +99,25 @@ void meter_ogl_renderer_buffers_setup(meter_ctx *M)
 			m->x + s.padding,                                     m->y - s.padding + s.height,
 		};
 
+		vec3 turbocolor = turbo_colormap(scale);
+		unsigned char scalecolor[4] = {turbocolor.x * 255, turbocolor.y * 255, turbocolor.z * 255, 255};
+
 		for (int j = 0; j < nov; j++) {
 			memcpy(vbo[vpm*i + j].pos, &positions[2*j], 2 * sizeof(float));
-			memcpy(vbo[vpm*i + j].color, m->color.border, 4 * sizeof(unsigned char));
 			memset(vbo[vpm*i + j].tx, 0, 2*sizeof(float));
+			memcpy(vbo[vpm*i + j].color,
+				(clicked_meter_index == i && m->style.flags & METER_VALUE_BASED_BORDER_COLOR && mousedown) ? scalecolor : m->color.border,
+				4 * sizeof(unsigned char));
 		}
 
 		//Fill fill positions and colors.
 		int map[] = {1, 7, 3, 5};
 		for (int j = 0; j < 4; j++) {
 			memcpy(vbo[vpm*i + j + nov].pos,   &positions[2*map[j]], 2 * sizeof(float));
-			memcpy(vbo[vpm*i + j + nov].color, m->color.fill,        4 * sizeof(unsigned char));
 			memset(vbo[vpm*i + j + nov].tx, 0, 2*sizeof(float));
+			memcpy(vbo[vpm*i + j + nov].color,
+				(clicked_meter_index == i && mousedown && m->style.flags & METER_VALUE_BASED_FILL_COLOR) ? scalecolor : m->color.fill,
+				4 * sizeof(unsigned char));
 		}
 
 		float w = ogl->font.width, h = ogl->font.height, y_offset = (int)((s.height - ogl->font.height)/2.0) + 1;
@@ -123,7 +132,10 @@ void meter_ogl_renderer_buffers_setup(meter_ctx *M)
 				{{m->x + 2 * s.padding + w * (j+1), m->y + y_offset + h}, {gx + w, gy + h}}
 			};
 			for (int k = 0; k < 4; k++)
-				memcpy(&quad[k].color, m->color.font, sizeof(m->color.font));
+				memcpy(&quad[k].color,
+					(clicked_meter_index == i && mousedown && m->style.flags & METER_VALUE_BASED_TEXT_COLOR) ? scalecolor : m->color.font,
+					4 * sizeof(unsigned char));
+
 			memcpy(&vbo[char_quads_offset], quad, sizeof(quad));
 			char_quads_offset += 4;
 		}

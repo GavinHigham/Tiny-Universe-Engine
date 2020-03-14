@@ -23,7 +23,7 @@ enum {
 solar_system solar_system_new(bpos_origin o)
 {
 	//Determine how many planets there will be
-	int seed = hash_qvec3(o);
+	uint32_t seed = hash_qvec3(o);
 	srand_float(seed);
 	srand(seed);
 	solar_system s = {

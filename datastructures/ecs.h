@@ -4,27 +4,29 @@
 #include "hmempool.h"
 #include <inttypes.h>
 
-typedef void (*ecs_c_constructor_fn)(uint32_t eid, void *component, void *userdata);
-typedef void (*ecs_c_destructor_fn)(uint32_t eid, void *component, void *userdata);
+#define ecs_c_constructor_destructor(name) void name(uint32_t eid, void *component, void *userdata)
+typedef ecs_c_constructor_destructor(ecs_c_constructor_fn);
+typedef ecs_c_constructor_destructor(ecs_c_destructor_fn);
 struct ecs_component_init_params;
 typedef struct ecs_context {
-	struct hmempool entities;
+	struct mempool free_eids;
+	bool *eid_used;
 	//Stack of free component slots
 	struct mempool free_component_slots;
 	//Component pool array
 	struct hmempool *components;
 	//Mapping of anything to ctype, not maintained by ecs. Convenience for generic wrapper.
 	void *user_ctypes;
-	ecs_c_constructor_fn *constructors;
-	ecs_c_destructor_fn *destructors;
+	ecs_c_constructor_fn **constructors;
+	ecs_c_destructor_fn **destructors;
 	void **userdatas;
 	struct ecs_component_init_params **init_params;
 } ecs_ctx;
 
 struct ecs_component_init_params {
 	size_t num, size;
-	ecs_c_constructor_fn construct;
-	ecs_c_destructor_fn destruct;
+	ecs_c_constructor_fn *construct;
+	ecs_c_destructor_fn *destruct;
 	void *userdata;
 	uint32_t *ctype;
 	ecs_ctx *E;
@@ -42,22 +44,14 @@ size_t ecs_entities_num(ecs_ctx *E) __attribute__ ((pure));
 size_t ecs_components_max(ecs_ctx *E) __attribute__ ((pure));
 //Current number of registered components.
 size_t ecs_components_num(ecs_ctx *E) __attribute__ ((pure));
+//Returns true if a given eid is currently in use.
+bool ecs_eid_used(ecs_ctx *E, uint32_t eid);
 //Create a new ecs_ctx
 //num_entities: Initial number of entities ecs can hold.
 //num_component_types: Initial number of types of components per entity.
 ecs_ctx ecs_new(int num_entities, int num_component_types);
 //Free data from ecs_ctx. Using the ecs_ctx after calling ecs_free on it is undefined behavior.
 void ecs_free(ecs_ctx *E);
-//Get the list of components for a given eid.
-//!!! IMPORTANT !!! The returned pointer may become invalid under many circumstances:
-// 1. If any entities are added or removed from the ecs.
-// 2. If the ecs is reallocated or resized.
-// 3. If a new component type is registered.
-//Make sure to get a fresh list if other operations have been performed on the ecs.
-//It will not be invalidated if components are added or removed from any entity (including this one).
-//List will be the length returned by ecs_components_max, indexed by ctype.
-//A handle with value of 0 indicates that the entity does not have a component of that type.
-uint32_t * ecs_component_list(ecs_ctx *E, uint32_t eid) __attribute__ ((pure));;
 //Reallocate the ecs_ctx so it can hold num_entities and num_component_types.
 void ecs_realloc(ecs_ctx *E, int num_entities, int num_component_types);
 //Register a new type of component.
@@ -88,7 +82,13 @@ void ecs_component_set_construct_destruct(ecs_ctx *E, uint32_t ctype,
 	ecs_c_constructor_fn construct, ecs_c_destructor_fn destruct, void *userdata);
 //Unregister a type of component. All entities will have components of that type removed from them.
 //The ctype may be recycled for future registered component types.
-void ecs_component_unregister(ecs_ctx *E, int ctype);
+void ecs_component_unregister(ecs_ctx *E, uint32_t ctype);
+//Returns the list of components of a given type.
+//This list may be invalidated if more components are registered (underlying memory is reallocated).
+//num: The number of components in the list.
+void * ecs_components(ecs_ctx *E, uint32_t ctype, size_t *num);
+//Returns a table that maps the index of a component within a component array to the handle of the entity that owns the component.
+const uint32_t * ecs_component_itoh(ecs_ctx *E, uint32_t ctype);
 //Add a new empty entity to the ecs.
 uint32_t ecs_entity_add(ecs_ctx *E);
 //Remove the entity with handle "eid" from the ecs.
@@ -96,28 +96,28 @@ uint32_t ecs_entity_add(ecs_ctx *E);
 void ecs_entity_remove(ecs_ctx *E, uint32_t eid);
 //Add a new component of type ctype to the entity with handle "eid".
 //Returns a pointer to the new component, for initialization.
-void * ecs_entity_add_component(ecs_ctx *E, int eid, int ctype);
+void * ecs_entity_add_component(ecs_ctx *E, uint32_t eid, uint32_t ctype);
 //Add a new component of type ctype to the entity with handle "eid".
 //Returns a pointer to the new component, for initialization.
 //Calls the registered constructor for ctype, if any.
-void * ecs_entity_add_construct_component(ecs_ctx *E, int eid, int ctype);
+void * ecs_entity_add_construct_component(ecs_ctx *E, uint32_t eid, uint32_t ctype);
 //Add a new component of type ctype to the entity with handle "eid".
 //Copies component into ECS.
 //Returns a pointer to the new component, for initialization.
-void * ecs_entity_add_copy_component(ecs_ctx *E, int eid, int ctype, void *c);
+void * ecs_entity_add_copy_component(ecs_ctx *E, uint32_t eid, uint32_t ctype, void *c);
 //Add a new component of type ctype to the entity with handle "eid".
 //Copies component into ECS.
 //Calls the registered constructor for ctype, if any.
 //Returns a pointer to the new component, for initialization.
-void * ecs_entity_add_construct_copy_component(ecs_ctx *E, int eid, int ctype, void *c);
+void * ecs_entity_add_construct_copy_component(ecs_ctx *E, uint32_t eid, uint32_t ctype, void *c);
 //Remove the component of type ctype from the entity with handle "eid".
 //The component will immediately be overwritten.
-void ecs_entity_remove_component(ecs_ctx *E, int eid, int ctype);
+void ecs_entity_remove_component(ecs_ctx *E, uint32_t eid, uint32_t ctype);
 //Remove all components from the entity with handle "eid".
 //All components will immediately be overwritten.
-void ecs_entity_remove_components(ecs_ctx *E, int eid);
+void ecs_entity_remove_components(ecs_ctx *E, uint32_t eid);
 //Get the component of type ctype from the entity with handle "eid".
 //Returns a pointer to the new component, or NULL if the entity does not have a component of that type.
-void * ecs_entity_get_component(ecs_ctx *E, int eid, int ctype) __attribute__ ((pure));
+void * ecs_entity_get_component(ecs_ctx *E, uint32_t eid, uint32_t ctype) __attribute__ ((pure));
 
 #endif

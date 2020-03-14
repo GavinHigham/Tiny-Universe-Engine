@@ -3,7 +3,6 @@
 #include "graphics.h"
 #include <stdio.h>
 
-
 enum GBUFFER_TEXTURE_TYPE {
 	GBUFFER_TEXTURE_TYPE_POSITION,
 	GBUFFER_TEXTURE_TYPE_DIFFUSE,

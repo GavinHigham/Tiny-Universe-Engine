@@ -36,6 +36,7 @@ out vec4 LFragment;
 const float PHI = 1.61803398874989; //Golden ratio
 const float PI = 3.1415926535;
 const float INVPI = 1.0/PI;
+const float E = 2.7182818284;
 const vec3 bulge_color = vec3(0.992, 0.941, 0.549);
 
 // #define EAT_NOISE
@@ -51,6 +52,9 @@ bool in_galaxy(vec3 p)
 	return l < galaxy_diameter && (abs(p.y) < tweaks2.w/(d + 1.0) || length(p)/bulge.y < 2.0);
 }
 
+float snoise(vec3 v);
+vec3 sphereIntersection(vec3 p, vec3 d, vec4 s);
+
 //Returns noise at a position, with a certain number of octaves
 float snoise_oct(vec3 v, int oct)
 {
@@ -62,40 +66,6 @@ float snoise_oct(vec3 v, int oct)
 		sum += s / q;
 	}
 	return sum;
-}
-
-// float sphIntersect( in vec3 ro, in vec3 rd, in vec4 sph )
-// {
-// 	vec3 oc = ro - sph.xyz;
-// 	float b = dot( oc, rd );
-// 	float c = dot( oc, oc ) - sph.w*sph.w;
-// 	float h = b*b - c;
-// 	if( h<0.0 ) return -1.0;
-// 	return -b - sqrt( h );
-// }
-
-// //Returns discriminant in x, lambda1 in y, lambda2 in z.
-vec3 sphereIntersection(vec3 p, vec3 d, vec4 s)
-{
-	//Solve the quadratic equation to find a lambda if there are intersections.
-	//Since d is unit length, a = dot(d,d) is always 1
-	vec3 o = p-s.xyz;
-	//If we move the 2-factor off b, and the 4-factor off c in the discriminant,
-	//We can eliminate one multiply, and move the other into the "if", making it slightly faster.
-	float b = dot(d,o);
-	float c = dot(o,o) - s.w*s.w;
-
-	float discriminant = b*b - c;
-	if (discriminant >= 0) {
-		float sqd = sqrt(discriminant);
-		//If discriminant == 0, there's only one intersection, and lambda1 == lambda2.
-		//This should be fairly uncommon.
-		float lambda1 = -b-sqd;
-		float lambda2 = -b+sqd;
-		return vec3(discriminant, lambda1, lambda2);
-	}
-	//No intersection.
-	return vec3(discriminant, 0, 0);
 }
 
 //Density of the spiral portion of the galaxy, no noise or profile, etc.
@@ -144,9 +114,10 @@ vec3 raymarch(vec3 ray_start, vec3 step, float max_dist)
 	float dist = 0.0;
 	vec3 color = vec3(0.0);
 	vec3 sdt = vec3(1.0);
+	float od = 0.0;
 
 	vec3 p = ray_start;
-	/*if (si.x <= 0) */{
+	{
 		for (int i = 0; i < samples && dist < max_dist; i++, dist += step_dist, p += step) {
 
 			// float r = d/2.0;
@@ -162,7 +133,8 @@ vec3 raymarch(vec3 ray_start, vec3 step, float max_dist)
 					(galaxy_density(p2 - eps*normalize(p2), bulge_density, tweaks1.y, tweaks1.z) - density) / eps,
 					0.0, 1.0);
 
-				sdt *= transmittance.xyz*(1 - clamped_density);
+				od += density * step_dist;
+				// sdt *= transmittance.xyz*(1 - clamped_density);
 				// float clamped_bulge_density = clamp(bulge_density, 0.0, 1.0);
 				float bulge_light_intensity = bulge.y*bulge.y * 2.0 * PI / (10.0 * lp2); //Roughly solid angle of bulge from p2's vantage point.
 
@@ -182,34 +154,16 @@ vec3 raymarch(vec3 ray_start, vec3 step, float max_dist)
 				}
 				color +=
 					(
-						mix(color_ramp(clamped_density * step_dist * 30.0), bulge_color * bulge_density, bulge_density) + //Emissivity
+						(color_ramp(clamped_density * step_dist * 30.0) + bulge_color * bulge_density) * tweaks2.z + //Emissivity
 						bulge_light_intensity * tweaks2.x * dif*bulge_color //Diffuse lighting
-					) * sdt; //Attenuation
+					) /*  * exp(-od * absorption.xyz) */; //Attenuation
 #endif
 			}
 		}
 	}
-	color /= samples;
-	vec3 tint = vec3(0);
-	//TODO(Gavin): Figure out why these are being negative...
-	// if (si.y > 0)
-	// 	tint.r = 1.0;
-	// if (si.y < 0)
-	// 	tint.r = 0.5;
-	// if (si.z > 0)
-	// 	tint.b = 1.0;
-	// if (si.z < 0)
-	// 	tint.b = 0.5;
-	// if (si.x > 0)
-	// 	tint.g = 1.0;
-	// if (si.x == 0)
-	// 	tint.g = 0.5;
-	// tint.r = si.z / render_dist;
-
-	// tint /= 5.0;
-	// tint = normalize(si)/5.0;//vec3(0.25, 0, 0);
-
-	return clamp(color * brightness + tint, 0.0, 100000.0);
+	//More correct to do this at each step, but this is way faster.
+	color *= exp(-od * absorption.xyz) / samples;
+	return clamp(color * brightness, 0.0, 100000.0);
 	// return vec3(si);
 }
 
@@ -217,28 +171,28 @@ void main() {
 	vec2 uv = 2.0 * gl_FragCoord.xy / iResolution - 1.0;
 	uv.x *= iResolution.x / iResolution.y;
 
-	vec3 dir = normalize(dir_mat * vec3(uv, -iFocalLength));
-	vec3 ray_start = eye_pos;
+	vec3 rd = normalize(dir_mat * vec3(uv, -iFocalLength));
+	vec3 ro = eye_pos;
 	float start_bias = 0;
 	float max_dist = render_dist;
 
 	#ifdef BOUNDING_SPHERE
-		vec3 si = sphereIntersection(eye_pos, dir, vec4(spiral_origin, galaxy_diameter/2.0));
+		vec3 si = sphereIntersection(eye_pos, rd, vec4(spiral_origin, galaxy_diameter/2.0));
 		start_bias += max(0.0, si.y); //Second intersection with the sphere
 		max_dist = min(si.z, render_dist);
 	#endif
 
 	float step_dist = render_dist / samples;
-	vec3 step = dir * step_dist;
+	vec3 step = rd * step_dist;
 
 	#ifdef BACK_TO_FRONT
-		ray_start = (max_dist * dir) + ray_start;
+		ro = (max_dist * rd) + ro;
 		step = -step;
 	#endif
 
 	#ifdef NOISE
-		// vec3 noise_step = step * snoise(ray_start * 10.0 * iTime.x);
-		start_bias += step_dist * fract(snoise((ray_start + max_dist*dir) * 10.0) + PHI * iTime.y);
+		// vec3 noise_step = step * snoise(ro * 10.0 * iTime.x);
+		start_bias += step_dist * fract(snoise((ro + max_dist*rd) * 10.0) + PHI * iTime.y);
 		// vec3 noise_step = step * fract(int(gl_FragCoord.x + gl_FragCoord.y)/2.0 + PHI * iTime.y);
 	#else
 		float golden_step = mod(PHI * iTime.y * step_dist, step_dist) / step_dist;
@@ -248,8 +202,8 @@ void main() {
 	// if (gl_FragCoord.y < 10)
 	// 	LFragment = vec4(color_ramp(gl_FragCoord.x), 1.0);
 	// else
-	ray_start += dir*start_bias;
-	LFragment = vec4(raymarch(ray_start, step, max_dist+start_bias), freshness);
+	ro += rd*start_bias;
+	LFragment = vec4(raymarch(ro, step, max_dist+start_bias), freshness);
 }
 
 -- deferred.GL33 --

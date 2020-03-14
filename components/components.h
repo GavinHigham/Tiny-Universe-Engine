@@ -1,9 +1,16 @@
+
 #ifndef COMPONENTS_H
 #define COMPONENTS_H
 
 #include "datastructures/ecs.h"
 #include "glla.h"
 #include "math/bpos.h"
+#define CD ecs_c_constructor_destructor
+
+//Matches the signature of ecs_entity_add_copy_component, to wrap it.
+#define CHANGEME(name) void * name(ecs_ctx *E, uint32_t eid, uint32_t ctype, void *c)
+typedef CHANGEME(component_constructor);
+typedef CHANGEME(component_destructor);
 
 //Possible future work: Parse this file (or parse a separate schema file to generate this)
 //and generate Lua getters/setters.
@@ -16,17 +23,41 @@ typedef struct component_camera {
 	bool log_depth;
 	float proj_mat[16];
 } Camera;
+CD(camera_constructor);
+
+typedef struct component_framebuffer {
+	//TODO(Gavin): Figure out what triggers a framebuffer to be rendered. An event? A script?
+	//Need "every frame" for some, and "only when needed" for others.
+	//I don't like the idea of making the ECS aware of OpenGL, but this is easy enough for now.
+	//Later would be nice to have abstract handles to color buffers, depth buffer, etc.
+	//Basically just want an abstract interface that OpenGL conforms to, so I can change the backend later.
+	union {
+		uint32_t ogl_fbo;
+	};
+	bool render_every_frame;
+	uint32_t camera; //Camera that will render to this framebuffer.
+	float width, height;
+} Framebuffer;
 
 typedef struct component_controllable {
 	// controllable_callback_fn *control;
 	void *context;
 } ControllableTemp;
 
+#define customdrawable_callback(name) void name(ecs_ctx *E, uint32_t camera, uint32_t self, void *ctx)
+typedef customdrawable_callback(customdrawable_callback_fn);
+CHANGEME(customdrawable_constructor);
+CHANGEME(customdrawable_destructor);
 typedef struct component_customdrawable {
-	void (*draw)(ecs_ctx *E, uint32_t camera, uint32_t self, void *ctx);
+	customdrawable_callback_fn *draw;
+	component_constructor *construct;
+	component_destructor *destruct;
 	void *ctx;
 } CustomDrawable;
 
+//TODO(Gavin): Give label a GC / generic constructor specialization
+CD(label_constructor);
+CD(label_destructor);
 typedef struct component_label {
 	char *name;
 	char *description;
@@ -43,16 +74,20 @@ typedef struct component_physicaltemp {
 	bpos_origin origin; //May later want to move this into a separate component for performance.
 } PhysicalTemp;
 
-#define scriptable_callback(name) void name(uint32_t *entity)
-typedef scriptable_callback(scriptable_callback_fn);
+#define scriptabletemp_callback(name) void name(uint32_t eid)
+typedef scriptabletemp_callback(scriptabletemp_callback_fn);
 
 typedef struct component_scriptable {
-	scriptable_callback_fn *script;
+	scriptabletemp_callback_fn *script;
 	void *context;
 } ScriptableTemp;
 
 typedef struct component_universal {
 
 } Universal;
+
+typedef struct component_target {
+	uint32_t target;
+} Target;
 
 #endif

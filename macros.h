@@ -2,6 +2,7 @@
 #define MACROS_H
 
 #define LENGTH(arr) (sizeof((arr))/sizeof(((arr)[0])))
+#define STRINGIFY(x) #x
 #define VEC3_COORDS(v) v.x, v.y, v.z
 
 // printf colors

@@ -75,7 +75,7 @@ int tri_tile_indices(GLuint indices[], int num_rows, int start_row);
 int tri_tile_mesh_init(struct tri_tile_vertex mesh[], int num_rows, struct tri_tile_big_vertex big_vertices[3]);
 
 //Returns the depth of a ray cast into the tile t, or infinity if there is no intersection.
-float tri_tile_raycast_depth(tri_tile *t, vec3 start, vec3 dir);
+float tri_tile_raycast_depth(tri_tile *t, vec3 start, vec3 dir, vec3 *out_intersection);
 
 //Buffers the position, normal and color buffers of a terrain struct onto the GPU.
 void tri_tile_buffer(tri_tile *t);

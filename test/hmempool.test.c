@@ -32,6 +32,9 @@ int hmempool_test_add_remove()
 	return nf;
 }
 
+//TODO(Gavin): This test
+// int hmempool_test_claim()
+
 int hmempool_test_resize()
 {
 	int nf = 0; //Number of failures

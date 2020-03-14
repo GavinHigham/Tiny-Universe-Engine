@@ -20,8 +20,10 @@ static int meter_find_enclosing(meter_ctx *M, float x, float y)
 	return -1;
 }
 
-static int meter_get_index(meter_ctx *M, char *name)
+int meter_get_index(meter_ctx *M, char *name)
 {
+	if (!name)
+		return -1;
 	if (M->last_accessed_index >= 0) {
 		char *last_accessed_name = M->meters[M->last_accessed_index].name;
 		if (name == last_accessed_name || !strcmp(name, last_accessed_name))
@@ -141,13 +143,14 @@ int meter_label(meter_ctx *M, char *name, char *fmt)
 	return 0;
 }
 
-int meter_style(meter_ctx *M, char *name, unsigned char fill_color[4], unsigned char border_color[4], unsigned char font_color[4], float padding)
+int meter_style(meter_ctx *M, char *name, unsigned char fill_color[4], unsigned char border_color[4], unsigned char font_color[4], float padding, uint32_t flags)
 {
 	METER_GET_INDEX_OR_RET_ERROR(M, name, mi)
 
 	memcpy(M->meters[mi].color.fill,   fill_color,   4 * sizeof(unsigned char));
 	memcpy(M->meters[mi].color.border, border_color, 4 * sizeof(unsigned char));
 	memcpy(M->meters[mi].color.font,   font_color,   4 * sizeof(unsigned char));
+	M->meters[mi].style.flags = flags; //If I later have non-style flags, I can split this out into bools internally.
 	return 0;
 }
 
@@ -170,6 +173,11 @@ int meter_always_snap(meter_ctx *M, char *name, bool always_snap)
 float meter_value(struct meter *m)
 {
 	return m->target ? *(m->target) : m->value;
+}
+
+float meter_fraction(struct meter *m)
+{
+	return (m->value - m->min)/(m->max - m->min);
 }
 
 float meter_get(meter_ctx *M, char *name)
@@ -237,14 +245,13 @@ int meter_mouse_relative(meter_ctx *M, float x, float y, bool mouse_down, bool s
 		float right_edge = m->x + m->style.width - 2 * m->style.padding;
 		float value_range = m->max - m->min;
 		float fill_width = right_edge - left_edge;
-		float clicked_value = (x - left_edge) / fill_width * value_range + m->min;
+		float clicked_value = (x - left_edge) * value_range / fill_width + m->min;
 		ctrl_down = ctrl_down || m->always_snap;
 
 		if (shift_down && !ctrl_down) {
 			//When shift is held, right-edge of filled region slowly drifts towards mouse cursor,
 			//with velocity proportional to cursor distance from right-edge of filled region
-			// float anchor_x = (m->value / value_range * fill_width + left_edge); //Pixel position of right-edge of filled region.
-			meter_update(M, m, fclamp(m->value + (clicked_value - m->value)/(value_range * 10), m->min, m->max), true);
+			meter_update(M, m, fclamp(0.999 * m->value + 0.001 * clicked_value, m->min, m->max), true);
 		} else {
 			//With no modifiers, clicking the meter just directly sets the value.
 			//Ex. Clicking 25% between the left and right edge gives a value 25% between the configured min and max value.

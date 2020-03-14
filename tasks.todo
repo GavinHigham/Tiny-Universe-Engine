@@ -9,11 +9,19 @@ Planets:
 
   ☐ Variant to be used for stars up-close
   ☐ Atmosphere
+    ✔ Read "Texturing and Modelling: A Procedural Approach" chapter @done (19-08-18 15:59)
+    ✔ Read Alan Zucconi tutorial @done (19-08-18 15:59)
+    ☐ Implement simple shader (no planet occlusion)
+    ☐ Implement planet occlusion
+    ☐ See if I can exploit symmetry
+      ☐ See if I can integrate over entire symmetrical atmosphere planet volume
+      ☐ See if I can do the atmosphere volume then subtract planet volume influence?
   ☐ Transform feedback or render-to-texture to create various surface maps, vertex texture fetch.
     ☐ Texture-space ambient occlusion
   ☐ Virtual texturing for heightmap - can I do a mip chain too? Transfer coarser tiles to different mip levels.
     Probably don't need the entire mip chain, since tiles are already subdivided by distance to camera.
   ☐ Create 
+  ☐ The missing tiles may be due to floating-point precision issues.
 
 Texture:
   ☐ Color
@@ -26,12 +34,26 @@ Texture:
      ☐ Use "Memory pool"?
    ☐ Need a way to persist drawable information in the drawable system (ex. galaxy is drawn as an accumulating framebuffer, but galaxy's drawable component does not need to know that implementation detail)
    ☐ Properties in a component declared using X-Macros in a separate file, for serialization?
+   ☐ Serialization of some things (such as OpenGL-state-referencing things) will be nontrivial.
 
 Lua:
   ☐ Should be able to specify meter default values in a Lua file
     ☐ Should be able to save current value to a Lua file
   ☐ Could create meters in a Lua file, loaded per-module
   ☐ When ECS is more developed, describe scenes / systems / components from Lua
+
+  ☐ Shader loading
+    ☐ Declarative syntax for uniforms and attributes
+    ☐ Connect uniform to particular value stored in ECS?
+      ☐ Can have "pointer" to value in ECS as eid, ctype, offsetof(value)
+      ☐ Can be constructed out of just the address of the value (faster with ctype):
+      for ctype ∈ ctypes iff ctype[0] < address < (ctype[0] + ctype.len) then value.ctype = ctype
+      value.offset (address - ctype[0]) % ctype.size
+      value.index = (address - ctype[0]) - offset
+      value.eid = itoh(index) (don't keep index, it's not stable)
+    ☐ Automatically parse out uniforms? (See if I can find a library?)
+    ☐ Enough OpenGL bindings to make scenes in Lua instead of C (Use moongl?)
+    ☐ Automatic creation of sliders
 
 Galaxy Raymarch:
   ✔ Multiple octaves of noise @done (19-01-02 00:28)

@@ -64,6 +64,25 @@ Later update:
 		Array of hmempools for each component type, indexed by component type id.
 		mempool of free component slots, so I can add/remove component types at runtime.
 
+With this implementation, accessing a component goes roughly like this,
+using eid and ctype:
+
+    cid = entities.pool[entities.slots[eid]][ctype]
+    component_pool = components[ctype]
+    component = component_pool.pool[component_pool.slots[cid]]
+
+Essentially 6 table lookups, completely serial, plus some arithmetic. Once the component handle list is accessed (```entities.pool[entities.slots[eid]]```), seeing if an entity has certain components on it is a single lookup.
+
+## Performance improvement if I need it:
+
+If I can make the slots table for each component hmempool big enough to be indexed by any eid, I can instead do this:
+
+	component_pool = components[ctype]
+	component = component_pool.pool[component_pool.slots[eid]]
+
+Only 3 table lookups to get a component from an entity, though it takes those 3 every time you want to check if an entity has a component. Can speed it up by storing a bitmask per entity of which components are attached. Also, when iterating over one component type, itoh[i] will give the eid, which can be used to look up sibling components somewhat faster.
+
+
 *********
 
 There are three kinds of reallocation I need to be concerned with:
@@ -114,7 +133,20 @@ There are three kinds of "pool item moved" situations I need to be concerned wit
 *********
 
 I should start eids and cids at 1, so that 0 can be an invalid handle.
+Might be able to come up with a clever bit of math that can make using an invalid handle return NULL without using a branch.
 
+Assuming an eid has two parts, generation and slot (probably using bitmasks, but illustrated here using a struct for simplicity)
+
+	uint32_t slot = 0;
+	struct _eid {
+		uint16_t generation;
+		uint16_t slot;
+	} eid = {0, 1}; //0 slot is considered invalid.
+	slot = eid.slot; //Simple+fast way, does not catch using invalidated handles
+	slot = (eid.generation == entities.generations[eid.slot]) ? eid.slot : 0; //Redirects invalid handles to the 0-slot.
+	slot = ((eid.generation != entities.generations[eid.slot]) - 1) & eid.slot; //Same as previous, but branchless.
+
+There we go :)
 
 *********
 
@@ -202,7 +234,7 @@ function SpaceGame:make_homing_missile(position, velocity, lifetime, homing_flag
 	missile:add_component("Homing", {target = target, homing_flags = homing_flags, torque = torque})
 	return missile
 end
-	
+
 ```
 
 Component ideas:
@@ -238,7 +270,9 @@ Component ideas:
 		Doomed component
 			Stores a tick count or time at which the entity will be destroyed
 		DeathEventHandler component
-			Script or function that's invoked as the entity is dying
+			Script or function that's invoked as the entity is dying (after "death", before deallocation. This system collects garbage every frame.)
+		DeathPact
+			Entity will die if some other entity is dead.
 		<Event>EventHandler component
 			Script or function that's invoked in response to various events?
 		Universal component
@@ -248,6 +282,8 @@ Component ideas:
 			Signifies that non-universal entities should continue existing in its observed area. On creation should iterate over universal components to create any observable phenomenon expected at its position? (ex: "Universe" entity is universal, responsible for creating galaxy entities, which create star entities, which create planet entities)
 			Should also be universal to prevent them being immediately culled?
 			Can provide list of observed entities
+		RemoteObserver
+			Can observe a single entity from anywhere, basically makes observed entity universal.
 		ShaderPipeline
 			Contains geometry, vertex and fragment shaders, as well as the linked program - refcounted so it can be shared?
 			Contains information about inputs/outputs? Could parse out of the shaders / snippets for validation.
@@ -255,7 +291,7 @@ Component ideas:
 			Entity will simply be a copy of a common shared entity, with a different position.
 		BatchDrawable
 			Like InstanceDrawable, but maybe allows more customization per instance?
-			
+
 
 # Renderer System
 
@@ -263,3 +299,36 @@ Iterates over all drawable / customdrawable / batchdrawable components
 Maintains internal state to reduce copying over multiple frames?
 Sort drawables by "sort key" which can encompass bound shaders / buffers / textures, depth
 	Can use a different sort key on other platforms (such as mobile which uses tiled deferred rendering and thus doesn't benefit as much from depth sorting)
+
+How do I want to do cubemaps and textures? Specifically, do I want entities to support multiple? Do I want them to be able to render to and render from? Do I want textures to be refcounted and shared between entities?
+	No simple way to do multiple textures on a single entitity, it's the "implement an inventory" problem all over again
+	If I have a limit to the number of textures per entitity, I can make a component that wraps that many.
+	Could have a "refcount" component that will destroy entity if it reaches 0 - would be useful if I make textures components of entities.
+	Textures can be directly attached to entities (if entity only has / needs one, and it's not shared)
+		Otherwise, entity should have a TextureReferenceN? component, which allows rendering system to lookup the refcounted textures (and deref if the entity is destroyed)
+		Drawable component will look at attached texture or TextureReference and bind before drawing if configured to do so
+		Work with CustomDrawable for now, identify patterns, and design Drawable to fit a large number of the possibilities
+
+CustomDrawables will set every uniform / bit of OpenGL state they need before being rendered
+BatchDrawables will have BatchStart / BatchDraw / BatchEnd calls
+
+# Constructors / Destructors
+
+The original implementation had constructor and destructor functions to clean up data associated with a component if it's removed (For example, may want to clean up textures / meshes when refcount hits 0).
+I found that this made the implementation more complicated, and I didn't want to have to check for a constructor / destructor every single time I created or destroyed an entity - I want that to be extremely fast (meaning branchless). I am considering using construction and destruction functions, but that still means special-casing removing components from an entity or deleting the entity. The complexity remains.
+
+I just had the idea that I could implement a simple garbage collector. Periodically (every frame? when I run out of some resource?) a system can scan its list of components and determine which resources are no longer claimed, and recycle them. The systems should each maintain a list of entities handles that own any system (in the ECS system sense) resource. Since the number of live components of any type is known at all times, the scan can be skipped if the difference between the number of live components and the number of allocations made on behalf of those components is not very high.
+
+# Systems
+Each system exposes an API, it need not be standard - init, deinit, update are likely common. Drawable or CustomDrawable will have render or draw. The API calls should take a system context pointer, which could be stored in the ECS or the scene.
+
+# Procedural exploration
+	I need a way to:
+		spawn things when I enter an area and despawn them when I leave
+			Galaxies, stars - can use starbox strategy if I'm okay with cubic grid
+		not recreate them on top of each other (don't want to spawn the same planet twice, spawn trees inside each other etc.)
+			Hash based on position, hash lookup on creation?
+			Chunking sort of works, but would be nice to be more granular
+		"reset" them (defeated enemies go away and are respawned)
+			Enemies / corpses can have DeathPact component to spawn area, destroy and recreate spawn area?
+				Same but DeathPact to enemy "leader"?

@@ -3,23 +3,23 @@
 #include "glla.h"
 #include "graphics.h"
 #include <stdlib.h>
+#include <inttypes.h>
 #include <SDL2/SDL.h>
+
+//TODO(Gavin): Move this out of the "math" directory.
 
 // Random numbers
 
 //Seeds the random float number generator.
-void srand_float(int seed);
+void srand_float(uint32_t seed);
 //Returns a random float between -1 and 1
 float rand_float();
 //Returns a random float between -1 and 1
-float sfrand(int *seed);
+float sfrand(uint32_t *seed);
 //Returns a random float between 0 and 1
-float frand(int *seed);
+float frand(uint32_t *seed);
 //Returns value, clamped between min and max
 float fclamp(float value, float min, float max);
-
-//Distance to the horizon with a planet radius R and elevation above sea level h, from Wikipedia.
-float distance_to_horizon(float R, float h);
 
 // Random points
 
@@ -43,11 +43,20 @@ svec3 rand_box_svec3(svec3 corner1, svec3 corner2);
 	qvec3: rand_box_qvec3)(corner1, corner2)
 
 //Returns an int derived from the 3 coordinates of v.
-int hash_qvec3(qvec3 v);
+uint32_t hash_qvec3(qvec3 v);
 
 //A stupid hash for arrays of floats, so I can color them and distinguish them visually.
 //Keeping these here in case I need them for debugging in the future.
 uint32_t float3_hash(float *f, int precision);
+
+// Geometry
+float ico_inscribed_radius(float edge_len);
+float ico_circumscribed_radius(float edge_len);
+
+//Distance to the horizon with a planet radius R and elevation above sea level h, from Wikipedia.
+float distance_to_horizon(float R, float h);
+
+float fov_to_focal(float fov);
 
 // Color
 
@@ -57,6 +66,8 @@ void rgb_to_cmyk(vec3 a, vec3 *cmy, float *k);
 void cmyk_to_rgb(vec3 cmy, float k, vec3 *rgb);
 //Mixes two RGB colors a and b in cmyk.
 vec3 rgb_mix_in_cmyk(vec3 a, vec3 b, float alpha);
+//Google's Turbo colormap translated to C
+vec3 turbo_colormap(float x);
 
 // Swapping and shuffling
 
@@ -68,6 +79,8 @@ void int_swap(int *a, int *b);
 //TODO(Gavin): Add a random seed argument.
 void int_shuffle(int ints[], int num);
 
+//Misc. (split this category as it grows)
+
 //Performs a division towards negative infinity.
 lldiv_t lldiv_floor(int64_t a, int64_t b);
 
@@ -75,8 +88,8 @@ lldiv_t lldiv_floor(int64_t a, int64_t b);
 //Stick it into buffer buf, ready to send to OpenGL.
 void make_projection_matrix(float fov, float a, float n, float f, float *buf);
 
-
-int checkErrors(char *label);
+//Realloc, but sets new memory to 0.
+void * crealloc(void *ptr, size_t new_size, size_t old_size);
 
 SDL_Texture * load_texture(char *image_path);
 GLuint load_gl_texture(char *path);

@@ -1,20 +1,21 @@
-#include "proctri_scene.h"
-#include "scene.h"
+#include "configuration/lua_configuration.h"
+#include "drawf.h"
 #include "glsw/glsw.h"
 #include "glsw_shaders.h"
-#include "macros.h"
-#include "drawf.h"
-#include "math/utility.h"
+#include "graphics.h"
 #include "input_event.h"
+#include "macros.h"
+#include "math/utility.h"
+#include "proctri_scene.h"
+#include "scene.h"
+#include "shader_utils.h"
 #include "space/triangular_terrain_tile.h"
-#include "configuration/lua_configuration.h"
 
+#include <assert.h>
 #include <glla.h>
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include <math.h>
-#include <assert.h>
-#include "graphics.h"
 
 #define USING_ROWS
 

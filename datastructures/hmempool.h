@@ -29,11 +29,14 @@ struct hmempool {
 	size_t indirection_len; //Length of the indirection tables. They can't be made smaller (easily).
 	uint32_t *htoi; //Handle to item table.
 	uint32_t *itoh; //item to handle table.
-	bool freed, managed;
+	bool allocated, managed;
 };
 
-//Create a new hmempool that holds "num" items of "size" size (in bytes). 
+//Create a new hmempool that holds "num" items of "size" size (in bytes).
 struct hmempool hmempool_new(size_t num, size_t size);
+//Create a new hmempool that holds "num" items of "size" size (in bytes).
+//Will not keep track of handles, slots should be claimed with hmempool_claim and released with hmempool_unclaim.
+struct hmempool hmempool_new_unmanaged(size_t max, size_t size, size_t num_handles);
 //Delete an hmempool.
 void hmempool_delete(struct hmempool *hm);
 //Claim the mempool slot owned by h, copy an item into the hmempool, return h.
@@ -48,8 +51,14 @@ uint32_t hmempool_add_raw(struct hmempool *hm);
 void hmempool_resize(struct hmempool *hm, size_t num);
 //Enlarge each item in the pool to "size" size in bytes. Extra space after each item is uninitialized.
 void hmempool_stretch(struct hmempool *m, size_t size);
+//Resize the hmempool's handle table.
+//Used in conjunction with managed == false and hmempool_claim/hmempool_unclaim,
+//Allowing external handles to be used instead of internally-managed handles.
+void hmempool_handles_resize(struct hmempool *hm, size_t num);
 //Combined hmempool_resize and hmempool_stretch, with only one realloc.
 void hmempool_resize_stretch(struct hmempool *hm, size_t num, size_t size);
+//Remove the item with handle h from the hmempool. Use this with unmanaged hmempools.
+void hmempool_unclaim(struct hmempool *hm, uint32_t h);
 //Remove the item with handle h from the hmempool.
 void hmempool_remove(struct hmempool *hm, uint32_t h);
 //Get a pointer to an item with handle h from the hmempool.

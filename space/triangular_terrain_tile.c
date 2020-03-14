@@ -30,7 +30,7 @@ struct {
 	int rows_buffered;
 } shared_tri_tile_ibo = {NULL, 0, 0, 0};
 
-//TODO(Gavin): Make thi static again.
+//TODO(Gavin): Make this static again.
 GLuint **get_shared_tri_tile_indices(int num_rows)
 {
 	GLuint *old = shared_tri_tile_ibo.indices;
@@ -280,7 +280,7 @@ int tri_tile_raycast(vec3 tri_vertices[3], int num_tile_rows, vec3 start, vec3 d
 }
 
 //Returns the depth of a ray cast into the tile t, or infinity if there is no intersection.
-float tri_tile_raycast_depth(tri_tile *t, vec3 start, vec3 dir)
+float tri_tile_raycast_depth(tri_tile *t, vec3 start, vec3 dir, vec3 *out_intersection)
 {
 	int indices[3];
 	vec3 positions[3];
@@ -294,11 +294,11 @@ float tri_tile_raycast_depth(tri_tile *t, vec3 start, vec3 dir)
 	assert(indices[0] >= 0);
 	assert(indices[2] < t->num_indices);
 
-	GLuint **global_indices = get_shared_tri_tile_indices(t->num_rows);
+	GLuint *global_indices = *get_shared_tri_tile_indices(t->num_rows);
 	
 	//printf("Vertices: ");
 	for (int i = 0; i < 3; i++) {
-		int pos_i = *global_indices[indices[i]];
+		int pos_i = global_indices[indices[i]];
 		assert(pos_i != PRIMITIVE_RESTART_INDEX);
 		positions[i] = t->mesh[pos_i].position;
 		//vec3_print(positions[i]);
@@ -308,12 +308,15 @@ float tri_tile_raycast_depth(tri_tile *t, vec3 start, vec3 dir)
 	result = ray_tri_intersect(start, dir, positions, &intersection);
 
 	if (result == 1) {
+		*out_intersection = intersection;
 		return vec3_dist(start, intersection);
 	} else {
 		//We could be inside the planet, in which case point the ray backwards.
 		result = ray_tri_intersect(start, -dir, positions, &intersection);
-		if (result == 1)
+		if (result == 1) {
+			*out_intersection = intersection;
 			return -vec3_dist(start, intersection);
+		}
 		//If not, print debug info.
 		printf("ANOTHER FINE MESS WE'VE GOTTEN INTO\n");
 		printf("THIS WILL HELP YOU IN YOUR JOURNEY:\n");

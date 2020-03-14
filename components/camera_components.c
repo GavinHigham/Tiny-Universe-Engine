@@ -10,6 +10,8 @@ extern int64_t solar_system_star;
 
 //Uuuuuughh
 extern bpos_origin eye_sector;
+extern struct star_box_ctx star_box_context; //This is just here to keep space_scene compiling while I migrate to universe_scene
+
 
 //Collect these in a camera module?
 controllable_callback(camera_control)
@@ -34,19 +36,19 @@ controllable_callback(camera_control)
 
 	if (key_state[SDL_SCANCODE_8]) {
 		double dist = 0;
-		int nearest_star_idx = star_box_find_nearest_star_idx(camera->origin, &dist);
+		int nearest_star_idx = star_box_find_nearest_star_idx(&star_box_context, camera->origin, &dist);
 		printf("Camera at "); qvec3_print(camera->origin); printf(", nearest star is %i, distance %f.\n", nearest_star_idx, dist);
 	}
 
 	//Hacking this together, should put in the right spot later.
 	if (gen_solar_systems) {
 		double dist = INFINITY;
-		int64_t nearest_star_idx = star_box_find_nearest_star_idx(camera->origin, &dist);
+		int64_t nearest_star_idx = star_box_find_nearest_star_idx(&star_box_context, camera->origin, &dist);
 		if (solar_system_star != nearest_star_idx) {
 			solar_system_free(ssystem);
 			ssystem = solar_system_new(eye_sector);
 			solar_system_star = nearest_star_idx;
-			solar_system_origin = star_box_get_star_origin(nearest_star_idx);
+			solar_system_origin = star_box_get_star_origin(&star_box_context, nearest_star_idx);
 		}
 	}
 }

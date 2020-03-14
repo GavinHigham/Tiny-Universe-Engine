@@ -10,38 +10,38 @@
 #include <SDL2/SDL.h>
 
 #define RANDOM_SEED 42 * 1337 + 0xBAE + 'G'+'r'+'e'+'e'+'n' //An excellent random seed
-static int seed = RANDOM_SEED;
+static uint32_t utility_seed = RANDOM_SEED;
 
-void srand_float(int seed)
+void srand_float(uint32_t seed)
 {
-	seed = RANDOM_SEED * seed;
+	utility_seed = RANDOM_SEED * seed;
 }
 
 float rand_float()
 {
-	return frand(&seed);
+	return frand(&utility_seed);
 }
 
 //Returns a random float between -1 and 1, taken from http://iquilezles.org/www/articles/sfrand/sfrand.htm
-float sfrand(int *seed)
+float sfrand(uint32_t *seed)
 {
 	float res;
 	seed[0] *= 16807;
-	*((unsigned int *) &res) = ( ((unsigned int)seed[0])>>9 ) | 0x40000000;
+	*((uint32_t *) &res) = ( ((uint32_t)seed[0])>>9 ) | 0x40000000;
 	return( res-3.0f );
 }
 
 //Returns a random float between 0 and 1, taken from http://iquilezles.org/www/articles/sfrand/sfrand.htm
-float frand(int *seed)
+float frand(uint32_t *seed)
 {
 	union {
 		float f;
-		unsigned int i;
+		uint32_t i;
 	} res;
 
 	seed[0] *= 16807;
 
-	res.i = ((((unsigned int)seed[0])>>9 ) | 0x3f800000);
+	res.i = ((((uint32_t)seed[0])>>9 ) | 0x3f800000);
 	return res.f - 1.0f;
 }
 
@@ -60,17 +60,29 @@ vec3 rand_bunched_point3d_in_sphere(vec3 origin, float radius)
 
 vec3 rand_box_fvec3(vec3 corner1, vec3 corner2)
 {
-	return (vec3){rand_float(), rand_float(), rand_float()} * (corner2 - corner1) + corner1;
+	//Declare local variables so that there's a sequence point between each call.
+	float f1 = rand_float();
+	float f2 = rand_float();
+	float f3 = rand_float();
+	return (vec3){f1, f2, f3} * (corner2 - corner1) + corner1;
 }
 
 qvec3 rand_box_qvec3(qvec3 corner1, qvec3 corner2)
 {
-	return (qvec3){rand(), rand(), rand()} * (corner2 - corner1)/RAND_MAX + corner1;
+	//Declare local variables so that there's a sequence point between each call.
+	int i1 = rand();
+	int i2 = rand();
+	int i3 = rand();
+	return (qvec3){i1, i2, i3} * (corner2 - corner1)/RAND_MAX + corner1;
 }
 
 ivec3 rand_box_ivec3(ivec3 corner1, ivec3 corner2)
 {
-	return (ivec3){rand(), rand(), rand()} * (corner2 - corner1)/RAND_MAX + corner1;
+	//Declare local variables so that there's a sequence point between each call.
+	int i1 = rand();
+	int i2 = rand();
+	int i3 = rand();
+	return (ivec3){i1, i2, i3} * (corner2 - corner1)/RAND_MAX + corner1;
 }
 
 svec3 rand_box_svec3(svec3 corner1, svec3 corner2)
@@ -79,12 +91,7 @@ svec3 rand_box_svec3(svec3 corner1, svec3 corner2)
 	return (svec3){v.x, v.y, v.z};
 }
 
-float distance_to_horizon(float R, float h)
-{
-	return sqrt(2*R*h + h*h);
-}
-
-int hash_qvec3(qvec3 v)
+uint32_t hash_qvec3(qvec3 v)
 {
 	return ((v.x * 13 + v.y) * 7 + v.z) * 53 + RANDOM_SEED + 2;
 }
@@ -120,6 +127,35 @@ vec3 rgb_mix_in_cmyk(vec3 a, vec3 b, float alpha)
 	c_k = a_k * (1-alpha) + b_k * alpha;
 	cmyk_to_rgb(c_cmy, c_k, &c_rgb);
 	return c_rgb;
+}
+
+// Copyright 2019 Google LLC.
+// SPDX-License-Identifier: Apache-2.0
+
+// Polynomial approximation in GLSL for the Turbo colormap
+// Original LUT: https://gist.github.com/mikhailov-work/ee72ba4191942acecc03fe6da94fc73f
+
+// Authors:
+//   Colormap Design: Anton Mikhailov (mikhailov@google.com)
+//   GLSL Approximation: Ruofei Du (ruofei@google.com)
+// (Adapted slightly to C by Gavin Higham)
+vec3 turbo_colormap(float x)
+{
+	const vec4 kRedVec4 = {0.13572138, 4.61539260, -42.66032258, 132.13108234};
+	const vec4 kGreenVec4 = {0.09140261, 2.19418839, 4.84296658, -14.18503333};
+	const vec4 kBlueVec4 = {0.10667330, 12.64194608, -60.58204836, 110.36276771};
+	const vec2 kRedVec2 = {-152.94239396, 59.28637943};
+	const vec2 kGreenVec2 = {4.27729857, 2.82956604};
+	const vec2 kBlueVec2 = {-89.90310912, 27.34824973};
+
+	x = fclamp(x, 0.0, 1.0);
+	vec4 v4 = {1.0, x, x * x, x * x * x};
+	vec2 v2 = v4.zw * v4.z;
+	return (vec3){
+		vec4_dot(v4, kRedVec4)   + vec2_dot(v2, kRedVec2),
+		vec4_dot(v4, kGreenVec4) + vec2_dot(v2, kGreenVec2),
+		vec4_dot(v4, kBlueVec4)  + vec2_dot(v2, kBlueVec2)
+	};
 }
 
 // Doesn't handle alphas
@@ -185,6 +221,26 @@ uint32_t float3_hash(float *f, int precision)
 	return sum;
 }
 
+float ico_inscribed_radius(float edge_len)
+{
+	return sqrt(3)*(3+sqrt(5))*edge_len/12.0;
+}
+
+float ico_circumscribed_radius(float edge_len)
+{
+	return edge_len * sin(2.0*M_PI/5.0);
+}
+
+float distance_to_horizon(float R, float h)
+{
+	return sqrt(2*R*h + h*h);
+}
+
+float fov_to_focal(float fov)
+{
+	return 1.0/tan(fov/2.0);
+}
+
 //Keeping these here in case I need them for debugging in the future.
 vec3 color_from_position(vec3 position, float scale)
 {
@@ -203,13 +259,12 @@ vec3 color_from_float3(float *f, float scale)
 	return color_from_position((vec3){f[0], f[1], f[2]}, scale);
 }
 
-int checkErrors(char *label)
+void * crealloc(void *ptr, size_t new_size, size_t old_size)
 {
-	int error = glGetError();
-	if (error != GL_NO_ERROR) {
-		printf("%s: %d\n", label, error);
-	}
-	return error;
+	void *new_ptr = realloc(ptr, new_size);
+	if (new_ptr)
+		memset((unsigned char *)new_ptr + old_size, 0, new_size-old_size);
+	return new_ptr;
 }
 
 extern SDL_Renderer *renderer;

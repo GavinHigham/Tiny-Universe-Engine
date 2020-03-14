@@ -93,3 +93,10 @@ void mempool_pop(struct mempool *m, void *item)
 	memcpy(item, mempool_get(m, m->num-1), m->size);
 	m->num--;
 }
+
+void mempool_fill_uint32_t_descending(struct mempool *m, uint32_t lowest, uint32_t highest)
+{
+	for (int i = highest; i >= lowest; i--) {
+		mempool_add(m, &i);
+	}
+}

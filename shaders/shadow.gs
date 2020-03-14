@@ -4,6 +4,7 @@ layout (triangle_strip, max_vertices = 18) out;
 
 uniform vec3 gLightPos;
 uniform int zpass;
+uniform float log_depth_intermediate_factor;
 
 in vec3 gPos[6];
 in vec3 gNormal[6];
@@ -16,12 +17,16 @@ float EPSILON = 0.0001;
 void EmitQuadLines(vec3 lvStart, vec3 lvEnd, vec3 lpStart, vec3 lpEnd)
 {
 	gl_Position = projection_view_matrix * vec4(lpStart, 1.0);
+	gl_Position.z = (log2(max(1e-6, 1.0 + gl_Position.z)) * log_depth_intermediate_factor - 1.0) * gl_Position.w;
 	EmitVertex();
 	gl_Position = projection_view_matrix * vec4(lpEnd, 1.0);
+	gl_Position.z = (log2(max(1e-6, 1.0 + gl_Position.z)) * log_depth_intermediate_factor - 1.0) * gl_Position.w;
 	EmitVertex();
 	gl_Position = projection_view_matrix * vec4(lvStart, 0.0);
+	gl_Position.z = (log2(max(1e-6, 1.0 + gl_Position.z)) * log_depth_intermediate_factor - 1.0) * gl_Position.w;
 	EmitVertex();
 	gl_Position = projection_view_matrix * vec4(lvEnd , 0.0);
+	gl_Position.z = (log2(max(1e-6, 1.0 + gl_Position.z)) * log_depth_intermediate_factor - 1.0) * gl_Position.w;
 	EmitVertex();
 	EndPrimitive(); 
 }
@@ -44,19 +49,25 @@ void main() {
 		if (zpass == 0) {
 			//Front cap
 			gl_Position = projection_view_matrix * vec4(lp0, 1.0);
+			gl_Position.z = (log2(max(1e-6, 1.0 + gl_Position.z)) * log_depth_intermediate_factor - 1.0) * gl_Position.w;
 			EmitVertex();
 			gl_Position = projection_view_matrix * vec4(lp4, 1.0);
+			gl_Position.z = (log2(max(1e-6, 1.0 + gl_Position.z)) * log_depth_intermediate_factor - 1.0) * gl_Position.w;
 			EmitVertex();
 			gl_Position = projection_view_matrix * vec4(lp2, 1.0);
+			gl_Position.z = (log2(max(1e-6, 1.0 + gl_Position.z)) * log_depth_intermediate_factor - 1.0) * gl_Position.w;
 			EmitVertex();
 			EndPrimitive();
 
 			//Back cap
 			gl_Position = projection_view_matrix * vec4(-lv0, 0.0);
+			gl_Position.z = (log2(max(1e-6, 1.0 + gl_Position.z)) * log_depth_intermediate_factor - 1.0) * gl_Position.w;
 			EmitVertex();
 			gl_Position = projection_view_matrix * vec4(-lv2, 0.0);
+			gl_Position.z = (log2(max(1e-6, 1.0 + gl_Position.z)) * log_depth_intermediate_factor - 1.0) * gl_Position.w;
 			EmitVertex();
 			gl_Position = projection_view_matrix * vec4(-lv4, 0.0);
+			gl_Position.z = (log2(max(1e-6, 1.0 + gl_Position.z)) * log_depth_intermediate_factor - 1.0) * gl_Position.w;
 			EmitVertex();
 			EndPrimitive();
 		}

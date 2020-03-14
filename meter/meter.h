@@ -76,6 +76,12 @@ enum meter_state {
 	METER_CLICK_STARTED_OUTSIDE = 3
 };
 
+enum meter_flags {
+	METER_VALUE_BASED_BORDER_COLOR = 1,
+	METER_VALUE_BASED_FILL_COLOR   = 2,
+	METER_VALUE_BASED_TEXT_COLOR   = 4,
+};
+
 typedef void (*meter_callback_fn)(char *name, enum meter_state state, float value, void *context);
 
 typedef struct meter {
@@ -84,6 +90,7 @@ typedef struct meter {
 	bool always_snap;
 	struct widget_meter_style {
 		float width, height, padding;
+		uint32_t flags;
 	} style;
 	struct widget_meter_color {
 		unsigned char fill[4], border[4], font[4];
@@ -114,8 +121,12 @@ typedef struct meter_globals {
 	int total_label_chars;
 	struct meter_renderer renderer;
 } meter_ctx;
-//A nearly-raw accessor to a meter's value, only should be used by renderers.
+//A nearly-raw accessor to a meter's value, should only be used by renderers.
 float meter_value(struct meter *m);
+//Get the index of the currently-clicked meter (or -1), should only be used by renderers.
+int meter_get_index(meter_ctx *M, char *name);
+//Returns how full the meter is, from 0.0 to 1.0.
+float meter_fraction(struct meter *m);
 
 //Add a new meter. Returns 0 on success.
 int meter_add(meter_ctx *M, char *name, float width, float height, float min, float max, float value);
@@ -142,7 +153,7 @@ int meter_duplicate(meter_ctx *M, char *name, char *duplicate_name);
 //  2. The float value of the meter (or meter target).
 int meter_label(meter_ctx *M, char *name, char *fmt);
 //Change the style of an existing meter.
-int meter_style(meter_ctx *M, char *name, unsigned char fill_color[4], unsigned char border_color[4], unsigned char font_color[4], float padding);
+int meter_style(meter_ctx *M, char *name, unsigned char fill_color[4], unsigned char border_color[4], unsigned char font_color[4], float padding, uint32_t flags);
 //Set the snap increment of a meter for when meter_mouse_relative with ctrl_down == true is used.
 int meter_snap_increment(meter_ctx *M, char *name, float snap_increment);
 //Sets a meter to always snap, as if ctrl_down == true (even if it isn't).

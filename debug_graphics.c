@@ -1,12 +1,13 @@
-#include <math.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <inttypes.h>
 #include "debug_graphics.h"
 #include "macros.h"
 #include "effects.h"
 #include "math/utility.h"
 #include "math/bpos.h"
+#include "shader_utils.h"
+#include <math.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <inttypes.h>
 
 //Externs that could be useful.
 extern amat4 inv_eye_frame;

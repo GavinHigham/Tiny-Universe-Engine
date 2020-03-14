@@ -1,24 +1,25 @@
-#include "procedural_planet.h"
-#include "datastructures/quadtree.h"
-#include "math/geometry.h"
-#include "math/utility.h"
-#include "macros.h"
-#include "input_event.h" //For controller hotkeys
-#include "open-simplex-noise-in-c/open-simplex-noise.h"
 #include "configuration/lua_configuration.h"
-#include "element.h"
+#include "datastructures/quadtree.h"
+#include "debug_graphics.h"
 #include "draw.h"
 #include "drawf.h" //For draw planets
 #include "effects.h"
+#include "element.h"
 #include "glsw/glsw.h"
 #include "glsw_shaders.h"
-#include "debug_graphics.h"
 #include "graphics.h"
+#include "input_event.h" //For controller hotkeys
+#include "macros.h"
+#include "math/geometry.h"
+#include "math/utility.h"
+#include "open-simplex-noise-in-c/open-simplex-noise.h"
+#include "procedural_planet.h"
+#include "shader_utils.h"
+#include <assert.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
-#include <math.h>
 
 struct {
 	GLuint vao;
@@ -521,7 +522,7 @@ static bool proc_planet_drawlist_visit(quadtree_node *node, void *context)
 	if (depth == node->depth || !quadtree_node_has_children(node)) {
 		if (ctx->num_tiles < ctx->max_tiles && above_horizon(tile, depth, *ctx))
 			ctx->tiles[ctx->num_tiles++] = tile;
-		//else
+		// else
 		// 	ctx->excess_tiles = true;
 	}
 
@@ -542,8 +543,8 @@ int proc_planet_drawlist(proc_planet *p, tri_tile **tiles, int max_tiles, bpos c
 	for (int i = 0; i < NUM_ICOSPHERE_FACES; i++) {
 		quadtree_preorder_visit(p->tiles[i], proc_planet_split_visit, &context);
 		quadtree_preorder_visit(p->tiles[i], proc_planet_drawlist_visit, &context);
-		//if (context.excess_tiles)
-		//	printf("Excess tiles.\n");
+		if (context.excess_tiles)
+			printf("Excess tiles.\n");
 		//TODO: Find a good way to implement prune with hysteresis.
 		//terrain_tree_prune(p->tiles[i], proc_planet_split_depth, &context, (terrain_tree_free_fn)tri_tile_free);
 	}
@@ -728,6 +729,7 @@ struct proc_planet_tile_raycast_context {
 	bpos intersection;
 };
 
+//Checks if a ray intersects with a planet tile.
 bool proc_planet_tile_raycast(quadtree_node *node, void *context)
 {
 	struct proc_planet_tile_raycast_context *ctx = (struct proc_planet_tile_raycast_context *)context;
@@ -758,21 +760,28 @@ float proc_planet_altitude(proc_planet *p, bpos start, bpos *intersection)
 		.intersecting_tile = NULL
 	};
 	for (int i = 0; i < NUM_ICOSPHERE_FACES; i++) {
+		//Find the intersecting tiles.
 		quadtree_preorder_visit(p->tiles[i], proc_planet_tile_raycast, &context);
 		tri_tile *t = context.intersecting_tile;
 		if (t) {
+			//Remap ray start relative to tile origin.
 			vec3 local_start = bpos_remap(start, t->offset);
+			//Remap planet center relative to tile origin.
 			vec3 local_end = bpos_remap((bpos){0}, t->offset);
-			float dist = tri_tile_raycast_depth(t, local_start, local_end);
+			vec3 local_intersection;
+			float dist = tri_tile_raycast_depth(t, local_start, local_end, &local_intersection);
 
 			//Because we'll also find an intersection on the back of the planet, choose smallest distance.
-			if (dist < smallest_dist)
+			if (dist < smallest_dist) {
 				smallest_dist = dist;
+				intersection->offset = local_intersection;
+				intersection->origin = t->offset; //Origin relative to planet center.
+			}
 
 			float tile_dist = vec3_dist(local_start, t->centroid);
 			if (tile_dist < smallest_tile_dist) {
 				smallest_tile_dist = tile_dist;
-				*intersection = context.intersection;
+				// *intersection = context.intersection;
 			}
 		}
 		context.intersecting_tile = NULL;

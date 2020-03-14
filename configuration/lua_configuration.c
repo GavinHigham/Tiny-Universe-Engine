@@ -61,11 +61,13 @@ size_t gettmpglobstr(lua_State *L, const char *var, const char *d, char *buf)
 {
 	lua_getglobal(L, var);
 	char *result = (char *)luaL_optstring(L, -1, d);
-	if (buf && result)
+	if (buf && result) {
 		strcpy(buf, result);
-	lua_pop(L, 1);
-	//BUG(Gavin): Doesn't this use a string after it has already been popped?
-	return result ? 0 : strlen(result) + 1;
+		lua_pop(L, 1);
+	} else if (result) {
+		return strlen(result) + 1;
+	}
+	return 0;
 }
 
 bool getoptbool(lua_State *L, int i, bool d)
