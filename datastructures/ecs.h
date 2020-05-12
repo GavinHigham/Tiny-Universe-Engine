@@ -23,6 +23,7 @@ typedef struct ecs_context {
 	struct ecs_component_init_params **init_params;
 } ecs_ctx;
 
+//Explained above ecs_component_init
 struct ecs_component_init_params {
 	size_t num, size;
 	ecs_c_constructor_fn *construct;
@@ -64,8 +65,10 @@ uint32_t ecs_component_register(ecs_ctx *E, size_t num, size_t size);
 //num: Initialize storage for this number of components of that type.
 //size: Each component of this type is this many bytes in size.
 //Any of the following can be NULL.
-//construct: Constructor that will be called on new component instances after they are allocated.
-//destruct: Destructor that will be called on component right before it is destroyed.
+//construct: Constructor that will be called on new component instances after they are allocated, if either
+//ecs_entity_add_construct_component or ecs_entity_add_copy_construct_component is used.
+//destruct: Destructor that will be called on component right before it is destroyed, if either
+//ecs_entity_destruct_remove_component or ecs_entity_destruct_remove_components is used.
 //userdata: Pointer passed to constructor and destructor, usually used to interact with resources not managed by ECS.
 //ctype: If not NULL, *ctype will be set to the ctype that is returned from this call.
 //E: Pointer to the ECS context, will be set before init is called.
@@ -94,12 +97,16 @@ uint32_t ecs_entity_add(ecs_ctx *E);
 //Remove the entity with handle "eid" from the ecs.
 //The entity will be immediately overwritten.
 void ecs_entity_remove(ecs_ctx *E, uint32_t eid);
+//Remove the entity with handle "eid" from the ecs.
+//Any registered component destructors will be called.
+//The entity will be immediately overwritten.
+void ecs_entity_destruct_remove(ecs_ctx *E, uint32_t eid);
 //Add a new component of type ctype to the entity with handle "eid".
 //Returns a pointer to the new component, for initialization.
 void * ecs_entity_add_component(ecs_ctx *E, uint32_t eid, uint32_t ctype);
 //Add a new component of type ctype to the entity with handle "eid".
 //Returns a pointer to the new component, for initialization.
-//Calls the registered constructor for ctype, if any.
+//Calls the registered constructor for ctype, if any, passing the registered userdata pointer (or NULL if unset).
 void * ecs_entity_add_construct_component(ecs_ctx *E, uint32_t eid, uint32_t ctype);
 //Add a new component of type ctype to the entity with handle "eid".
 //Copies component into ECS.
@@ -107,15 +114,23 @@ void * ecs_entity_add_construct_component(ecs_ctx *E, uint32_t eid, uint32_t cty
 void * ecs_entity_add_copy_component(ecs_ctx *E, uint32_t eid, uint32_t ctype, void *c);
 //Add a new component of type ctype to the entity with handle "eid".
 //Copies component into ECS.
-//Calls the registered constructor for ctype, if any.
+//Calls the registered constructor for ctype, if any, passing the registered userdata pointer (or NULL if unset).
 //Returns a pointer to the new component, for initialization.
 void * ecs_entity_add_construct_copy_component(ecs_ctx *E, uint32_t eid, uint32_t ctype, void *c);
 //Remove the component of type ctype from the entity with handle "eid".
 //The component will immediately be overwritten.
 void ecs_entity_remove_component(ecs_ctx *E, uint32_t eid, uint32_t ctype);
+//Remove the component of type ctype from the entity with handle "eid".
+//Call the registered destructor function first, passing the registered userdata pointer (or NULL if unset).
+//The component will immediately be overwritten.
+void ecs_entity_destruct_remove_component(ecs_ctx *E, uint32_t eid, uint32_t ctype);
 //Remove all components from the entity with handle "eid".
 //All components will immediately be overwritten.
 void ecs_entity_remove_components(ecs_ctx *E, uint32_t eid);
+//Remove all components from the entity with handle "eid".
+//Call any registered destructor function for each component first, passing the registered userdata pointer (or NULL if unset).
+//All components will immediately be overwritten.
+void ecs_entity_destruct_remove_components(ecs_ctx *E, uint32_t eid);
 //Get the component of type ctype from the entity with handle "eid".
 //Returns a pointer to the new component, or NULL if the entity does not have a component of that type.
 void * ecs_entity_get_component(ecs_ctx *E, uint32_t eid, uint32_t ctype) __attribute__ ((pure));

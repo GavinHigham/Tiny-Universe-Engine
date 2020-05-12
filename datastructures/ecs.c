@@ -63,7 +63,7 @@ void ecs_free(ecs_ctx *E)
 	for (int i = 1; i < num + 1; i++) {
 		//PERF(Gavin): This is kind of inefficient (O(n) with max number of entities, lots of indirection, jumps around memory a lot)
 		if (ecs_eid_used(E, i))
-			ecs_entity_remove_components(E, i);
+			ecs_entity_destruct_remove_components(E, i);
 	}
 
 	//Unregister all components, call component deinit if present.
@@ -243,6 +243,21 @@ void ecs_entity_remove(ecs_ctx *E, uint32_t eid)
 		//If it's a valid component handle, remove and clear it.
 		void *component = hmempool_get(&E->components[i], eid);
 		if (component) {
+			hmempool_unclaim(&E->components[i], eid);
+		}
+	}
+
+	E->eid_used[eid] = false;
+	mempool_add(&E->free_eids, &eid);
+}
+
+void ecs_entity_destruct_remove(ecs_ctx *E, uint32_t eid)
+{
+	//Remove all components under that handle
+	for (int i = 0; i < ecs_components_max(E); i++) {
+		//If it's a valid component handle, remove and clear it.
+		void *component = hmempool_get(&E->components[i], eid);
+		if (component) {
 			ecs_call_destructor(E, eid, i, component);
 			hmempool_unclaim(&E->components[i], eid);
 		}
@@ -297,6 +312,15 @@ void ecs_entity_remove_component(ecs_ctx *E, uint32_t eid, uint32_t ctype)
 	struct hmempool *cl = &E->components[ctype];
 	void *c = hmempool_get(cl, eid);
 	if (c) {
+		hmempool_unclaim(cl, eid);
+	}
+}
+
+void ecs_entity_destruct_remove_component(ecs_ctx *E, uint32_t eid, uint32_t ctype)
+{
+	struct hmempool *cl = &E->components[ctype];
+	void *c = hmempool_get(cl, eid);
+	if (c) {
 		ecs_call_destructor(E, eid, ctype, c);
 		hmempool_unclaim(cl, eid);
 	}
@@ -308,6 +332,14 @@ void ecs_entity_remove_components(ecs_ctx *E, uint32_t eid)
 	for (int i = 0; i < ecs_components_max(E); i++)
 		if (E->components[i].allocated)
 			ecs_entity_remove_component(E, eid, i);
+}
+
+void ecs_entity_destruct_remove_components(ecs_ctx *E, uint32_t eid)
+{
+	//Simple solution for now, can optimize a bit later.
+	for (int i = 0; i < ecs_components_max(E); i++)
+		if (E->components[i].allocated)
+			ecs_entity_destruct_remove_component(E, eid, i);
 }
 
 void * ecs_entity_get_component(ecs_ctx *E, uint32_t eid, uint32_t ctype)

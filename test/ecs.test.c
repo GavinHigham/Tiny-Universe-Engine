@@ -79,12 +79,12 @@ int ecs_test_1()
 		TEST_SOFT_ASSERT(nf, !strcmp(*(char **)ecs_entity_get_component(E, entities[i], dynamic_component_description), descriptions[i/2]))
 	}
 
-	//Remove an entity
-	ecs_entity_remove(E, entities[num]);
+	//Remove an entity, calling destructors
+	ecs_entity_destruct_remove(E, entities[num]);
 	//Check that the component was deallocated
 	TEST_SOFT_ASSERT(nf, strdup_allocations == num - 1);
-	//Remove a component
-	ecs_entity_remove_component(E, entities[num+1], dynamic_component_description);
+	//Remove a component, calling the destructor
+	ecs_entity_destruct_remove_component(E, entities[num+1], dynamic_component_description);
 	//Check that the component was deallocated
 	TEST_SOFT_ASSERT(nf, strdup_allocations == num - 2);
 	//Unregister the component type
