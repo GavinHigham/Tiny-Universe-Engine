@@ -2,22 +2,19 @@
 #include "math/utility.h"
 
 //Since every CustomDrawable is "custom", call the per-instance constructor.
-CHANGEME(customdrawable_constructor)
+CD(customdrawable_constructor)
 {
-	CustomDrawable *cd = ecs_entity_add_copy_component(E, eid, ctype, c);
+	CustomDrawable *cd = component;
 	if (cd->construct)
-		cd->construct(E, eid, ctype, cd);
-	return cd; //Should this return the result of the previous call instead? Will probably always be the same.
+		cd->construct(eid, component, userdata);
 }
 
 //Since every CustomDrawable is "custom", call the per-instance destructor.
-CHANGEME(customdrawable_destructor)
+CD(customdrawable_destructor)
 {
-	CustomDrawable *cd = c;
+	CustomDrawable *cd = component;
 	if (cd->destruct)
-		cd->destruct(E, eid, ctype, c);
-	//FINISH THIS
-	return NULL;
+		cd->destruct(eid, component, userdata);
 }
 
 CD(camera_constructor)

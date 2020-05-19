@@ -12,7 +12,7 @@
 #include "components/components_generic.h"
 #include <math.h>
 #include <assert.h>
-SCENE_IMPLEMENT(universe);
+SCENE_IMPLEMENT(universe)
 
 struct game_scene universe_scene;
 uint32_t default_camera = 0;
@@ -71,18 +71,16 @@ customdrawable_callback(entity_star_box_draw)
 	checkErrors("Universe %d", __LINE__);
 }
 
-CHANGEME(entity_star_box_construct)
+CD(entity_star_box_construct)
 {
 	bpos_origin origin = {0,0,0};
 	target_or_self_origin(eid, &origin);
-	((CustomDrawable *)c)->ctx = star_box_init(star_box_new(), origin);
-	return c;
+	((CustomDrawable *)component)->ctx = star_box_init(star_box_new(), origin);
 }
 
-CHANGEME(entity_star_box_destruct)
+CD(entity_star_box_destruct)
 {
-	star_box_deinit(((CustomDrawable *)c)->ctx);
-	return NULL; //Signature should not require a return...
+	star_box_deinit(((CustomDrawable *)component)->ctx);
 }
 
 static uint32_t entity_star_box_new(uint32_t target)

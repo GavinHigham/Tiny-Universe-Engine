@@ -299,7 +299,7 @@ void * ecs_entity_add_copy_component(ecs_ctx *E, uint32_t eid, uint32_t ctype, v
 	return hmempool_get(&E->components[ctype], eid);
 }
 
-void * ecs_entity_add_construct_copy_component(ecs_ctx *E, uint32_t eid, uint32_t ctype, void *c)
+void * ecs_entity_add_copy_construct_component(ecs_ctx *E, uint32_t eid, uint32_t ctype, void *c)
 {
 	void *tmp = ecs_entity_add_copy_component(E, eid, ctype, c);
 	if (E->constructors[ctype])

@@ -68,7 +68,7 @@ int ecs_test_1()
 
 	//Attach the dynamic description to the last "num" entities.
 	for (int i = num; i < 2*num; i++)
-		ecs_entity_add_construct_copy_component(E, entities[i], dynamic_component_description, &descriptions[i/2]);
+		ecs_entity_add_copy_construct_component(E, entities[i], dynamic_component_description, &descriptions[i/2]);
 
 	//check number of strdup allocations
 	TEST_SOFT_ASSERT(nf, strdup_allocations == num);

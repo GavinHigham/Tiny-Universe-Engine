@@ -116,7 +116,7 @@ void * ecs_entity_add_copy_component(ecs_ctx *E, uint32_t eid, uint32_t ctype, v
 //Copies component into ECS.
 //Calls the registered constructor for ctype, if any, passing the registered userdata pointer (or NULL if unset).
 //Returns a pointer to the new component, for initialization.
-void * ecs_entity_add_construct_copy_component(ecs_ctx *E, uint32_t eid, uint32_t ctype, void *c);
+void * ecs_entity_add_copy_construct_component(ecs_ctx *E, uint32_t eid, uint32_t ctype, void *c);
 //Remove the component of type ctype from the entity with handle "eid".
 //The component will immediately be overwritten.
 void ecs_entity_remove_component(ecs_ctx *E, uint32_t eid, uint32_t ctype);

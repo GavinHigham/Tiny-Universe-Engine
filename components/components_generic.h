@@ -28,9 +28,9 @@ struct entity_ctypes {
 #define entity_add(eid, component...) _Generic((component), \
 		Camera:           ecs_entity_add_copy_component(ECS_ACTIVE_ECS, eid, ECS_ACTIVE_CTYPES->camera,                   &(component)),\
 		ControllableTemp: ecs_entity_add_copy_component(ECS_ACTIVE_ECS, eid, ECS_ACTIVE_CTYPES->controllable,             &(component)),\
-		CustomDrawable:   customdrawable_constructor(ECS_ACTIVE_ECS, eid, ECS_ACTIVE_CTYPES->customdrawable,              &(component)),\
-		Framebuffer:      ecs_entity_add_construct_copy_component(ECS_ACTIVE_ECS, eid, ECS_ACTIVE_CTYPES->framebuffer,    &(component)),\
-		Label:            ecs_entity_add_construct_copy_component(ECS_ACTIVE_ECS, eid, ECS_ACTIVE_CTYPES->label,          &(component)),\
+		CustomDrawable:   ecs_entity_add_copy_construct_component(ECS_ACTIVE_ECS, eid, ECS_ACTIVE_CTYPES->customdrawable, &(component)),\
+		Framebuffer:      ecs_entity_add_copy_construct_component(ECS_ACTIVE_ECS, eid, ECS_ACTIVE_CTYPES->framebuffer,    &(component)),\
+		Label:            ecs_entity_add_copy_construct_component(ECS_ACTIVE_ECS, eid, ECS_ACTIVE_CTYPES->label,          &(component)),\
 		PhysicalTemp:     ecs_entity_add_copy_component(ECS_ACTIVE_ECS, eid, ECS_ACTIVE_CTYPES->physical,                 &(component)),\
 		ScriptableTemp:   ecs_entity_add_copy_component(ECS_ACTIVE_ECS, eid, ECS_ACTIVE_CTYPES->scriptable,               &(component)),\
 		Target:           ecs_entity_add_copy_component(ECS_ACTIVE_ECS, eid, ECS_ACTIVE_CTYPES->target,                   &(component)),\
@@ -49,6 +49,6 @@ struct entity_ctypes {
 #define entity_scriptable(eid)     ((Scriptable *)     entity_get(eid, ECS_ACTIVE_CTYPES->scriptable))
 #define entity_target(eid)         ((Target *)         entity_get(eid, ECS_ACTIVE_CTYPES->target))
 
-#define entity_remove_customdrawable(eid) customdrawable_destructor(ECS_ACTIVE_ECS, eid, ECS_ACTIVE_CTYPES->customdrawable, entity_customdrawable(eid))
+#define entity_remove_customdrawable(eid) ecs_entity_destruct_remove_component(ECS_ACTIVE_ECS, eid, ECS_ACTIVE_CTYPES->customdrawable)
 
 #endif
