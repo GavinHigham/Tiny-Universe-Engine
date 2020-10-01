@@ -1,1 +1,3 @@
-OBJECTS += models/models.o
+OBJECTS += \
+	models/models.o \
+	models/ply_mesh.o
