@@ -9,7 +9,7 @@ LDFLAGS	 = $(SDL) -Llua-5.3.5/src -llua $(MACOS_LDFLAGS)
 LIBFLAGS = $(SDL) -Llua-5.3.5/src -llua $(MACOS_LDFLAGS) -dynamiclib
 SHADERS	 = $(wildcard shaders/*.vs shaders/*.fs shaders/*.gs)
 # LUA      = $(patsubst %.c,%.o,$(wildcard lua53/*.c)) #Should use this for everything except the experiments folder
-EXE 	 = sock
+EXE 	 = tu
 LIB      = libtu.so
 
 #Module includes append to OBJECTS and define other custom rules.
