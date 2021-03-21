@@ -3456,6 +3456,71 @@ int buffer_cube(struct buffer_group bg)
 	return sizeof(cube_indices)/sizeof(cube_indices[0]);
 }
 
+GLfloat cube_with_normals_positions[] = {
+	1.000000, 1.000000, -1.000000,
+	-1.000000, 1.000000, -1.000000,
+	-1.000000, -1.000000, -1.000000,
+	0.999999, -1.000001, 1.000000,
+	-1.000000, -1.000000, 1.000000,
+	-1.000000, 1.000000, 1.000000,
+	1.000000, -1.000000, -1.000000,
+	1.000000, 0.999999, 1.000000,
+};
+
+GLfloat cube_with_normals_normals[] = {
+	-0.57735029100962, -0.57735033044847, 0.57735018611077,
+	0.57735026918963, -0.57735026918963, 0.57735026918963,
+	0.57735041352697, 0.57734998051467, 0.57735041352713,
+	-0.57735003730086, 0.57735054919095, -0.57735022107695,
+	0.57735078528103, 0.57734991925564, -0.57735010303185,
+	0.57735028233568, -0.57735042667341, -0.57735009855974,
+	-0.57735035674092, 0.57735013352593, 0.57735031730201,
+	-0.57735048793203, -0.57734987114319, -0.57735044849346,
+};
+
+GLuint cube_with_normals_indices_adjacent[] = {
+	0, 5, 1, 5, 2, 6,
+	3, 2, 4, 2, 5, 7,
+	6, 2, 3, 5, 7, 0,
+	2, 5, 4, 5, 3, 6,
+	2, 0, 1, 0, 5, 4,
+	5, 2, 1, 2, 0, 7,
+	6, 7, 0, 1, 2, 3,
+	7, 6, 3, 4, 5, 0,
+	0, 2, 6, 3, 7, 5,
+	6, 0, 2, 4, 3, 7,
+	4, 3, 2, 1, 5, 3,
+	7, 3, 5, 1, 0, 6,
+};
+
+GLuint cube_with_normals_indices[] = {
+	0, 1, 2,
+	3, 4, 5,
+	6, 3, 7,
+	2, 4, 3,
+	2, 1, 5,
+	5, 1, 0,
+	6, 0, 2,
+	7, 3, 5,
+	0, 6, 7,
+	6, 2, 3,
+	4, 2, 5,
+	7, 5, 0,
+};
+
+int buffer_cube_with_normals(struct buffer_group bg)
+{
+	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cube_with_normals_positions), cube_with_normals_positions, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cube_with_normals_normals), cube_with_normals_normals, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_with_normals_indices_adjacent), cube_with_normals_indices_adjacent, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_with_normals_indices), cube_with_normals_indices, GL_STATIC_DRAW);
+	return sizeof(cube_with_normals_indices)/sizeof(cube_with_normals_indices[0]);
+}
+
 GLfloat icosphere_positions[] = {
 	0.000000, 0.000000, -1.075000,
 	0.457222, -0.332187, -0.914453,
