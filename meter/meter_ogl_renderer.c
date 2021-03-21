@@ -194,13 +194,24 @@ int meter_ogl_renderer_init(meter_ctx *M)
 	glGenBuffers(1, &ogl->ibo);
 
 	/* Shader initialization */
+	lua_getglobal(L, "data_path");
+	lua_pushstring(L, "shaders/glsw/");
+	lua_concat(L, 2);
+	const char *path = lua_tostring(L, -1);
+
 	glswInit();
-	glswSetPath("shaders/glsw/", ".glsl");
+	glswSetPath(path, ".glsl");
 	glswAddDirectiveToken("GL33", "#version 330");
+	lua_pop(L, 1);
 
 	// char texture_path[gettmpglobstr(L, "meter_font", "4x7.png", NULL)];
 	//                   gettmpglobstr(L, "meter_font", "4x7.png", texture_path);
-	char *texture_path = getglob(L, "meter_font", "4x7.png");
+	const char *texture_path = getglob(L, "meter_font", "4x7.png");
+	lua_getglobal(L, "data_path");
+	lua_pushstring(L, texture_path);
+	lua_concat(L, 2);
+	path = lua_tostring(L, -1);
+	free(texture_path);
 
 	GLuint shader[] = {
 		glsw_shader_from_keys(GL_VERTEX_SHADER, "meter.vertex.GL33"),
@@ -231,8 +242,8 @@ int meter_ogl_renderer_init(meter_ctx *M)
 	glVertexAttribPointer(ogl->col_attr, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct meter_vertex), (void *)offsetof(struct meter_vertex, color));
 
 	//TODO(Gavin) Load these from a font configuration file.
-	ogl->font_tex = load_gl_texture(texture_path);
-	free(texture_path);
+	ogl->font_tex = load_gl_texture(path);
+	lua_pop(L, 1);
 	ogl->font.width = 6;
 	ogl->font.height = 12;
 

@@ -3,6 +3,7 @@
 #include "mempool.test.c"
 #include "hmempool.test.c"
 #include "ecs.test.c"
+#include "ply_mesh.test.c"
 #include <unistd.h>
 
 #define RUN_TEST(testfn) run_test(testfn, #testfn)
@@ -56,6 +57,9 @@ int test_main(int argc, char **argv)
 	RUN_TEST(hmempool_test_resize_stretch);
 
 	RUN_TEST(ecs_test_1);
+
+	RUN_TEST(ply_mesh_load_cube);
+	RUN_TEST(ply_mesh_load_newship);
 
 	return 0;
 }

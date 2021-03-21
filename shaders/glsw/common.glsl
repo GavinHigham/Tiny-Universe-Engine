@@ -211,9 +211,26 @@ vec3 sphereIntersection(vec3 p, vec3 d, vec4 s)
 		float sqd = sqrt(discriminant);
 		//If discriminant == 0, there's only one intersection, and lambda1 == lambda2.
 		//This should be fairly uncommon.
-		float lambda1 = -b-sqd;
-		float lambda2 = -b+sqd;
-		return vec3(discriminant, lambda1, lambda2);
+		return vec3(discriminant, -b-sqd, -b+sqd);
+	}
+	//No intersection.
+	return vec3(discriminant, 0.0, 0.0);
+}
+
+// Infinite cylinder defined by a base point cp, a direction cd and a radius cr
+vec3 cylinderIntersection(vec3 p, vec3 d, vec3 cp, vec3 cd, float cr)
+{
+    vec3 o = p - cp;
+    float cdd = dot(cd,d);
+    float cdo = dot(cd,o);
+    float a = 1.0 - cdd*cdd;
+    float b = dot(d,o) - cdo*cdd;
+    float c = dot(o,o) - cdo*cdo - cr*cr;
+
+    float discriminant = b*b - a*c;
+    if (discriminant >= 0.0) {
+	    float sqd = sqrt(discriminant);
+	    return vec3(discriminant, vec2(-b-sqd,-b+sqd))/a;
 	}
 	//No intersection.
 	return vec3(discriminant, 0.0, 0.0);
@@ -223,12 +240,6 @@ float roundToMultiple(float number, float factor)
 {
 	return floor(number / factor) * factor;
 }
-
-//Returns discriminant in x, lambda1 in y, lambda2 in z.
-// vec3 cylinderIntersection(vec3 p, vec3 d, )
-// {
-
-// }
 
 -- lighting --
 

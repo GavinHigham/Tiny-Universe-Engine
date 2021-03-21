@@ -312,6 +312,8 @@ How do I want to do cubemaps and textures? Specifically, do I want entities to s
 CustomDrawables will set every uniform / bit of OpenGL state they need before being rendered
 BatchDrawables will have BatchStart / BatchDraw / BatchEnd calls
 
+Should I switch to something like sokol_gfx instead of OpenGL?
+
 # Constructors / Destructors
 
 The original implementation had constructor and destructor functions to clean up data associated with a component if it's removed (For example, may want to clean up textures / meshes when refcount hits 0).
@@ -332,3 +334,10 @@ Each system exposes an API, it need not be standard - init, deinit, update are l
 		"reset" them (defeated enemies go away and are respawned)
 			Enemies / corpses can have DeathPact component to spawn area, destroy and recreate spawn area?
 				Same but DeathPact to enemy "leader"?
+
+# C vs. Lua Scripting
+Entities should be able to respond to events by registering handlers, these need to be put somewhere - individual components, or a component that can register several, etc.
+
+From the engine side, optional constructors/destructors, and "Scriptable" for logic that runs every logic tick.
+
+From the scripting side, onTick, onDraw, onDestroy, onCollide, etc. using the listener pattern

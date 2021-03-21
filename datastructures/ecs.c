@@ -61,17 +61,14 @@ void ecs_free(ecs_ctx *E)
 {
 	uint32_t num = ecs_entities_max(E);
 	for (int i = 1; i < num + 1; i++) {
-		//PERF(Gavin): This is kind of inefficient (O(n) with max number of entities, lots of indirection, jumps around memory a lot)
 		if (ecs_eid_used(E, i))
 			ecs_entity_destruct_remove_components(E, i);
 	}
 
-	//Unregister all components, call component deinit if present.
+	//All component destructors have been called now, safe to unregister all components, call component deinit if present.
 	for (int i = 0; i < ecs_components_max(E); i++)
 		if (E->init_params[i] && E->init_params[i]->deinit)
 			E->init_params[i]->deinit(E->init_params[i]);
-
-	//Shouldn't need to unregister components because all component destructors have already been called by this point.
 
 	for (int i = 0; i < ecs_components_max(E); i++)
 		hmempool_delete(&E->components[i]);

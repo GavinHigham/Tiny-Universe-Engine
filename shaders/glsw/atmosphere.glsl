@@ -47,6 +47,8 @@ highp vec3 air_lambda = air_b;
 
 //Returns discriminant in x, lambda1 in y, lambda2 in z.
 vec3 sphereIntersection(vec3 p, vec3 d, vec4 s);
+vec3 cylinderIntersection(vec3 p, vec3 d, vec3 cp, vec3 cd, float cr);
+
 //Simplex noise with gradient
 vec4 snoise_grad(vec3 v);
 //Google's Turbo color map function
@@ -104,7 +106,7 @@ float gamma(float cos_theta)
 }
 
 //Atmosphere intersection nearest camera, other atmosphere intersection, planet, light position, light intensity
-vec3 atmosphere(vec3 A, vec3 B, vec4 pl, float rA, vec3 l, vec3 lI, float planet_scale_factor, vec2 samples)
+vec3 atmosphere(vec3 ro, vec3 rd, vec4 abcd, vec4 pl, float rA, vec3 l, vec3 lI, float planet_scale_factor, vec2 samples)
 {
 	//Number of sample points P we consider along AB
 	float abSamples = samples[0];
@@ -115,57 +117,68 @@ vec3 atmosphere(vec3 A, vec3 B, vec4 pl, float rA, vec3 l, vec3 lI, float planet
 	//Fraction of energy lost to scattering after one particle collision at sea level.
 	vec3 b = air_lambda * planet_scale_factor;//beta(air_lambda);
 	//Length of a sample segment on AB
-	float d_ab = distance(A, B) / abSamples;
+	float d_ab = distance(abcd.x, abcd.y) / abSamples;
 	//Sum of optical depth along AB
 	float abSum = 0.0;
 	vec3 T = vec3(0.0);
+
 	for (int i = 0; i < abSamples; i++) {
 		//Sample point P along the view ray
-		vec3 P = mix(A, B, (float(i)+0.5)/abSamples);
+		vec3 P = ro + rd*mix(abcd[0], abcd[1], (float(i)+0.5)/abSamples);
 		//Altitude of P
 		float hP = max(distance(pl.xyz, P) - pl.w, 0.0);
-		//If we dip into the planet, our ray ends there.
 		float odP = exp(-hP/H) * d_ab;
-		if (hP <= 0.0) {
-			//TODO(Gavin): Use the planet intersection information to have the final step march a smaller distance.
-			continue;
-		}
 		abSum += odP;
 
 		//Find intersections of sunlight ray with atmosphere sphere
-		vec3 ro = l;
-		vec3 rd = normalize(P-l);
-		vec3 si = sphereIntersection(ro, rd, vec4(pl.xyz, pl.w+rA));
+		vec3 lro = l;
+		vec3 lrd = normalize(P-l);
+		vec3 si = sphereIntersection(lro, lrd, vec4(pl.xyz, pl.w+rA));
 		//Point C, where a ray of light travelling towards P from the sun first strikes the atmosphere
-		vec3 C = ro + rd*si.y;
+		vec3 C = lro + lrd*si.y;
 		//Length of a sample segment on CP
 		float d_cp = distance(P, C)/cpSamples;
 		//Sum of optical depth along CP
 		float cpSum = 0.0;
-		for (int j = 0; j < cpSamples; j++) {
-			//Sample point Q along CP
-			vec3 Q = mix(P, C, (float(j)+0.5)/cpSamples);
-			//Altitude of Q
-			float hQ = max(distance(pl.xyz, Q) - pl.w, 0.0);
+		//PERF(Gavin): Can I find hQ at each sample point in a cheaper way?
+		// for (int j = 0; j < cpSamples; j++) {
+		// 	//Sample point Q along CP
+		// 	vec3 Q = mix(P, C, (float(j)+0.5)/cpSamples);
+		// 	//Altitude of Q
+		// 	float hQ = distance(pl.xyz, Q) - pl.w;
 
-			cpSum += exp(-hQ/H);
-			if (hQ <= 0) {
-				cpSum = 1e+20;
-				// cpSum = 0.0;
-				break;
-			}
-		}
+		// 	cpSum += exp(-hQ/H);
+		// 	if (hQ <= 0) {
+		// 		cpSum = 1e+20;
+		// 		// cpSum = 0.0;
+		// 		break;
+		// 	}
+		// }
+		/*
+
+		f(x) = sqrt(x^2+y^2+z^2)
+		let h(x) = sqrt(x) - R = x^(1-2) - R
+		let g(x) = x^2+y^2+z^2
+		f'(x) = h'(g(x)) * g'(x)
+		      = g(x)^(-1/2) * x
+		      = ((x^2+y^2+z^2)^(1/2) - R)^(-1/2) * x
+		*/
+		//Using the integration of the inner loop from tectonics.js (non-approximation)
+		float h = max(distance(pl.xyz, C) - pl.w, 0.0);
+		float hPrimeX = pow(h, -0.5) * distance(P, C);
+		cpSum = -(H/hPrimeX) * exp(-h/H);
+
 		//Need to scale by d_cp here instead of outside the loop because d_cp varies with the length of CP
 		float odCP = cpSum * d_cp;
 		T += exp(-b * (abSum + odCP + odP)); // Moved "* d_ab;" outside the loop for performance
 	}
 	// return TurboColormap(T.x);
-	vec3 I = lI * b * gamma(dot(normalize(B-A), normalize(l-pl.xyz))) * (T * d_ab);
+	vec3 I = lI * b * gamma(dot(rd, normalize(l-pl.xyz))) * (T * d_ab);
 	return I;
 }
 
 void main() {
-	float timescale = 1.0/2.0;
+	float timescale = 1.0;
 	vec3 light_pos = vec3(50.0 * sin(time*timescale), 50.0, 50.0 * cos(time*timescale));
 
 	vec2 uv = 2.0 * gl_FragCoord.xy / resolution - 1.0;
@@ -177,16 +190,61 @@ void main() {
 	vec4 planet_atm = planet;
 	planet_atm.w += atmosphere_height;
 
-	// vec3 rd = normalize(fposition.xyz - eye_pos);
 	//View ray intersection with planet surface sphere
 	vec3 si = sphereIntersection(ro, rd, planet);
 	//View ray intersection with atmosphere sphere
 	vec3 sia = sphereIntersection(ro, rd, planet_atm);
-	//Nearest point of intersection on atmosphere (should change this for camera within the atmosphere case)
-	vec3 pa = ro + rd*sia.y;
+	float b = sia.z;
+
+	//Plane normal, cuts the planet into sun-facing and non-sun-facing
+	vec3 pn = normalize(light_pos - planet.xyz);
+	vec3 ci = cylinderIntersection(ro, rd, planet.xyz, pn, planet.w);
+	//I need to consider six points:
+	//1. Ray enters atmosphere
+	//2. Ray enters shadow
+	//3. Ray hits planet
+	//4. Ray exits shadow
+	//5. Ray exits atmosphere
+	//6. Ray begins in atmosphere
+	//These are used differently depending on the case.
+	//IS = In-Scattering, OS = Out-Scattering
+	//Viewed from space:
+	//A. Ray enters atmosphere, exits atmosphere. Integrate IS/OS from 1 to 5.
+	//B. Ray enters atmosphere, hits planet (above shadow plane). Integrate IS/OS from 1 to 3.
+	//C. Ray enters atmosphere, hits shadow, then planet (below shadow plane). Integrate IS/OS from 1 to 2.
+	//D. Ray enters atmosphere, hits shadow, exits shadow, exits atmosphere. Integrate IS/OS from 1 to 2, OS from 2 to 4, IS/OS from 4 to 5.
+	//E. Ray enters shadow, hits planet. No integration needed.
+	//F. Ray enters shadow, enters atmosphere, exits shadow, then exits atmosphere. Integrate OS from 1 to 4, IS/OS from 4 to 5.
+	//G. Ray enters shadow, exits shadow. No integration needed.
+	//H. Ray enters shadow, enters atmosphere, exits atmosphere, exits shadow. No integration needed.
+	//Viewed from within atmosphere:
+	//I. Ray starts in sunlight, exits atmosphere. Integrate from 6 to 5.
+	//J. Ray starts in sunlight, enters shadow, exits atmosphere. Integrate from 6 to 2.
+	//K. Ray starts in sunlight, enters shadow, exits shadow, exits atmosphere. Integrate IS/OS from 6 to 2, OS from 2 to 4, IS/OS from 4 to 5.
+	//L. Ray starts in shadow, exits atmosphere. No integration needed.
+	//M. Ray starts in shadow, exits shadow, exits atmosphere. Integrate OS from 6 to 4, IS/OS from 4 to 5.
+
+	//This will be encoded as distances along the view ray rd.
+	//A vec4 will hold up to three intervals, starting nearest the camera and moving away.
+	//x. 1, 3 or 6, whichever is closer
+	//y. 5, or 2 if it exists and is closer
+	//z. 3 or 4, if either exists and is closer than the other
+	//w. 5
+	// vec4 intervals = vec4();
+
+	// dot(a, b) where b is a unit vector is the scalar projection of a onto b.
+	// If I want to have a plane centered at the planet origin to cap the shadow cylinder,
+	// I can determine if a point lies above or below that plane by subtracting the planet center from it
+	// and then dotting that vector with the plane normal.
+	// This will give the point's distance (positive or negative) from that plane.
+	// if (ci.x != -1.0) {
+	// 	vec3 ca = ro+rd*ci.x;
+	// 	float above = dot(pn, ca - planet.xyz);
+	// 	if (above < 0.0)
+	// 		b = max(ci.x, sia.y);
+	// }
 
 	vec3 color = vec3(0.0);
-	float b = sia.z;
 	vec2 samples = vec2(samples_ab, samples_cp);
 	if (si.x >= 0) { //If view ray intersects planet, draw the surface
 		vec3 p = ro + rd*si.y; //Planet surface position.
@@ -211,7 +269,7 @@ void main() {
 	}
 
 	float planet_scale_factor = planet_scale / planet_atm.w;
-	color += atmosphere(pa, ro + rd*b, planet, atmosphere_height, light_pos, vec3(1.0), planet_scale_factor, samples);
+	color += atmosphere(ro, rd, vec4(sia.y, b, 0.0, 0.0), planet, atmosphere_height, light_pos, vec3(1.0), planet_scale_factor, samples);
 
 	// float d = ((sia.z - sia.y) - (si.z - si.y));
 	// float unscientificScatter = dot(pa - planet.xyz, normalize(light_pos - planet.xyz))*0.5 + 0.5;
@@ -223,7 +281,25 @@ void main() {
 	// float gamma = 2.2;
 	// color = color / (color + vec3(1.0)); //Tone mapping.
 	// color = pow(color, vec3(1.0 / gamma)); //Gamma correction.
-	float fExposure = p_and_p;
+	// float fExposure = p_and_p;
+	float fExposure = 1.0;
 	color = 1.0 - exp(-fExposure * color);
 	LFragment = vec4(color, 1.0);
 }
+
+/*
+Speedup / quality-improvement idea:
+
+Find a way to exploit the symmetry of the inner loop to find a simple function for it.
+The inner loop essentially sums up optical depth from some point until it exits the atmosphere,
+following a path pointing directly towards the sun (at infinity for simplicity).
+If I can guarantee that it will never hit the planet (that is, never run the inner loop from within the planet's shadow)
+then this should be a function of two variables, ex.:
+- initial altitude and "dot(sun-planet, point-planet)"
+- x and y in a cross-section of the atmosphere
+
+Some parametrizations may make the math easier.
+If this function is slow/unwieldy, I can attempt to find an approximation to it.
+This can be done with a Taylor polynomial of the partial derivatives of the function with respect to its two variables.
+The Taylor polynomial should be easy it integrate, allowing me to collapse the outer loop as well.
+*/

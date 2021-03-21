@@ -99,7 +99,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 	vec2 uv = fragCoord/iResolution.xy;
 	float channel = 0.0; //Left channel?
 
-	if (style == 0.0) {
+	if (style == 0.0 || style == 1.0) {
 		fragCoord.x -= (iResolution.x - bar_width_total * num_buckets) / 2.0;
 		float uvx = fragCoord.x / (bar_width_total * num_buckets);
 		float uvx_floor = floor(uvx * num_buckets) / num_buckets;
@@ -115,7 +115,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 			fragCoord.x > 0.0 &&
 			distance(fragCoord.x, roundToMultiple(fragCoord.x, bar_width_total)) < bar_width) {
 			fragColor = vec4(1.0);
-			fragColor *= vec4(color_left_to_right(uv.x), 1.0);
+			if (style == 1.0)
+				fragColor *= vec4(color_left_to_right(uv.x), 1.0);
 		// else if (uv.y > 0.5)
 		//     fragColor = vec4(0.0, uvx_floor, 0.0, 1.0);
 		// else if (uv.y < 0.5)
@@ -138,7 +139,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 			t <= 1.0 &&
 			length(p) > inner_radius) {
 			fragColor = vec4(1.0);
-			fragColor *= vec4(color_left_to_right(t), 1.0);
+			if (style == 3.0)
+				fragColor *= vec4(color_left_to_right(t), 1.0);
 		}
 		else
 			fragColor = vec4(0.0, 0.0, 0.0, 1.0);
@@ -148,22 +150,21 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 	// graph += bloom(uv);
 }
 
-#define MULTISAMPLE
 #define SAMPLES_PER_AXIS 4
 void main() {
 	vec2 uv = 2.0 * gl_FragCoord.xy / iResolution - 1.0;
 	uv.x *= iResolution.x / iResolution.y;
-#ifdef MULTISAMPLE
-	vec4 sum = vec4(0.0);
-	vec4 sample;
-	for (int i = 0; i < SAMPLES_PER_AXIS; i++) {
-		for (int j = 0; j < SAMPLES_PER_AXIS; j++) {
-			mainImage(sample, gl_FragCoord.xy + vec2(float(i)/SAMPLES_PER_AXIS, float(j)/SAMPLES_PER_AXIS));
-			sum += sample;
+	if (style > 1.0) { //Circular styles need anti-aliasing
+		vec4 sum = vec4(0.0);
+		vec4 sample;
+		for (int i = 0; i < SAMPLES_PER_AXIS; i++) {
+			for (int j = 0; j < SAMPLES_PER_AXIS; j++) {
+				mainImage(sample, gl_FragCoord.xy + vec2(float(i)/SAMPLES_PER_AXIS, float(j)/SAMPLES_PER_AXIS));
+				sum += sample;
+			}
 		}
+		LFragment = sum / (SAMPLES_PER_AXIS * SAMPLES_PER_AXIS);
+	} else {
+		mainImage(LFragment, gl_FragCoord.xy);
 	}
-	LFragment = sum / (SAMPLES_PER_AXIS * SAMPLES_PER_AXIS);
-#else
-	mainImage(LFragment, gl_FragCoord.xy);
-#endif
 }

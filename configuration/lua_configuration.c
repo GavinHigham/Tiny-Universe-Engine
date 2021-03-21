@@ -6,9 +6,14 @@
 
 void luaconf_run(lua_State *L, const char *filepath)
 {
-	if (luaL_dofile(L, filepath)) {
-		luaconf_error(L, "cannot run config. file: %s", lua_tostring(L, -1));
-		lua_pop(L, 1);
+	if (filepath) {
+		if (luaL_dofile(L, filepath)) {
+			luaconf_error(L, "cannot run config. file: %s", lua_tostring(L, -1));
+			lua_pop(L, 1);
+		}
+	} else {
+		//TODO: Error handling
+		luaL_dostring(L, "dofile(luaconf_path)");
 	}
 }
 

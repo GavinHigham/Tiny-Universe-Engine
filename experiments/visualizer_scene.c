@@ -71,13 +71,14 @@ unsigned char *g_wav_buffer = NULL;
 uint32_t g_wav_length;
 
 SDL_AudioSpec g_wav_spec = {0}, g_audio_spec = {0};
+SDL_AudioDeviceID g_dev_id;
 int nfft = 16384;//4096; //2^14
 kiss_fftr_cfg cfg;
 kiss_fft_scalar *g_timedata;
 kiss_fft_cpx    *g_freqdata;
 float g_num_buckets, g_db_multiplier, g_db_divisor, g_blank_seconds;
 
-enum viz_style {VIZ_STYLE_BAR, VIZ_STYLE_CIRCLE, NUM_VIZ_STYLES};
+enum viz_style {VIZ_STYLE_BAR, VIZ_STYLE_BAR_COLOR, VIZ_STYLE_CIRCLE, VIZ_STYLE_CIRCLE_COLOR, NUM_VIZ_STYLES};
 enum viz_style g_viz_style = VIZ_STYLE_BAR;
 
 struct viz_circle {
@@ -113,7 +114,7 @@ static bool bar_overflowing()
 
 static void visualizer_meter_callback(char *name, enum meter_state state, float value, void *context)
 {
-	visuals_overflowing = bar_overflowing() && g_viz_style == VIZ_STYLE_BAR;
+	visuals_overflowing = bar_overflowing() && ((g_viz_style == VIZ_STYLE_BAR) || (g_viz_style == VIZ_STYLE_BAR_COLOR));
 }
 
 void init_viz_meters(meter_ctx *M, widget_meter *widgets, int num_widgets, float *y_offset)
@@ -125,24 +126,25 @@ void init_viz_meters(meter_ctx *M, widget_meter *widgets, int num_widgets, float
 		meter_position(M, w->name, w->x, w->y + *y_offset);
 		meter_callback(M, w->name, w->callback, w->callback_context);
 		meter_style(M, w->name, w->color.fill, w->color.border, w->color.font, w->style.padding, 0);
+		meter_always_snap(M, w->name, w->always_snap);
 		*y_offset += 25;
 	}
 }
 
-static void set_bar_mode()
+static void set_bar_mode(enum viz_style s)
 {
-	g_viz_style = VIZ_STYLE_BAR;
+	g_viz_style = s;
 	obuffer_width = getglob(L, "recording_width", 1920);
 	obuffer_height = getglob(L, "recording_height", 1080);
 	color_buffer_delete(obuffer);
 	obuffer = color_buffer_new(obuffer_width, obuffer_height);
-	visuals_overflowing = bar_overflowing() && g_viz_style == VIZ_STYLE_BAR;
+	visuals_overflowing = bar_overflowing() && g_viz_style == ((g_viz_style == VIZ_STYLE_BAR) || (g_viz_style == VIZ_STYLE_BAR_COLOR));
 }
 
-static void set_circle_mode()
+static void set_circle_mode(enum viz_style s)
 {
-	g_viz_style = VIZ_STYLE_CIRCLE;
-	obuffer_width = obuffer_height = getglob(L, "visualizer_circle_width", 512);
+	g_viz_style = s;
+	obuffer_width = obuffer_height = getglob(L, "visualizer_circle_width", 1024);
 	color_buffer_delete(obuffer);
 	obuffer = color_buffer_new(obuffer_width, obuffer_height);
 	visuals_overflowing = false;
@@ -166,8 +168,10 @@ static void visualizer_style_callback(char *name, enum meter_state state, float 
 
 	if (g_viz_style != s) {
 		switch(s) {
-		case VIZ_STYLE_BAR: set_bar_mode(); break;
-		case VIZ_STYLE_CIRCLE: set_circle_mode(); break;
+		case VIZ_STYLE_BAR: //fall-through
+		case VIZ_STYLE_BAR_COLOR: set_bar_mode(s); break;
+		case VIZ_STYLE_CIRCLE: //fall-through
+		case VIZ_STYLE_CIRCLE_COLOR: set_circle_mode(s); break;
 		default: break;
 		}
 	}
@@ -186,9 +190,15 @@ int visualizer_scene_init()
 	glBindVertexArray(g_visualizer_ogl.vao);
 
 	/* Shader initialization */
+	lua_getglobal(L, "data_path");
+	lua_pushstring(L, "shaders/glsw/");
+	lua_concat(L, 2);
+	const char *path = lua_tostring(L, -1);
+
 	glswInit();
-	glswSetPath("shaders/glsw/", ".glsl");
+	glswSetPath(path, ".glsl");
 	glswAddDirectiveToken("glsl330", "#version 330");
+	lua_pop(L, 1);
 
 	char *vsh_key = getglobstr(L, "visualizer_vsh_key", "");
 	char *fsh_key = getglobstr(L, "visualizer_fsh_key", "");
@@ -261,14 +271,15 @@ int visualizer_scene_init()
 		// want.callback = NULL; /* you wrote this function elsewhere -- see SDL_AudioSpec for details */
 
 		dev = SDL_OpenAudioDevice(NULL, 0, &g_wav_spec, &have, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
+		g_dev_id = dev;
 		if (dev == 0) {
 			SDL_Log("Failed to open audio: %s", SDL_GetError());
 		} else {
 			if (have.format != g_wav_spec.format) { /* we let this one thing change. */
 				SDL_Log("We didn't get requested audio format.");
 			}
-			// SDL_QueueAudio(dev, wav_buffer, wav_length);
-			// SDL_PauseAudioDevice(dev, 0); /* start audio playing. */
+			SDL_QueueAudio(dev, g_wav_buffer, g_wav_length);
+			SDL_PauseAudioDevice(dev, 0); /* start audio playing. */
 			// SDL_Delay(5000); /* let the audio callback play some sound for 5 seconds. */
 			// SDL_CloseAudioDevice(dev);
 		}
@@ -314,7 +325,7 @@ int visualizer_scene_init()
 	widget_meter widgets[] = {
 		{
 			.name = "Num Buckets", .x = 5.0, .y = 0, .min = 1.0, .max = 512.0, .value = getglob(L, "num_buckets", 128.0),
-			.callback = visualizer_meter_callback, .target = &g_num_buckets, 
+			.callback = visualizer_meter_callback, .target = &g_num_buckets, .always_snap = true,
 			.style = wstyles, .color = {.fill = {187, 187, 187, 255}, .border = {95, 95, 95, 255}, .font = {255, 255, 255}}
 		},
 		{
@@ -400,12 +411,12 @@ void visualizer_scene_deinit()
 	color_buffer_delete(obuffer);
 }
 
-void get_timedata(kiss_fft_scalar *timedata, SDL_AudioSpec wav_spec, unsigned char *wav_buffer, uint32_t wav_length, float seconds)
+void get_timedata(kiss_fft_scalar *timedata, SDL_AudioSpec wav_spec, unsigned char *wav_buffer, uint32_t wav_length, float seconds, float blank_seconds)
 {
 	int bits_per_sample = (wav_spec.format & 0xff);
 	int bytes_per_sample = bits_per_sample / 8 + (bits_per_sample % 8 ? 1 : 0);
 	int stride = bytes_per_sample * wav_spec.channels;
-	double trackhead = stride * wav_spec.freq * (seconds - g_blank_seconds);
+	double trackhead = stride * wav_spec.freq * (seconds - blank_seconds);
 	trackhead = trackhead - fmod(trackhead, stride);
 	// printf("bits_per_sample: %d, bytes_per_sample: %d, trackhead: %d\n", bits_per_sample, bytes_per_sample, trackhead);
 	for (int i = 0; i < nfft; i++) {
@@ -472,6 +483,8 @@ void visualizer_scene_update(float dt)
 			visualizer_file_buffer = malloc(sizeof(int) * obuffer_width * obuffer_height);
 			if (!visualizer_file_buffer)
 				printf("Could not allocate memory.\n");
+
+			SDL_CloseAudioDevice(g_dev_id);
 		}
 		else {
 			printf("Stopping recording!\n");
@@ -491,7 +504,7 @@ void visualizer_scene_update(float dt)
 	}
 
 
-	get_timedata(g_timedata, g_wav_spec, g_wav_buffer, g_wav_length, seconds);
+	get_timedata(g_timedata, g_wav_spec, g_wav_buffer, g_wav_length, seconds, visualizer_recording ? g_blank_seconds : 0.0);
 
 	kiss_fftr(cfg, g_timedata, g_freqdata);
 
@@ -550,7 +563,7 @@ void visualizer_scene_render()
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, obuffer.fbo);
 	glReadBuffer(GL_COLOR_ATTACHMENT0);
 	glViewport(0, 0, screen_width, screen_height);
-	glClearColor(visuals_overflowing ? 0.6 : 0.2, 0.2, 0.2, 1.0);
+	glClearColor(visuals_overflowing ? 0.6 : 0.2, visualizer_recording ? 0.6 : 0.2, 0.2, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 	glBlitFramebuffer(0, 0, obuffer_width, obuffer_height, g_offset_x, g_offset_y, obuffer_width + g_offset_x, obuffer_height + g_offset_y, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 

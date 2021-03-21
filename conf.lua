@@ -1,15 +1,16 @@
 --Window config values
-screen_width  = 1024
-screen_height = 1024
-screen_title = "Simple OpenGL C (k) Engine"
+screen_width  = 1920
+screen_height = 1080
+screen_title = "GFreq - Gavin's Frequency Visualizer"
 fullscreen = false
 grab_mouse = false
 
 -- default_scene = "space" --"twotri" --"proctri"
--- default_scene = "visualizer"
+default_scene = "visualizer"
 -- default_scene = "spiral"
 -- default_scene = "spawngrid"
-default_scene = "atmosphere"
+-- default_scene = "atmosphere"
+-- default_scene = "universe"
 
 --ffmpeg recording
 ffmpeg_cmd = "ffmpeg -r 60 -f rawvideo -pix_fmt rgba -s " .. screen_width .. "x" .. screen_height .. " -i - -threads 0 -preset fast -y -pix_fmt yuv420p -crf 21 -vf vflip output.mp4"
@@ -64,8 +65,20 @@ num_buckets = 42
 inner_radius = 60
 visualizer_vsh_key = "visualizer.vertex.GL33"
 visualizer_fsh_key = "visualizer.fragment.GL33"
-visualizer_style = 1
+visualizer_style = 0
 visualizer_circle_width = 512
+
+local info = [[
+Controls:
+Hit space to begin recording, hit it again to finish and save the video
+Hold M and drag to move the display window
+Hold CTRL while dragging a slider to snap to whole numbers (1, 2, 3 etc.)
+Hold Shift while dragging a slider for fine adjustment
+Hold CTRL and Shift while dragging a slider to snap to tenths of a number (1.10, 1.20, 1.30, etc.)
+
+If the background appears red, it means the bar visualization is too wide for the recording window -
+ make the buckets narrower, decrease "num buckets", or decrease spacing until the visualization fits.
+]]
 
 -- wav_filename = "Bbibbi_cover_ver1.wav"
 -- wav_filename = "Love Scenario_cover.wav"
@@ -75,9 +88,12 @@ visualizer_circle_width = 512
 -- wav_filename = "DallaDalla_cover.wav"
 wav_filename = "SpringDay_cover_1.wav"
 if (default_scene == "visualizer") then
-	recording_width, recording_height = 512, 512
+	recording_width, recording_height = 800, 400
+	wav_filename = io.popen([[osascript -e 'POSIX path of {choose file with prompt "Please choose a WAV file:" of type {"wav"}}']]):read('a'):gsub('^%s+', ''):gsub('%s+$', '')
+	local path, filename, extension = wav_filename:match("^(.*/)(.*)(%.[wW][aA][vV])")
+	path = 'Macintosh HD:' .. path:gsub('/', ':')
+	mp4_filename = io.popen([[osascript -e 'POSIX path of {choose file name with prompt "Save the video as:" default name "]]..filename..[[.mp4" default location alias "]]..path..[["}']]):read('a'):gsub('^%s+', ''):gsub('%s+$', '')
+
 	-- screen_width, screen_height = recording_width + 100, recording_height + 100
-	recording_cmd = "ffmpeg -r 60 -f rawvideo -pix_fmt rgba -s " .. recording_width .. "x" .. recording_height .. " -i - -threads 0 -preset fast -y -pix_fmt yuv420p -crf 21 -vf vflip " .. wav_filename .. ".mp4"
+	recording_cmd = data_path .. 'ffmpeg -r 60 -f rawvideo -pix_fmt rgba -s ' .. recording_width .. 'x' .. recording_height .. ' -i - -threads 0 -preset fast -y -pix_fmt yuv420p -crf 21 -vf vflip "' .. mp4_filename .. '"'
 end
-
-

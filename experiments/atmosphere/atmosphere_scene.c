@@ -156,7 +156,7 @@ void atmosphere_meters_init(lua_State *L, meter_ctx *M, struct atmosphere_tweaks
 			.style = wstyles, .color = {.fill = {79, 79, 207, 255}, .border = {47, 47, 95, 255}, .font = {255, 255, 255, 255}}
 		},
 		{
-			.name = "Poke and Prod Variable", .x = 5.0, .y = 0, .min = -30, .max = 30,
+			.name = "Poke and Prod Variable", .x = 5.0, .y = 0, .min = -1.0, .max = 1.0,
 			.target = &at->p_and_p,
 			.style = wstyles, .color = {.fill = {79, 79, 207, 255}, .border = {47, 47, 95, 255}, .font = {255, 255, 255, 255}}
 		},

@@ -37,6 +37,10 @@ GLuint glsw_shader_from_keys_num(GLenum type, const char **keys, int num)
 	for (int i = 0; i < num; i++) {
 		assert(strcmp(keys[i], "")); //Ensure we don't get an empty string key.
 		strs[i] = glswGetShader(keys[i]);
+		if (!strs[i]) {
+			printf("Could not find shader with key %s\n", keys[i]);
+			return 0;
+		}
 	}
 	return shader_from_strs(type, strs, num);
 }

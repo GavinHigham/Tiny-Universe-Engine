@@ -1,49 +1,47 @@
-
 #include "universe_scene.h"
-#include "datastructures/ecs.h"
 #include "glla.h"
 #include "math/bpos.h"
 #include "math/utility.h"
 #include "macros.h"
 #include "shader_utils.h"
+#include "trackball/trackball.h"
 #include "space/star_box.h"
-#define ECS_ACTIVE_ECS E
-#define ECS_ACTIVE_CTYPES (&ecs_ctypes)
-#include "components/components_generic.h"
+#include "input_event.h"
+#include "experiments/universe_scene/universe_ecs.h"
+#include "experiments/universe_scene/universe_components.h"
+#include "experiments/universe_scene/universe_entities/gpu_planet.h"
 #include <math.h>
 #include <assert.h>
 SCENE_IMPLEMENT(universe)
 
 struct game_scene universe_scene;
 uint32_t default_camera = 0;
-static struct entity_ctypes ecs_ctypes = {0};
-static ecs_ctx e = {.user_ctypes = &ecs_ctypes};
-static ecs_ctx *E = &e;
+uint32_t test_planet = 0;
+struct entity_ctypes universe_ecs_ctypes = {0};
+static ecs_ctx universe_ecs_ctx = {.user_ctypes = &universe_ecs_ctypes};
+ecs_ctx *puniverse_ecs_ctx = &universe_ecs_ctx;
+//Short names for convenience
+#define E puniverse_ecs_ctx
+#define e universe_ecs_ctx
+#define ctypes universe_ecs_ctypes
 
-// struct ecs_component_init_params {
-// 	size_t num, size;
-// 	ecs_c_constructor_fn construct;
-// 	ecs_c_destructor_fn destruct;
-// 	void *userdata;
-// 	uint32_t *ctype;
-// 	ecs_ctx *E;
-// 	void *ctx;
-// 	struct ecs_component_init_params *ip;
-// 	void *(*init)(struct ecs_component_init_params *);
-// 	void (*deinit)(struct ecs_component_init_params *);
-// };
+//This doesn't need to be in the ECS because its state can be reconstructed from the camera constructor.
+static struct trackball camera_trackball;
+
+//Set up all the components needed for this scene
 static struct ecs_component_init_params component_init_params[] = {
 //    num, size, constructor, destructor, userdata, ctype out, ECS out, init params out, init, deinit
-	{.num = 10,  .size = sizeof(Framebuffer),    .ctype = &ecs_ctypes.framebuffer},
-	{.num = 10,  .size = sizeof(PhysicalTemp),   .ctype = &ecs_ctypes.physical},
-	{.num = 10,  .size = sizeof(Camera),         .ctype = &ecs_ctypes.camera,         .construct = camera_constructor},
-	{.num = 500, .size = sizeof(CustomDrawable), .ctype = &ecs_ctypes.customdrawable},
-	{.num = 500, .size = sizeof(Label),          .ctype = &ecs_ctypes.label,          .construct = label_constructor,   .destruct = label_destructor},
-	{.num = 500, .size = sizeof(ScriptableTemp), .ctype = &ecs_ctypes.scriptable},
-	{.num = 500, .size = sizeof(Target),         .ctype = &ecs_ctypes.target},
+	{.num = 10,  .size = sizeof(PhysicalTemp),   .ctype = &ctypes.physical},
+	{.num = 10,  .size = sizeof(Camera),         .ctype = &ctypes.camera,         .construct = camera_constructor},
+	{.num = 500, .size = sizeof(CustomDrawable), .ctype = &ctypes.customdrawable, .construct = customdrawable_constructor, .destruct = customdrawable_destructor},
+	{.num = 20,  .size = sizeof(Label),          .ctype = &ctypes.label,          .construct = label_constructor,          .destruct = label_destructor},
+	{.num = 500, .size = sizeof(ScriptableTemp), .ctype = &ctypes.scriptable},
+	{.num = 10,  .size = sizeof(Target),         .ctype = &ctypes.target},
+	{.num = 5,   .size = sizeof(Trackball),      .ctype = &ctypes.trackball,      .construct = trackball_constructor},
 	// {10, sizeof(Universal), NULL, NULL, NULL, NULL, NULL, component_universal_init, 0, NULL},}
 };
 
+//Gavin 2020/05/22: Why did I have this? Shouldn't I only use the target origin?
 bool target_or_self_origin(uint32_t eid, bpos_origin *origin)
 {
 	Target *t = NULL;
@@ -56,7 +54,7 @@ bool target_or_self_origin(uint32_t eid, bpos_origin *origin)
 	return false;
 }
 
-scriptabletemp_callback(entity_star_box_scriptable)
+scriptabletemp_callback(entity_star_box_script)
 {
 	bpos_origin origin = {0,0,0};
 	target_or_self_origin(eid, &origin);
@@ -66,8 +64,10 @@ scriptabletemp_callback(entity_star_box_scriptable)
 customdrawable_callback(entity_star_box_draw)
 {
 	Camera *c = entity_camera(camera);
+	assert(c);
+	glUseProgram(effects.star_box.handle);
 	glUniform1f(effects.star_box.log_depth_intermediate_factor, c->log_depth_intermediate_factor);
-	star_box_draw(entity_customdrawable(self)->ctx, entity_physicaltemp(camera)->origin, c->proj_mat);
+	star_box_draw(entity_customdrawable(self)->ctx, entity_physicaltemp(camera)->origin, c->proj_view_mat);
 	checkErrors("Universe %d", __LINE__);
 }
 
@@ -88,7 +88,7 @@ static uint32_t entity_star_box_new(uint32_t target)
 	uint32_t starbox = entity_new();
 	entity_add(starbox, (Target){.target = target});
 	entity_add(starbox, (Label){.name = "Star Box", .description = "Stars renderered into a 3D sliding window around the camera."});
-	entity_add(starbox, (ScriptableTemp){.script = entity_star_box_scriptable});
+	entity_add(starbox, (ScriptableTemp){.script = entity_star_box_script});
 	entity_add(starbox, (CustomDrawable){.draw = entity_star_box_draw, .construct = entity_star_box_construct, .destruct = entity_star_box_destruct});
 	return starbox;
 }
@@ -111,7 +111,7 @@ static uint32_t entity_universe_new()
 {
 	uint32_t universe = entity_new();
 	// entity_add_component(universe, (Label){.name = "Universe", .description = NULL})
-	entity_add(universe, (PhysicalTemp){.position = (amat4)AMAT4_IDENT});
+	entity_add(universe, (PhysicalTemp){.position = (amat4)AMAT4_IDENT, .velocity = (amat4)AMAT4_IDENT, .acceleration = (amat4)AMAT4_IDENT});
 	entity_add(universe, (Label){.name = "Universe"});
 	// entity_add(universe, (ScriptableTemp){.script = })
 	// entity_add(universe, (Universal){});
@@ -124,14 +124,69 @@ static uint32_t entity_universe_new()
 	return universe;
 }
 
-static uint32_t entity_default_camera_new(float aspect)
+scriptabletemp_callback(entity_camera_script)
+{
+	PhysicalTemp *c = entity_physicaltemp(eid);
+	PhysicalTemp *p = entity_physicaltemp(entity_target(eid)->target);
+	Trackball *t = entity_trackball(eid);
+	assert(c && p && t);
+
+	c->origin = p->origin;
+	int mouse_x = 0, mouse_y = 0;
+	Uint32 buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
+	bool button = buttons & SDL_BUTTON(SDL_BUTTON_LEFT);
+	int scroll_x = input_mouse_wheel_sum.wheel.x, scroll_y = input_mouse_wheel_sum.wheel.y;
+	trackball_step(&t->trackball, mouse_x, mouse_y, button, scroll_x, scroll_y);
+
+	c->position = t->trackball.camera;
+	// qvec3_println(c->origin);
+	// c->position.a = mat3_lookat(
+	// 	mat3_multvec(p->position.a, c->position.t) + mat3_multvec(p->position.a, p->position.t), //Look source, relative to p.
+	// 	mat3_multvec(p->position.a, p->position.t), //Look target (p), relative to p.
+	// 	mat3_multvec(p->position.a, (vec3){0, 1, 0})); //Up vector, relative to p.
+}
+
+static uint32_t entity_default_camera_new(uint32_t target, float width, float height)
 {
 	uint32_t camera = entity_new();
-	entity_add(camera, (PhysicalTemp){.position = (amat4)AMAT4_IDENT});
-	entity_add(camera, (Camera){.fov = M_PI/3.0, .aspect = aspect, .near = -0.5, .far = -10000000});
+	entity_add(camera, (PhysicalTemp){.position = (amat4)AMAT4_IDENT, .velocity = (amat4)AMAT4_IDENT, .acceleration = (amat4)AMAT4_IDENT});
+	entity_add(camera, (ScriptableTemp){.script = entity_camera_script});
+	entity_add(camera, (Camera){.fov = M_PI/3.0, .aspect = width/height, .near = -0.5, .far = -10000000, .width = width, .height = height});
+	entity_add(camera, (Target){.target = target});
+	entity_add(camera, (Trackball){.target = target});
 	entity_add(camera, (Label){.name = "Default Camera", .description = "The primary camera used for rendering the scene."});
 
 	return camera;
+}
+
+scriptabletemp_callback(entity_player_script)
+{
+	PhysicalTemp *p = entity_physicaltemp(eid);
+	assert(p);
+	if (key_state[SDL_SCANCODE_W])
+		p->velocity.t.z -= 10000000000.0;
+	if (key_state[SDL_SCANCODE_S])
+		p->velocity.t.z += 10000000000.0;
+
+	printf("Printing player stuff:\n");
+	qvec3_println(p->origin);
+	vec3_println(p->position.t);
+
+	PhysicalTemp *pp = entity_physicaltemp(test_planet);
+	gpu_planet *gp = entity_scriptable(test_planet)->context;
+	bpos intersection;
+	printf("Printing planet stuff:\n");
+	qvec3_println(pp->origin);
+	vec3_println(pp->position.t);
+	printf("Altitude: %f\n", gpu_planet_altitude(gp, (bpos){p->position.t, p->origin}, &intersection));
+}
+
+static uint32_t entity_player_new()
+{
+	uint32_t player = entity_new();
+	entity_add(player, (ScriptableTemp){.script = entity_player_script});
+	entity_add(player, (PhysicalTemp){.position = {.a = MAT3_IDENT, .t = {0,0,-10}}});
+	return player;
 }
 
 int universe_scene_init()
@@ -144,6 +199,9 @@ int universe_scene_init()
 		attribute_strings, LENGTH(attribute_strings),
 		uniform_strings,   LENGTH(uniform_strings));
 	checkErrors("load_effects");
+
+	gpu_planet_init();
+	checkErrors("gpu_planet_init");
 
 	glPointSize(5);
 	glEnable(GL_PROGRAM_POINT_SIZE);
@@ -168,11 +226,12 @@ int universe_scene_init()
 	//which spawn and manage star entities (and other stellar phenomenon like nebulas, rogue planets, space rocks), which spawn and manage planet entities
 	//Then I need a spaceship/player entity, and a camera entity
 
-	uint32_t player = entity_new();
-	default_camera = entity_default_camera_new(width/height);
-	//Attach default framebuffer (fbo 0) directly to the default camera entity.
-	entity_add(default_camera, (Framebuffer){.width = width, .height = height, .camera = default_camera, .ogl_fbo = 0, .render_every_frame = true});
+	uint32_t player = entity_player_new();
+	default_camera = entity_default_camera_new(player, width, height);
 	uint32_t starbox = entity_star_box_new(default_camera);
+
+	uint32_t planet = entity_gpu_planet_new();
+	test_planet = planet;
 	checkErrors("Universe %d", __LINE__);
 
 	return 0;
@@ -180,63 +239,147 @@ int universe_scene_init()
 
 void universe_scene_deinit()
 {
-	//This currently leaks because component destructors (Ex. entity_remove_customdrawable) are not called.
-	//ECS will be trimmed down to not include constructors/destructors + ctype init/deinit.
-	//Destruction will be more C-style per-scene, maybe leveraging some kind of iterator functionality provided by the ECS.
-
-	//TODO(Gavin): Maybe make a function for this kind of thing (if I end up needing to free a lot of stuff like this).
-	size_t num_customdrawables = 0;
-	CustomDrawable *customdrawables = ecs_components(E, ecs_ctypes.customdrawable, &num_customdrawables);
-	const uint32_t *customdrawable_itoh = ecs_component_itoh(E, ecs_ctypes.customdrawable);
-	for (int i = 0; i < num_customdrawables; i++)
-		entity_remove_customdrawable(customdrawable_itoh[i]);
-
+	gpu_planet_deinit();
 	ecs_free(E);
 	checkErrors("Universe %d", __LINE__);
 }
 
-void universe_scene_update(float dt)
+//TODO: Move this to its own file when I make a proper Physical "system"
+static void component_physical_update(struct component_physicaltemp *p)
 {
-	size_t num_scriptables = 0;
-	ScriptableTemp *s = ecs_components(E, ecs_ctypes.scriptable, &num_scriptables);
-	//TODO: Figure out a nice way for components that need their own handle to access it.
-	//Maybe ecs_components returns num, has void ** argument for component list, and const uint32_t * argument for handle list?
-	struct hmempool *scriptables = &e.components[ecs_ctypes.scriptable];
-	for (int i = 0; i < num_scriptables; i++) {
-		s[i].script(scriptables->itoh[i]);
+	p->velocity.t += p->acceleration.t;
+	p->position.t += p->velocity.t;
+	p->velocity.a = mat3_mult(p->velocity.a, p->acceleration.a);
+	p->position.a = mat3_mult(p->position.a, p->velocity.a);
+
+	bpos_split_fix(&p->position.t, &p->origin);
+}
+
+void universe_print()
+{
+	size_t num_labels = 0;
+	Label *labels = ecs_components(E, ctypes.label, &num_labels);
+	const uint32_t *labels_itoh = ecs_component_itoh(E, ctypes.label);
+	for (int i = 0; i < num_labels; i++) {
+		printf("[Entity %u][%s] %s\n", labels_itoh[i], labels[i].name ? labels[i].name : "", labels[i].description ? labels[i].description : "");
 	}
 }
 
-void framebuffers_update()
+void universe_scene_update(float dt)
 {
-	//TODO(Gavin): Framebuffer rendering should be associated with a particular set of rendered entities, not *ALL* entities.
-	size_t num_framebuffers = 0, num_customdrawables = 0;
-	Framebuffer *framebuffers = ecs_components(E, ecs_ctypes.framebuffer, &num_framebuffers);
-	CustomDrawable *customdrawables = ecs_components(E, ecs_ctypes.customdrawable, &num_customdrawables);
-	for (int i = 0; i < num_framebuffers; i++) {
-		Framebuffer *fb = &framebuffers[i];
-		if (fb->render_every_frame) {
-			for (int j = 0; j < num_customdrawables; j++) {
-				//TODO(Gavin): Bind framebuffer
-				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-				customdrawables[j].draw(&e, fb->camera, ecs_component_itoh(E, ecs_ctypes.customdrawable)[j], NULL);
-			}
+	size_t num_scriptables = 0, num_physicals = 0;
+	ScriptableTemp *scriptables = ecs_components(E, ctypes.scriptable, &num_scriptables);
+	const uint32_t *scriptables_itoh = ecs_component_itoh(E, ctypes.scriptable);
+	for (int i = 0; i < num_scriptables; i++)
+		scriptables[i].script(scriptables_itoh[i]);
+
+	PhysicalTemp *p = ecs_components(E, ctypes.physical, &num_physicals);
+	for (int i = 0; i < num_physicals; i++)
+		component_physical_update(&p[i]);
+}
+
+void camera_recursive_add(struct mempool *m, uint32_t camera)
+{
+	Camera *c = entity_camera(camera);
+	if (c->num_prev == 0 && !c->visited) {
+		c->visited = true;
+		mempool_add(m, &camera);
+		if (c->next) {
+			entity_camera(c->next)->num_prev--;
+			camera_recursive_add(m, c->next);
 		}
 	}
 }
 
 void universe_scene_render()
 {
-	framebuffers_update();
+	/*
+	For now, I'm only concerned about the main camera and the default framebuffer.
+	Later I will modify this to consider multiple cameras with their own attached framebuffers.
+	This can be used for screens, reflection buffers, the galaxy skybox, etc.
+	Basically all render-to-texture stuff.
+
+	This function is currently working as the renderer "system"
+	*/
+	if (key_pressed(SDL_SCANCODE_P)) {
+		universe_print();
+	}
+
+	PhysicalTemp *camera_physical = entity_physicaltemp(default_camera);
+	Camera *camera_camera = entity_camera(default_camera);
+	amat4 inv_eye_frame = amat4_inverse(camera_physical->position);
+	float tmp[16];
+	amat4_to_array(inv_eye_frame, tmp);
+	amat4_buf_mult(camera_camera->proj_mat, tmp, camera_camera->proj_view_mat);
+
+	size_t num_cameras = 0;
+	Camera *cameras = ecs_components(E, ctypes.camera, &num_cameras);
+	struct mempool cameras_sorted = mempool_new(num_cameras, sizeof(uint32_t));
+
+	//Set all cameras to unvisited, find the number of precursors for each.
+	//num_prev assumed to be 0-init, or reset to 0 after previous frame's render.
+	for (int i = 0; i < num_cameras; i++) {
+		cameras[i].visited = false;
+		if (cameras[i].next)
+			entity_camera(cameras[i].next)->num_prev++;
+	}
+
+	//Add each camera in order to topologically sort
+	const uint32_t *cameras_itoh = ecs_component_itoh(E, ctypes.camera);
+	for (int i = 0; i < num_cameras; i++)
+		camera_recursive_add(&cameras_sorted, cameras_itoh[i]);
+
+	//Render each camera
+	for (int i = 0; i < cameras_sorted.num; i++) {
+		uint32_t camera = *(uint32_t *)mempool_get(&cameras_sorted, i);
+		Camera *c = entity_camera(camera);
+		//This is where I would set the framebuffer target
+
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+		size_t num_customdrawables = 0;
+		CustomDrawable *customdrawables = ecs_components(E, ctypes.customdrawable, &num_customdrawables);
+		for (int j = 0; j < num_customdrawables; j++)
+			if ((customdrawables[j].draw_group & c->draw_groups) == c->draw_groups)
+				customdrawables[j].draw(&e, camera, ecs_component_itoh(E, ctypes.customdrawable)[j], NULL);
+
+		//This is where I will draw all the "normal" Drawables (after the CustomDrawables)
+	}
+
+	mempool_delete(&cameras_sorted);
 }
 
 void universe_scene_resize(float width, float height)
 {
-	Framebuffer *fb = entity_framebuffer(default_camera);
-	fb->width = width; fb->height = height;
 	//Update the default camera aspect ratio and re-run the constructor to regenerate the projection matrix.
 	Camera *c = entity_camera(default_camera);
+	c->width = width; c->height = height;
 	c->aspect = width/height;
-	camera_constructor(default_camera, c, e.userdatas[ecs_ctypes.framebuffer]);
+	camera_constructor(default_camera, c, NULL);
 	glViewport(0, 0, width, height);
 }
+
+/*
+TODO 2020/05/20
+
+- create a mesh system so I can draw the spaceship
+	can adapt existing Lua script for now, switch to C for performance later
+- add a controller to the player so it can be controlled
+- decouple the "spiral" shader from its scene, create geometry that covers the same screen area to drive raymarching
+- create "uniform" component that retrieves uniform name from a shader and updates a shader's uniform values
+	-Or not, I could just drive this from a script...
+- create a UI slider component that can render and modify a value on a particular entity's component at some offset
+- create a UI system that can organize and render UI components (also toggle everything on and off)
+	something like add_ui_parent to create a tree of UI components?
+- add another layer of "guide stars" that are visible from a distance
+- spawn real stars when player is close to them (can use qhypertoroidal_buffer_slot again, with a smaller range)
+- create a "free_tree" component that will destroy entities when their lifetime parent entity has been removed (only when a collection pass is run)
+	useful for small number of infrequently-changing things (UI elements, maybe planets?)
+- decide if physical components should have a constructor to give sensible default values to the acc/vel/pos matrices
+	will this be necessary if I switch to quarternions or some other representation?
+
+TODO 2020/09/13
+- BUG: figure out why sometimes when I launch this scene, it's all black
+- bring in all the draw pass stuff from space scene (shadows included)
+*/
+

@@ -39,6 +39,7 @@ SDL_Renderer *renderer = NULL;
 SDL_Window *window = NULL;
 Uint32 windowID = 0;
 lua_State *L = NULL;
+char *data_path = NULL;
 const char *luaconf_path = "conf.lua";
 bool ffmpeg_recording = false;
 FILE *ffmpeg_file;
@@ -84,7 +85,7 @@ void drain_event_queue()
 static void reload_signal_handler(int signo) {
 	printf("Received SIGUSR1! Reloading shaders!\n");
 	scene_reload();
-	luaconf_run(L, luaconf_path);
+	luaconf_run(L, NULL);
 }
 
 int main(int argc, char **argv)
@@ -92,7 +93,7 @@ int main(int argc, char **argv)
 	SDL_GLContext context = NULL;
 	int error = 0;
 
-	sig_atomic_t quit = false; //Use an atomic so that changes from another thread will be seen.
+	sig_atomic_t quit = false;
 
 	if (argc > 1 && !strcmp(argv[1], "test"))
 		testmode = true;
@@ -104,9 +105,27 @@ int main(int argc, char **argv)
 		return result;
 	}
 
+	//Get a base path for any application files (shaders, scripts)
+	{
+	    char *base_path = SDL_GetBasePath();
+	    if (base_path)
+	        data_path = base_path;
+	    else
+	        data_path = SDL_strdup("./");
+	}
+
 	L = luaL_newstate();
 	luaL_openlibs(L);
-	luaconf_run(L, luaconf_path);
+	lua_pushstring(L, data_path);
+	lua_setglobal(L, "data_path");
+	lua_getglobal(L, "data_path");
+	lua_pushstring(L, luaconf_path);
+	lua_concat(L, 2);
+	lua_setglobal(L, "luaconf_path");
+
+	luaconf_run(L, NULL);
+	luaconf_run(L, "libraries.lua");
+
 	char *screen_title = getglob(L, "screen_title", "Creative Title");
 	bool fullscreen = getglobbool(L, "fullscreen", false);
 	SDL_SetRelativeMouseMode(getglobbool(L, "grab_mouse", false));
@@ -239,6 +258,7 @@ int main(int argc, char **argv)
 
 error:
 	scene_set(NULL);
+	SDL_free(data_path);
 	SDL_GL_DeleteContext(context);
 	SDL_DestroyWindow(window);
 	engine_deinit();

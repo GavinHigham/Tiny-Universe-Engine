@@ -5,6 +5,7 @@
 #include "datastructures/ecs.h"
 #include "glla.h"
 #include "math/bpos.h"
+#include "graphics.h"
 #define CD ecs_c_constructor_destructor
 
 //Possible future work: Parse this file (or parse a separate schema file to generate this)
@@ -17,23 +18,20 @@ typedef struct component_camera {
 	float log_depth_intermediate_factor; //Intermediate factor used when rendering with logarithmic depth.
 	bool log_depth;
 	float proj_mat[16];
+	float proj_view_mat[16]; //Will be updated once per frame
+	float width, height;
+	hframebuffer fbo; //Framebuffer object
+	// Camera will '&' drawable's draw_group with this bitfield and draw if the result is nonzero,
+	// unless draw_groups is 0, in which case the camera will draw any drawable, regardless of draw group.
+	// Essentially, draw if (drawable.draw_group & camera.draw_groups) == camera.draw_groups
+	uint32_t draw_groups;
+	//Used to draw cameras "in order". Setting "next" to a camera entity that depends on this one will form a DAG,
+	//cameras will be rendered starting with those that have no prerequisites, until all prerequisites are satisfied.
+	uint32_t next; //Entity (with camera component) that depends on this one.
+	size_t num_prev; //Number of predecessor cameras that this one depends on (will be set and reset during rendering)
+	bool visited; //True if this camera has been visited already, when finding the topological sort of the graph.
 } Camera;
 CD(camera_constructor);
-
-typedef struct component_framebuffer {
-	//TODO(Gavin): Figure out what triggers a framebuffer to be rendered. An event? A script?
-	//Need "every frame" for some, and "only when needed" for others.
-	//I don't like the idea of making the ECS aware of OpenGL, but this is easy enough for now.
-	//Later would be nice to have abstract handles to color buffers, depth buffer, etc.
-	//Basically just want an abstract interface that OpenGL conforms to, so I can change the backend later.
-	//sokol_gfx?
-	union {
-		uint32_t ogl_fbo;
-	};
-	bool render_every_frame;
-	uint32_t camera; //Camera that will render to this framebuffer.
-	float width, height;
-} Framebuffer;
 
 typedef struct component_controllable {
 	// controllable_callback_fn *control;
@@ -48,6 +46,7 @@ typedef struct component_customdrawable {
 	ecs_c_constructor_fn *construct;
 	ecs_c_destructor_fn *destruct;
 	void *ctx;
+	uint32_t draw_group;
 } CustomDrawable;
 CD(customdrawable_constructor);
 CD(customdrawable_destructor);
@@ -75,12 +74,16 @@ typedef struct component_physicaltemp {
 typedef scriptabletemp_callback(scriptabletemp_callback_fn);
 typedef struct component_scriptable {
 	scriptabletemp_callback_fn *script;
-	void *context;
+	void *ctx;
 } ScriptableTemp;
 
 typedef struct component_universal {
 
 } Universal;
+
+typedef struct component_plymesh {
+	struct ply_mesh *mesh;
+} PlyMesh;
 
 typedef struct component_target {
 	uint32_t target;
