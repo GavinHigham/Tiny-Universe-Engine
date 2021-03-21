@@ -5,7 +5,8 @@
 #include <stdbool.h>
 
 //Runs the Lua file located at filepath, and prints errors as appropriate.
-void luaconf_run(lua_State *L, const char *filepath);
+//If basepath is provided, it is used as a prefix to the filepath. 
+void luaconf_run(lua_State *L, const char *basepath, const char *filepath);
 //Just prints an error message. Should rename this in the future when I'm feeling more creative.
 void luaconf_error(lua_State *L, const char *fmt, ...);
 //Returns the global bool with name var from L, or d if var could not be found.

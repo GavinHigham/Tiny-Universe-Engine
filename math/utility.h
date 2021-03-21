@@ -104,7 +104,7 @@ void * crealloc(void *ptr, size_t new_size, size_t old_size);
 //Returns NULL if remaining < size, otherwise returns a pointer to the newly reserved memory.
 void * alloc_from_chunk(void **chunk, size_t *remaining, size_t size);
 
-SDL_Texture * load_texture(char *image_path);
+SDL_Texture * load_texture(SDL_Renderer *renderer, char *image_path);
 GLuint load_gl_texture(char *path);
 
 #endif

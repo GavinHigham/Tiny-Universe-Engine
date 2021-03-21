@@ -4,17 +4,24 @@
 #include <stdbool.h>
 #include "lua_configuration.h"
 
-void luaconf_run(lua_State *L, const char *filepath)
+void luaconf_run(lua_State *L, const char *basepath, const char *filepath)
 {
-	if (filepath) {
-		if (luaL_dofile(L, filepath)) {
-			luaconf_error(L, "cannot run config. file: %s", lua_tostring(L, -1));
-			lua_pop(L, 1);
-		}
-	} else {
-		//TODO: Error handling
-		luaL_dostring(L, "dofile(luaconf_path)");
+	if (!filepath)
+		return;
+
+	int top = lua_gettop(L);
+
+	if (basepath) {
+		lua_pushstring(L, basepath);
+		lua_pushstring(L, filepath);
+		lua_concat(L, 2);
+		filepath = lua_tostring(L, -1);
 	}
+
+	if (luaL_dofile(L, filepath))
+		luaconf_error(L, "cannot run config. file: %s", lua_tostring(L, -1));
+
+	lua_settop(L, top);
 }
 
 //From the examples in "Programming in Lua: Fourth edition"

@@ -52,10 +52,9 @@ void scene_render()
 
 void scene_resize(float width, float height)
 {
-	scene_swap();
 	scene_width = width;
 	scene_height = height;
-	SAFE_CALL(current_scene.resize, width, height);
+	scene_swap();
 }
 
 void scene_reload()

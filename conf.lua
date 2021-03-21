@@ -5,8 +5,8 @@ screen_title = "GFreq - Gavin's Frequency Visualizer"
 fullscreen = false
 grab_mouse = false
 
--- default_scene = "space" --"twotri" --"proctri"
-default_scene = "visualizer"
+default_scene = "space" --"twotri" --"proctri"
+-- default_scene = "visualizer"
 -- default_scene = "spiral"
 -- default_scene = "spawngrid"
 -- default_scene = "atmosphere"

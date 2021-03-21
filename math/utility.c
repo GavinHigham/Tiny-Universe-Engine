@@ -297,8 +297,7 @@ void * alloc_from_chunk(void **chunk, size_t *remaining, size_t size)
 	return allocation;
 }
 
-extern SDL_Renderer *renderer;
-SDL_Texture * load_texture(char *image_path) {
+SDL_Texture * load_texture(SDL_Renderer *renderer, char *image_path) {
 	SDL_Surface *loaded_surface = NULL;
 	SDL_Texture *loaded_texture = NULL;
 

@@ -27,6 +27,19 @@
 //Configuration
 #include "configuration/lua_configuration.h"
 
+lua_State *L = NULL;
+
+/*
+
+==============================================================================================================
+==============================================================================================================
+
+TODO(Gavin): Go through this stuff that I copied from main.c, and figure out how much of it I'll want to keep,
+as I go through various top-level functions and wrap them for use from the Lua interpreter.
+
+==============================================================================================================
+==============================================================================================================
+
 static const int MS_PER_SECOND = 1000;
 static const int FRAMES_PER_SECOND = 60; //Frames per second.
 //static const int MS_PER_UPDATE = MS_PER_SECOND / FRAMES_PER_SECOND;
@@ -40,7 +53,6 @@ static bool ffmpeg_recording = false;
 static int *ffmpeg_buffer = NULL;
 static FILE *ffmpeg_file;
 
-lua_State *L = NULL;
 char *data_path = NULL;
 
 void global_keys(SDL_Keysym keysym, SDL_EventType type)
@@ -279,4 +291,17 @@ error:
 	free(screen_title);
 	free(default_scene);
 	return result;
+}
+*/
+
+static const struct luaL_Reg tu_luafuncs[] = {
+	// {"exampleLuaFunctionName", l_exampleCFunction},
+	{NULL, NULL}
+};
+
+int luaopen_libtu(lua_State *luastate)
+{
+	L = luastate;
+	luaL_newlib(L, tu_luafuncs);
+	return 1;
 }

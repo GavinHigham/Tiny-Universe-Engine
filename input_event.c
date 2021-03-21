@@ -3,26 +3,14 @@
 #include <math.h>
 #include <stdbool.h>
 #include <SDL2/SDL.h>
-#include "emcc_stubs.h"
 #include "input_event.h"
-#include "init.h"
-#include "shader_utils.h"
-#include "scene.h"
 #include "macros.h"
-#include "configuration/lua_configuration.h"
 
-extern SDL_Window *window;
-extern bool ffmpeg_recording;
-extern FILE *ffmpeg_file;
-extern int *ffmpeg_buffer;
-extern lua_State *L;
 static int key_state_numkeys = 0;
 const Uint8 *key_state = NULL;
 Uint8 *key_state_prev = NULL;
 SDL_Event input_mouse_wheel_sum;
 
-extern int loop_iter_ave;
-extern void reload_effects_void_wrapper();
 Sint16 axes[NUM_HANDLED_AXES] = {0};
 bool nes30_buttons[16] = {false};
 
@@ -59,15 +47,6 @@ void input_event_device_arrival(int which)
 		input_joystick = input_joystick ? input_joystick : SDL_JoystickOpen(which);
 }
 
-//I may want to move this somewhere more accessible later, for quitting from a menu and such.
-void push_quit()
-{
-	SDL_Event event;
-	event.type = SDL_QUIT;
-
-    SDL_PushEvent(&event); //If it fails, the quit keypress was just eaten ¯\_(ツ)_/¯
-}
-
 void input_event_init()
 {
 	key_state = SDL_GetKeyboardState(&key_state_numkeys);
@@ -90,56 +69,6 @@ void input_event_save_prev_key_state()
 {
 	for (int i = 0; i < key_state_numkeys; i++)
 		key_state_prev[i] = key_state[i];
-}
-
-void keyevent(SDL_Keysym keysym, SDL_EventType type)
-{
-	static int fullscreen = 0;
-	bool keydown;
-	if (type == SDL_KEYDOWN) {
-		keydown = true;
-	} else {
-		keydown = false;
-	}
-	switch (keysym.scancode) {
-	case SDL_SCANCODE_ESCAPE:
-		push_quit();
-		break;
-	case SDL_SCANCODE_F:
-		if (!keydown) {
-			fullscreen ^= SDL_WINDOW_FULLSCREEN_DESKTOP;
-			SDL_SetWindowFullscreen(window, fullscreen);
-		}
-		break;
-	case SDL_SCANCODE_R:
-		if (keydown) {
-			ffmpeg_recording = !ffmpeg_recording;
-			if (ffmpeg_recording) {
-				printf("Starting to record!\n");
-				char *cmd = getglobstr(L, "ffmpeg_cmd", "output_error.txt");
-				ffmpeg_file = popen(cmd, "w");
-				free(cmd);
-				if (!ffmpeg_file)
-					printf("Could not open ffmpeg file.\n");
-				ffmpeg_buffer = malloc(sizeof(int) * getglob(L, "screen_width", 800) * getglob(L, "screen_height", 600));
-				if (!ffmpeg_buffer)
-					printf("Could not allocate memory.\n");
-			}
-			else {
-				printf("Stopping recording!\n");
-				pclose(ffmpeg_file);
-				free(ffmpeg_buffer);
-			}
-		}
-		break;
-	case SDL_SCANCODE_1:
-		if (!keydown) {
-			scene_reload();
-		}
-		break;
-	default:
-		break;
-	}
 }
 
 void caxisevent(SDL_Event e)

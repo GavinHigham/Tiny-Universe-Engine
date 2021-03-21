@@ -1,5 +1,4 @@
 OBJECTS += \
-	main.o \
 	init.o \
 	input_event.o \
 	buffer_group.o \
