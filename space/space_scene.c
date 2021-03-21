@@ -358,7 +358,7 @@ void space_scene_render()
 	else
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-	//Depth prepass, can also be used as an ambient pass.
+	//Depth prepass, can also be used as an ambient pass (does that hit fillrate higher?).
 	{
 		glUseProgram(effects.forward.handle);
 		if (apass) {

@@ -36,7 +36,7 @@ Epilogue: It worked!
 #define STAR_SIZE (sizeof(int32_t) * 3)
 #define HALF_BOX_SIZE (STAR_BOX_SIZE / 2)
 
-static bpos_origin star_box_quantize_origin(bpos_origin o, int64_t precision)
+static bpos_origin star_box_round_pt(bpos_origin o, int64_t precision)
 {
 	//Shift o by half a box width, and mask off some low-order bits.
 	//Will this cause endian-ness errors? (Do I care?)
@@ -132,7 +132,7 @@ static uint32_t idx_from_pt(bpos_origin pt)
 
 static void bucket_from_pt(struct star_box_ctx *sb, bpos_origin pt, uint32_t *box, uint32_t *bucket)
 {
-	*box = idx_from_pt(star_box_quantize_origin(pt, STAR_BOX_SIZE));
+	*box = idx_from_pt(star_box_round_pt(pt, STAR_BOX_SIZE));
 	qvec3 tmp = pt - sb->origins[*box]; //pt relative to box origin.
 	*bucket = bucket_idx((int32_t[3]){VEC3_COORDS(tmp)});
 }
@@ -252,26 +252,31 @@ Generate any box that does not have a matching origin.
 
 void star_box_update(struct star_box_ctx *sb, bpos_origin observer)
 {
-	bpos_origin center = star_box_quantize_origin(observer, STAR_BOX_SIZE);
+	bpos_origin center = star_box_round_pt(observer, STAR_BOX_SIZE);
 	bool any_changed = false;
 
-	for (uint32_t i = 0; i < STAR_BOX_NUM_BOXES; i++) {
-		bpos_origin curr = center + ((qvec3){i%3, (i/3)%3, (i/9)} - 1)*STAR_BOX_SIZE;
-		uint32_t idx = idx_from_pt(curr);
-		bpos_origin sbo = sb->origins[idx];
-		if (memcmp(&sbo, &curr, sizeof(sbo))) {
-			any_changed = true;
-			//printf("Replacing box at %i, new origin ", i); qvec3_print(curr); puts("");
-			//Generate the stars for that star box.
-			sb->origins[idx] = curr;
-			star_box_generate(sb, sb->origins[idx], idx);
-			glBindBuffer(GL_ARRAY_BUFFER, sb->vbos[idx]);
-			glBufferData(GL_ARRAY_BUFFER, STAR_SIZE*STAR_BOX_STARS_PER_BOX, &sb->stars[idx*3*STAR_BOX_STARS_PER_BOX], GL_STATIC_DRAW);
+	for (uint32_t i = 0; i < 3; i++) {
+		for (uint32_t j = 0; j < 3; j++) {
+			for (uint32_t k = 0; k < 3; k++) {
+				//vector index of the box, an integer along each axis of the box continuum
+				qvec3 box_idx = qhypertoroidal_buffer_slot(observer, STAR_BOX_SIZE, 3, (qvec3){i,j,k});
+				bpos_origin new_origin = box_idx * STAR_BOX_SIZE;
+				uint32_t idx = i + j * 3 + k * 9;
+				if (memcmp(&new_origin, &sb->origins[idx], sizeof(new_origin))) {
+					any_changed = true;
+					printf("Replacing box at %i, new origin ", idx); qvec3_println(new_origin);
+					//Generate the stars for that star box.
+					sb->origins[idx] = new_origin;
+					star_box_generate(sb, box_idx, idx);
+					glBindBuffer(GL_ARRAY_BUFFER, sb->vbos[idx]);
+					glBufferData(GL_ARRAY_BUFFER, STAR_SIZE*STAR_BOX_STARS_PER_BOX, &sb->stars[idx*3*STAR_BOX_STARS_PER_BOX], GL_STATIC_DRAW);
+				}
+			}
 		}
 	}
 
 	if (any_changed) {
-		//printf("Updating stars, new center at "); qvec3_print(center); puts("");
+		printf("Updating stars, new center at "); qvec3_print(center); puts("");
 	}
 }
 

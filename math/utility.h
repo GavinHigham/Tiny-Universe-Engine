@@ -84,12 +84,25 @@ void int_shuffle(int ints[], int num);
 //Performs a division towards negative infinity.
 lldiv_t lldiv_floor(int64_t a, int64_t b);
 
+//Given player position p, slot width, number of circular buffer slots, and slot index,
+//Return the index for the slot contents that should be loaded.
+int64_t qcircular_buffer_slot(int64_t p, int64_t slot_width, int64_t num_slots, int64_t slot_idx);
+
+//Given player position p, slot width, number of circular buffer slots, and slot index,
+//Return the index for the slot contents that should be loaded.
+//Does it independently on each axis, implementing a hypertoroidal buffer.
+qvec3 qhypertoroidal_buffer_slot(qvec3 p, qvec3 slot_width, qvec3 num_slots, qvec3 slot_idx);
+
 //Create a projection matrix with "fov" field of view, "a" aspect ratio, n and f near and far planes.
 //Stick it into buffer buf, ready to send to OpenGL.
 void make_projection_matrix(float fov, float a, float n, float f, float *buf);
 
 //Realloc, but sets new memory to 0.
 void * crealloc(void *ptr, size_t new_size, size_t old_size);
+
+//Reserve part of a chunk of memory, decrementing "remaining" by size each time.
+//Returns NULL if remaining < size, otherwise returns a pointer to the newly reserved memory.
+void * alloc_from_chunk(void **chunk, size_t *remaining, size_t size);
 
 SDL_Texture * load_texture(char *image_path);
 GLuint load_gl_texture(char *path);

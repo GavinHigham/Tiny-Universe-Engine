@@ -56,7 +56,7 @@ static const float ico_tx[] = {
 };
 
 //In my debug view, these colors are applied to tiles based on the number of times they've been split.
-vec3 primary_color_by_depth[] = {
+vec3 proc_planet_primary_color_by_depth[] = {
 	{1.0, 0.0, 0.0}, //Red
 	{0.5, 0.5, 0.0}, //Yellow
 	{0.0, 1.0, 0.0}, //Green
@@ -169,7 +169,7 @@ static bool proc_planet_split_visit(quadtree_node *node, void *context)
 	}
 
 	if (nes30_buttons[INPUT_BUTTON_START])
-		tile->override_col = primary_color_by_depth[depth % LENGTH(primary_color_by_depth)];
+		tile->override_col = proc_planet_primary_color_by_depth[depth % LENGTH(proc_planet_primary_color_by_depth)];
 	else
 		tile->override_col = (vec3){1, 1, 1};
 
@@ -561,7 +561,7 @@ void pp_prep_matrices(amat4 model_matrix, GLfloat pvm[16], GLfloat mm[16], GLflo
 	mat3_vec3_to_array(mat3_transp(model_matrix.a), (vec3){0, 0, 0}, mvnm);
 }
 
-bool point_in_viewport(float *mvpm, float *vpos, float *out)
+bool proc_planet_point_in_viewport(float *mvpm, float *vpos, float *out)
 {
 	float vpos_buf[4] = {vpos[0], vpos[1], vpos[2], 1};
 	float gl_Position[4];
@@ -659,7 +659,7 @@ void proc_planet_draw(amat4 eye_frame, float proj_view_mat[16], proc_planet *pla
 
 		// 		for (int k = 0; k < 3; k++) {
 		// 			float gpu_clip_coords[3];
-		// 			bool gpu_in_viewport = point_in_viewport(gpu_mvpm, ia->pos + 3*k, gpu_clip_coords);
+		// 			bool gpu_in_viewport = proc_planet_point_in_viewport(gpu_mvpm, ia->pos + 3*k, gpu_clip_coords);
 		// 			uint32_t hash = float3_hash(gpu_clip_coords, 18) % 230 + 1;
 
 		// 			printf(ANSI_NUMERIC_FCOLOR "%s%2i: % f, % f, % f" ANSI_COLOR_RESET "\n",
@@ -703,8 +703,8 @@ void proc_planet_draw(amat4 eye_frame, float proj_view_mat[16], proc_planet *pla
 				// 		vec3 tmp = t->big_vertices[k].position;
 				// 		float vpos[3] = {tmp.x, tmp.y, tmp.z};
 
-				// 		bool in_viewport     = point_in_viewport(mvpm, vpos, clip_coords);
-				// 		bool gpu_in_viewport = point_in_viewport(gpu_mvpm, ia->pos + 3*k, gpu_clip_coords);
+				// 		bool in_viewport     = proc_planet_point_in_viewport(mvpm, vpos, clip_coords);
+				// 		bool gpu_in_viewport = proc_planet_point_in_viewport(gpu_mvpm, ia->pos + 3*k, gpu_clip_coords);
 				// 		uint32_t hashes[2] = {float3_hash(clip_coords, 18) % 230 + 1, float3_hash(gpu_clip_coords, 18) % 230 + 1};
 				// 		//vec3 colors[] = {color_from_float3(clip_coords, 10), color_from_float3(gpu_clip_coords, 10)};
 

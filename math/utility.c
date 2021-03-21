@@ -7,6 +7,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <string.h>
+#include <assert.h>
 #include <SDL2/SDL.h>
 
 #define RANDOM_SEED 42 * 1337 + 0xBAE + 'G'+'r'+'e'+'e'+'n' //An excellent random seed
@@ -93,6 +94,7 @@ svec3 rand_box_svec3(svec3 corner1, svec3 corner2)
 
 uint32_t hash_qvec3(qvec3 v)
 {
+	//Not actually a very good hash function, I think. Should revisit this.
 	return ((v.x * 13 + v.y) * 7 + v.z) * 53 + RANDOM_SEED + 2;
 }
 
@@ -194,6 +196,21 @@ lldiv_t lldiv_floor(int64_t a, int64_t b)
 	return d;
 }
 
+int64_t qcircular_buffer_slot(int64_t p, int64_t slot_width, int64_t num_slots, int64_t slot_idx)
+{
+	//Expression made more confusing to avoid truncation
+	return lldiv_floor(p + (num_slots-1)*slot_width/2 - slot_idx*slot_width, num_slots*slot_width).quot*num_slots + slot_idx;
+}
+
+qvec3 qhypertoroidal_buffer_slot(qvec3 p, qvec3 slot_width, qvec3 num_slots, qvec3 slot_idx)
+{
+	return (qvec3){
+		qcircular_buffer_slot(p[0], slot_width[0], num_slots[0], slot_idx[0]),
+		qcircular_buffer_slot(p[1], slot_width[1], num_slots[1], slot_idx[1]),
+		qcircular_buffer_slot(p[2], slot_width[2], num_slots[2], slot_idx[2])
+	};
+}
+
 void make_projection_matrix(float fov, float a, float n, float f, float *buf)
 {
 	float nn = 1.0/tan(fov/2.0);
@@ -265,6 +282,19 @@ void * crealloc(void *ptr, size_t new_size, size_t old_size)
 	if (new_ptr)
 		memset((unsigned char *)new_ptr + old_size, 0, new_size-old_size);
 	return new_ptr;
+}
+
+void * alloc_from_chunk(void **chunk, size_t *remaining, size_t size)
+{
+	assert(*remaining >= size);
+	if (*remaining < size)
+		return NULL;
+	*remaining -= size;
+
+	unsigned char **char_chunk = (unsigned char **)chunk;
+	void *allocation = *char_chunk;
+	*char_chunk += size;
+	return allocation;
 }
 
 extern SDL_Renderer *renderer;
