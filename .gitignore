@@ -1,8 +1,11 @@
 *.o
+*.a
 *.d
 *.orig
 .depend
 sock
+luac
+ffmpeg
 *.sublime-project
 *.sublime-workspace
 *.DS_Store
