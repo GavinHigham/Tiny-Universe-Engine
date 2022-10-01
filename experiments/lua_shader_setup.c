@@ -1,5 +1,5 @@
-#include <lua-5.3.5/src/lua.h>
-#include <lua-5.3.5/src/lauxlib.h>
+#include <lua-5.4.4/src/lua.h>
+#include <lua-5.4.4/src/lauxlib.h>
 
 #include "graphics.h"
 #include "glsw_shaders.h"

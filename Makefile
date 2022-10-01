@@ -5,8 +5,8 @@ MACOS_CFLAGS  = -F/Library/Frameworks
 MACOS_LDFLAGS = -F/Library/Frameworks -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW 
 
 INCLUDES = -Iglla -I$(CURDIR)
-LDFLAGS	 = $(SDL) -Llua-5.3.5/src -llua $(MACOS_LDFLAGS)
-LIBFLAGS = $(SDL) -Llua-5.3.5/src -llua $(MACOS_LDFLAGS) -dynamiclib
+LDFLAGS	 = $(SDL) -Llua-5.4.4/src -llua $(MACOS_LDFLAGS)
+LIBFLAGS = $(SDL) -Llua-5.4.4/src -llua $(MACOS_LDFLAGS) -dynamiclib
 SHADERS	 = $(wildcard shaders/*.vs shaders/*.fs shaders/*.gs)
 # LUA      = $(patsubst %.c,%.o,$(wildcard lua53/*.c)) #Should use this for everything except the experiments folder
 EXE 	 = tu
@@ -49,10 +49,10 @@ include models/Makefile
 .depend:
 	gcc -MM $(INCLUDES) $(CFLAGS) $(patsubst %.o,%.c,$(OBJECTS)) > .depend #Generate dependencies from all .c files, searching recursively.
 
-effects.c: $(SHADERS) effects.h lua-5.3.5 ceffectpp/ceffectpp
+effects.c: $(SHADERS) effects.h lua-5.4.4 ceffectpp/ceffectpp
 	ceffectpp/ceffectpp -c $(SHADERS) > effects.c
 
-effects.h: $(SHADERS) lua-5.3.5 ceffectpp/ceffectpp
+effects.h: $(SHADERS) lua-5.4.4 ceffectpp/ceffectpp
 	ceffectpp/ceffectpp -h $(SHADERS) > effects.h
 
 ceffectpp/ceffectpp:
@@ -61,8 +61,8 @@ ceffectpp/ceffectpp:
 open-simplex-noise.o:
 	cd open-simplex-noise-in-c; make
 
-lua-5.3.5:
-	cd lua-5.3.5; make macosx
+lua-5.4.4:
+	cd lua-5.4.4; make macosx
 
 clean:
 	rm $(OBJECTS)

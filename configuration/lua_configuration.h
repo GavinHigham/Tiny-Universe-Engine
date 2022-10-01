@@ -1,7 +1,7 @@
 #ifndef LUA_CONFIGURATION_LUA_H
 #define LUA_CONFIGURATION_LUA_H
-#include <lua-5.3.5/src/lua.h>
-#include <lua-5.3.5/src/lauxlib.h>
+#include <lua-5.4.4/src/lua.h>
+#include <lua-5.4.4/src/lauxlib.h>
 #include <stdbool.h>
 
 //Runs the Lua file located at filepath, and prints errors as appropriate.

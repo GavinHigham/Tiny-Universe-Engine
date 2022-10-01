@@ -4,9 +4,9 @@
 #include <string.h>
 //#include <SDL2/SDL_opengl.h>
 //Lua headers
-#include <lua-5.3.5/src/lua.h>
-#include <lua-5.3.5/src/lauxlib.h>
-#include <lua-5.3.5/src/lualib.h>
+#include <lua-5.4.4/src/lua.h>
+#include <lua-5.4.4/src/lauxlib.h>
+#include <lua-5.4.4/src/lualib.h>
 //Project headers.
 #include "graphics.h"
 #include "init.h"
