@@ -391,6 +391,7 @@ void space_scene_render()
 	//For each light, draw potential occluders to set the stencil buffer.
 	//Then draw the scene, accumulating non-occluded light onto the models additively.
 	for (int i = 0; i < point_lights.num_lights; i++) {
+	// for (int i = 0; i < point_lights.num_lights; i++) {
 		//Render shadow volumes into the stencil buffer.
 		if (point_lights.shadowing[i]) {
 			glEnable(GL_DEPTH_CLAMP);
@@ -440,6 +441,7 @@ void space_scene_render()
 			glStencilOpSeparate(GL_FRONT_AND_BACK, GL_KEEP, GL_KEEP, GL_KEEP);
 			glUseProgram(effects.forward.handle);
 			forward_update_point_light(&effects.forward, &point_lights, i);
+
 			glEnable(GL_BLEND);
 			glBlendEquation(GL_FUNC_ADD);
 			glBlendFunc(GL_ONE, GL_ONE);
@@ -451,10 +453,10 @@ void space_scene_render()
 				checkErrors("After forward draw shadowed");
 			}
 
-			glUniform1i(effects.forward.ambient_pass, 1);
-			glUniform3f(effects.forward.uLight_col, VEC3_COORDS(sun_color));
-			vec3 sun = bpos_remap((bpos){{0,0,0}, ssystem.origin}, eye_sector);
-			glUniform3f(effects.forward.uLight_pos, VEC3_COORDS(sun)); //was sun_direction
+			// glUniform1i(effects.forward.ambient_pass, 1);
+			// glUniform3f(effects.forward.uLight_col, VEC3_COORDS(sun_color));
+			// vec3 sun = bpos_remap((bpos){{0,0,0}, ssystem.origin}, eye_sector);
+			// glUniform3f(effects.forward.uLight_pos, VEC3_COORDS(sun)); //was sun_direction
 
 			draw_drawable(ship_entity->drawable);
 			// draw_forward_adjacent(&effects.outline, *ship_entity->drawable->bg, ship_entity->physical->position);

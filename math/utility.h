@@ -97,6 +97,9 @@ qvec3 qhypertoroidal_buffer_slot(qvec3 p, qvec3 slot_width, qvec3 num_slots, qve
 //Stick it into buffer buf, ready to send to OpenGL.
 void make_projection_matrix(float fov, float a, float n, float f, float *buf);
 
+//
+int get_tri_lerp_vals(float *lerps, int num_rows);
+
 //Realloc, but sets new memory to 0.
 void * crealloc(void *ptr, size_t new_size, size_t old_size);
 

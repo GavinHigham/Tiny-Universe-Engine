@@ -144,6 +144,10 @@ function ParsePLY.parseFile(file, withTriangleIndexBuffer, withTriangleAdjacency
 		local postProcessSuccess = ParsePLY.postProcess(result, withTriangleIndexBuffer, withTriangleAdjacencyIndexBuffer, generateNormals)
 	end
 
+	for i, element in ipairs(result) do
+		element.properties = element.properties or {}
+	end
+
 	return result or file..': File ended unexpectedly, parse unsuccessful.'
 end
 

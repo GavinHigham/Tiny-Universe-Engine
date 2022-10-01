@@ -112,4 +112,5 @@ void main() {
 	float gamma = 2.2;
 	color = pow(color, vec3(1.0 / gamma));
 	LFragment = vec4(color, 1.0);
+	LFragment = vec4(1.0); //TODO(Gavin): Find my planet!
 }

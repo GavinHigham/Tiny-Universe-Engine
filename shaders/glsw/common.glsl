@@ -345,5 +345,3 @@ vec3 TurboColormap(in float x)
 		dot(v4, kBlueVec4)  + dot(v2, kBlueVec2)
 	);
 }
-
---

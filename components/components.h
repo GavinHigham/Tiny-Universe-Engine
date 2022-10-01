@@ -36,7 +36,7 @@ CD(camera_constructor);
 typedef struct component_controllable {
 	// controllable_callback_fn *control;
 	void *context;
-} ControllableTemp;
+} ControllableTemp; //TODO(Gavin): Rename "Controllable" when universe_scene reaches parity with space_scene
 
 #define customdrawable_callback(name) void name(ecs_ctx *E, uint32_t camera, uint32_t self, void *ctx)
 typedef customdrawable_callback(customdrawable_callback_fn);

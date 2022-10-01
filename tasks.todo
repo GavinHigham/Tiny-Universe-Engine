@@ -11,8 +11,8 @@ Planets:
   ☐ Atmosphere
     ✔ Read "Texturing and Modelling: A Procedural Approach" chapter @done (19-08-18 15:59)
     ✔ Read Alan Zucconi tutorial @done (19-08-18 15:59)
-    ☐ Implement simple shader (no planet occlusion)
-    ☐ Implement planet occlusion
+    ✔ Implement simple shader (no planet occlusion) @done (20-06-13 18:40)
+    ✔ Implement planet occlusion @done (20-06-13 18:40)
     ☐ See if I can exploit symmetry
       ☐ See if I can integrate over entire symmetrical atmosphere planet volume
       ☐ See if I can do the atmosphere volume then subtract planet volume influence?

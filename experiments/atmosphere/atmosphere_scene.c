@@ -24,7 +24,6 @@ extern lua_State *L;
 SCENE_IMPLEMENT(atmosphere);
 static struct trackball atmosphere_trackball;
 
-static SDL_Surface *test_surface = NULL;
 static float screen_width = 640, screen_height = 480;
 static int mouse_x = 0, mouse_y = 0;
 
@@ -66,19 +65,7 @@ static GLuint SHADER, VAO, MM, DM, MVPM, EP, LP, PL, FL, IS, TI, AH, AB, PP, CP,
 static GLint POSITION_ATTR, TX_ATTR;
 
 /* Scene Variables */
-struct atmosphere_tweaks {
-	float planet_radius;
-	float fov;
-	float focal_length;
-	float scene_time;
-	float atmosphere_height;
-	float samples_ab, samples_cp;
-	float p_and_p;
-	float air_b[3];
-	float scale_height;
-	float planet_scale;
-	bool show_tweaks;
-} g_atmosphere_tweaks;
+struct atmosphere_tweaks g_atmosphere_tweaks;
 
 /* UI */
 meter_ctx g_atmosphere_meters;
@@ -296,7 +283,7 @@ void atmosphere_scene_resize(float width, float height)
 	screen_width = width;
 	screen_height = height;
 	meter_resize_screen(&g_atmosphere_meters, screen_width, screen_height);
-	make_projection_matrix(g_atmosphere_tweaks.fov, screen_width/screen_height, 0.1, 200, proj_mat);	
+	make_projection_matrix(g_atmosphere_tweaks.fov, screen_width/screen_height, 0.1, 200, proj_mat);
 }
 
 void atmosphere_scene_deinit()
@@ -304,7 +291,6 @@ void atmosphere_scene_deinit()
 	glDeleteVertexArrays(1, &VAO);
 	glDeleteBuffers(2, &gl_buffers[VBO]);
 	glDeleteProgram(SHADER);
-	SDL_FreeSurface(test_surface);
 }
 
 void atmosphere_scene_update(float dt)

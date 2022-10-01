@@ -22,7 +22,6 @@
 /* Implementing scene "interface" */
 
 SCENE_IMPLEMENT(proctri);
-int get_tri_lerp_vals(float *lerps, int num_rows);
 
 static float screen_width = 640, screen_height = 480;
 static int mouse_x = 0, mouse_y = 0;
@@ -260,23 +259,4 @@ void proctri_scene_render()
 	checkErrors("After instanced draw");
 
 	glBindVertexArray(0);
-}
-
-int get_tri_lerp_vals(float *lerps, int num_rows)
-{
-	int written = 0;
-	//Avoid divide-by-zero for 0th row.
-	lerps[written++] = 0;
-	lerps[written++] = 0;
-	//Row by row, from top to bottom.
-	for (int i = 1; i <= num_rows; i++) {
-		float left = (float)i/num_rows;
-		//Along each row, from left to right.
-		for (int j = 0; j <= i; j++) {
-			float right = (float)j/i;
-			lerps[written++] = right;
-			lerps[written++] = left;
-		}
-	}
-	return written;
 }

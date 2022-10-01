@@ -1,15 +1,16 @@
 --Window config values
-screen_width  = 1920
-screen_height = 1080
+screen_width  = 1024
+screen_height = 768
 screen_title = "GFreq - Gavin's Frequency Visualizer"
 fullscreen = false
 grab_mouse = false
+allow_highdpi = false --Experimental, does not handle window resize.
 
-default_scene = "space" --"twotri" --"proctri"
+-- default_scene = "space" --"twotri" --"proctri"
 -- default_scene = "visualizer"
 -- default_scene = "spiral"
 -- default_scene = "spawngrid"
--- default_scene = "atmosphere"
+default_scene = "atmosphere"
 -- default_scene = "universe"
 
 --ffmpeg recording

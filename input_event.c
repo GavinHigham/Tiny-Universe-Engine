@@ -9,6 +9,8 @@
 static int key_state_numkeys = 0;
 const Uint8 *key_state = NULL;
 Uint8 *key_state_prev = NULL;
+static Uint32 mouse_state = 0;
+static Uint32 mouse_state_prev = 0;
 SDL_Event input_mouse_wheel_sum;
 
 Sint16 axes[NUM_HANDLED_AXES] = {0};
@@ -69,6 +71,12 @@ void input_event_save_prev_key_state()
 {
 	for (int i = 0; i < key_state_numkeys; i++)
 		key_state_prev[i] = key_state[i];
+}
+
+void input_event_save_prev_mouse_state()
+{
+	mouse_state_prev = mouse_state;
+	mouse_state = SDL_GetMouseState(NULL, NULL);
 }
 
 void caxisevent(SDL_Event e)
@@ -163,5 +171,12 @@ void mousewheelreset()
 Uint8 key_pressed(SDL_Scancode s)
 {
 	return key_state[s] && !key_state_prev[s];
+}
+
+Uint8 mouse_button_pressed(int *x, int *y)
+{
+	//Does not necessarily return the most recent mouse state, for intra-frame consistency
+	SDL_GetMouseState(x, y);
+	return mouse_state & ~mouse_state_prev;
 }
 

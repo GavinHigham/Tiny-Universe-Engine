@@ -122,8 +122,9 @@ void main() {
 	//final_color = mix(final_color, fog_color, pow(distance(fPos, camera_position)/1000, 4.0)); 
 
 	//Tone mapping.
-	//float x = 0.0001;
-	//final_color = (final_color * (6.2 * x + 0.5))/(final_color * (6.2 * final_color + 1.7) + 0.06);
+	// float x = 0.0001;
+	// final_color = (final_color * (6.2 * x + 0.5))/(final_color * (6.2 * final_color + 1.7) + 0.06);
+	// final_color += normalize(cross(dFdy(fNormal.xyz), dFdx(fNormal.xyz)));
 	final_color = final_color / (final_color + vec3(1.0));
 	//final_color = final_color / (max(max(final_color.x, final_color.y), final_color.z) + 1);
 

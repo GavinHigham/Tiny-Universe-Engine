@@ -13,7 +13,7 @@ void main()
 -- fragment.GL33 --
 
 uniform vec2 iResolution;
-uniform vec2 iTime;
+uniform vec3 iTime;
 uniform float iFocalLength;
 uniform mat3 dir_mat;
 uniform vec3 eye_pos = vec3(0.0);
@@ -71,8 +71,8 @@ float snoise_oct(vec3 v, int oct)
 //Density of the spiral portion of the galaxy, no noise or profile, etc.
 float spiral_density(vec3 p)
 {
-	float r = atan(p.x, p.z) + //Polar coordinates
-		rotation / 3000.0 * length(p.xz);
+	float r = atan(p.x, p.z) + rotation / 3000.0 * length(p.xz);
+	// float r = atan(p.x*pow(E, 1.0/length(p.xz)), 0.7*p.z);
 	return pow(
 		sin(2.0 * r) * 0.5 + 0.5, //Smoothly wrap to 0.0-1.0. Could possibly replace with fract?
 		tweaks1.x);
@@ -192,7 +192,8 @@ void main() {
 
 	#ifdef NOISE
 		// vec3 noise_step = step * snoise(ro * 10.0 * iTime.x);
-		start_bias += step_dist * fract(snoise((ro + max_dist*rd) * 10.0) + PHI * iTime.y);
+		// start_bias += step_dist * fract(snoise((ro + max_dist*rd) * 10.0) + PHI * iTime.y);
+		start_bias += step_dist * fract(snoise((ro + max_dist*rd) * 10.0) + iTime.z);
 		// vec3 noise_step = step * fract(int(gl_FragCoord.x + gl_FragCoord.y)/2.0 + PHI * iTime.y);
 	#else
 		float golden_step = mod(PHI * iTime.y * step_dist, step_dist) / step_dist;

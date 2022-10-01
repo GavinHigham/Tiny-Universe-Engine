@@ -276,6 +276,27 @@ vec3 color_from_float3(float *f, float scale)
 	return color_from_position((vec3){f[0], f[1], f[2]}, scale);
 }
 
+//Returns weights for vertices in a triangular lattice
+//for mixing between values from the 3 corner vertices
+int get_tri_lerp_vals(float *lerps, int num_rows)
+{
+	int written = 0;
+	//Avoid divide-by-zero for 0th row.
+	lerps[written++] = 0;
+	lerps[written++] = 0;
+	//Row by row, from top to bottom.
+	for (int i = 1; i <= num_rows; i++) {
+		float left = (float)i/num_rows;
+		//Along each row, from left to right.
+		for (int j = 0; j <= i; j++) {
+			float right = (float)j/i;
+			lerps[written++] = right;
+			lerps[written++] = left;
+		}
+	}
+	return written;
+}
+
 void * crealloc(void *ptr, size_t new_size, size_t old_size)
 {
 	void *new_ptr = realloc(ptr, new_size);

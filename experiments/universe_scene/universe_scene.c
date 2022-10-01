@@ -18,7 +18,8 @@ struct game_scene universe_scene;
 uint32_t default_camera = 0;
 uint32_t test_planet = 0;
 struct entity_ctypes universe_ecs_ctypes = {0};
-static ecs_ctx universe_ecs_ctx = {.user_ctypes = &universe_ecs_ctypes};
+static ecs_ctx universe_ecs_ctx = {};
+static struct ply_mesh_renderer_ctx ply_ctx = {};
 ecs_ctx *puniverse_ecs_ctx = &universe_ecs_ctx;
 //Short names for convenience
 #define E puniverse_ecs_ctx
@@ -138,18 +139,27 @@ scriptabletemp_callback(entity_camera_script)
 	int scroll_x = input_mouse_wheel_sum.wheel.x, scroll_y = input_mouse_wheel_sum.wheel.y;
 	trackball_step(&t->trackball, mouse_x, mouse_y, button, scroll_x, scroll_y);
 
-	c->position = t->trackball.camera;
-	// qvec3_println(c->origin);
-	// c->position.a = mat3_lookat(
-	// 	mat3_multvec(p->position.a, c->position.t) + mat3_multvec(p->position.a, p->position.t), //Look source, relative to p.
-	// 	mat3_multvec(p->position.a, p->position.t), //Look target (p), relative to p.
-	// 	mat3_multvec(p->position.a, (vec3){0, 1, 0})); //Up vector, relative to p.
+	// c->position = t->trackball.camera;
+
+	c->position.a = mat3_lookat(
+		mat3_multvec(p->position.a, c->position.t) + mat3_multvec(p->position.a, p->position.t), //Look source, relative to ship.
+		mat3_multvec(p->position.a, p->position.t), //Look target (ship), relative to ship.
+		mat3_multvec(p->position.a, (vec3){0, 1, 0})); //Up vector, relative to ship.
+
+	//Translate the camera using WASD.
+	float camera_speed = 0.5;
+	c->position.t = c->position.t + //Honestly I just tried things at random until it worked, but here's my guess:
+		mat3_multvec(mat3_transp(p->position.a), // 2) Convert those coordinates from world-space to ship-space.
+			mat3_multvec(p->position.a, (vec3){ // 1) Move relative to the frame pointed at the ship.
+			(key_state[SDL_SCANCODE_D] - key_state[SDL_SCANCODE_A]) * camera_speed,
+			(key_state[SDL_SCANCODE_Q] - key_state[SDL_SCANCODE_E]) * camera_speed,
+			(key_state[SDL_SCANCODE_S] - key_state[SDL_SCANCODE_W]) * camera_speed}));
 }
 
 static uint32_t entity_default_camera_new(uint32_t target, float width, float height)
 {
 	uint32_t camera = entity_new();
-	entity_add(camera, (PhysicalTemp){.position = (amat4)AMAT4_IDENT, .velocity = (amat4)AMAT4_IDENT, .acceleration = (amat4)AMAT4_IDENT});
+	entity_add(camera, (PhysicalTemp){.position = {.a = MAT3_IDENT, .t = {0, 4, 8}}, .velocity = AMAT4_IDENT, .acceleration = AMAT4_IDENT});
 	entity_add(camera, (ScriptableTemp){.script = entity_camera_script});
 	entity_add(camera, (Camera){.fov = M_PI/3.0, .aspect = width/height, .near = -0.5, .far = -10000000, .width = width, .height = height});
 	entity_add(camera, (Target){.target = target});
@@ -163,14 +173,14 @@ scriptabletemp_callback(entity_player_script)
 {
 	PhysicalTemp *p = entity_physicaltemp(eid);
 	assert(p);
-	if (key_state[SDL_SCANCODE_W])
-		p->velocity.t.z -= 10000000000.0;
-	if (key_state[SDL_SCANCODE_S])
-		p->velocity.t.z += 10000000000.0;
+	// if (key_state[SDL_SCANCODE_W])
+	// 	p->velocity.t.z -= 1.0;
+	// if (key_state[SDL_SCANCODE_S])
+	// 	p->velocity.t.z += 1.0;
 
-	printf("Printing player stuff:\n");
-	qvec3_println(p->origin);
-	vec3_println(p->position.t);
+	// printf("Printing player stuff:\n");
+	// qvec3_println(p->origin);
+	// vec3_println(p->position.t);
 
 	PhysicalTemp *pp = entity_physicaltemp(test_planet);
 	gpu_planet *gp = entity_scriptable(test_planet)->context;
@@ -179,6 +189,81 @@ scriptabletemp_callback(entity_player_script)
 	qvec3_println(pp->origin);
 	vec3_println(pp->position.t);
 	printf("Altitude: %f\n", gpu_planet_altitude(gp, (bpos){p->position.t, p->origin}, &intersection));
+
+	//Hack together pieces from the old ECS to get this working so I can turn the camera and fix the planet rendering
+
+	float controller_max = 32768.0;
+	struct controller_axis_input input = {
+		axes[LEFTX]  / controller_max,
+		axes[LEFTY]  / controller_max,
+		axes[RIGHTX] / controller_max,
+		axes[RIGHTY] / controller_max,
+		axes[TRIGGERLEFT]  / controller_max,
+		axes[TRIGGERRIGHT] / controller_max,
+	};
+	const bool * const buttons = nes30_buttons;
+
+	struct mouse_input mouse;
+	mouse.buttons = SDL_GetRelativeMouseState(&mouse.x, &mouse.y);
+
+	input = controller_input_apply_threshold(input, 0.005);
+	printf("Input: %.2f, %.2f, %.2f, %.2f\n", input.leftx, input.lefty, input.rightx, input.righty);
+	float speed = 10;
+
+	//Set the ship's acceleration using the controller axes.
+	vec3 dir = mat3_multvec(p->position.a, (vec3){
+		 input.leftx,
+		-input.lefty,
+		buttons[INPUT_BUTTON_L2] - buttons[INPUT_BUTTON_R2]});//speed * (input.rtrigger - input.ltrigger)});
+
+
+
+	if (buttons[INPUT_BUTTON_A])
+		p->acceleration.t += 300 * dir;
+	else
+		p->acceleration.t = speed * dir;
+
+	//Angular velocity is currently determined by how much each axis is deflected.
+	float a1 = -input.rightx / 100;
+	float a2 = input.righty / 100;
+	p->velocity.a = mat3_rot(mat3_rotmat(0, 0, 1, sin(a1), cos(a1)), 1, 0, 0, sin(a2), cos(a2));
+
+	if (buttons[INPUT_BUTTON_Y])
+		p->velocity.a = (mat3)MAT3_IDENT;
+
+	if (buttons[INPUT_BUTTON_X]) {
+		p->acceleration.t = (vec3){0, 0, 0};
+		p->velocity.t = (vec3){0, 0, 0};
+	}
+
+	//Add our acceleration to our velocity to change our speed.
+	p->velocity.t += p->acceleration.t;
+
+	//Rotate the ship by applying the angular velocity to the angular orientation.
+	p->position.a = mat3_mult(p->position.a, p->velocity.a);
+
+	//Move the ship by applying the velocity to the position.
+	if (buttons[INPUT_BUTTON_B])
+		p->position.t += (10000 * p->acceleration.t);
+	else
+		p->position.t += p->velocity.t;
+
+	bpos_split_fix(&p->position.t, &p->origin);
+
+	//Commented out because I keep hitting T by mistake.
+	//Useful for debug teleportation.
+	// if (key_state[SDL_SCANCODE_T]) {
+	// 	printf("Ship is at ");
+	// 	qvec3_print(p->origin);
+	// 	vec3_print(p->position.t);
+	// 	puts(", where would you like to teleport?");
+	// 	float x, y, z;
+	// 	int_fast64_t sx, sy, sz;
+	// 	scanf("%lli %lli %lli %f %f %f", &sx, &sy, &sz, &x, &y, &z);
+	// 	p->position.t = (vec3){x, y, z};
+	// 	p->origin = (bpos_origin){sx, sy, sz};
+	// 	bpos_split_fix(&p->position.t, &p->origin);
+	// }
 }
 
 static uint32_t entity_player_new()
@@ -211,8 +296,10 @@ int universe_scene_init()
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
 	glClearColor(0.01f, 0.02f, 0.03f, 1.0f);
+	// glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
 
 	e = ecs_new(10000, 50);
+	e.user_ctypes = &ctypes;
 
 	//TODO(Gavin): Validate ctypes, in case a component type is uninitialized.
 	for (int i = 0; i < LENGTH(component_init_params); i++) {

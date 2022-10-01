@@ -812,7 +812,7 @@ customdrawable_callback(entity_gpu_planet_draw)
 	PhysicalTemp *cp = entity_physicaltemp(camera);
 	CustomDrawable *cd = entity_customdrawable(self);
 	PhysicalTemp *pt = entity_physicaltemp(self);
-	assert(c && cd && pt);
+	assert(c && cp && cd && pt);
 	// glUniform1f(effects.star_box.log_depth_intermediate_factor, c->log_depth_intermediate_factor);
 	// star_box_draw(entity_customdrawable(self)->ctx, entity_physicaltemp(camera)->origin, c->proj_view_mat);
 	// checkErrors("Universe %d", __LINE__);
@@ -834,11 +834,11 @@ uint32_t entity_gpu_planet_new()
 	entity_add(planet, (Label){.name = "Test GPU Planet", .description = "An entity to test my GPU planet generation."});
 	//TODO(Gavin): Salvage / adapt my solar system code to make sense with the ECS
 	//Also decide how elements will work with the GPU acceleration
-	int num_elements = 4;
+	int num_elements = 2;
 	int elements[num_elements];
 	element_get_random_set(elements, num_elements);
-	gpu_planet *gp = gpu_planet_new(6000000, gpu_planet_height, elements, num_elements);
-	entity_add(planet, (PhysicalTemp){.position = {.a = MAT3_IDENT, .t = {0, 0, -6050000}}, .velocity = (amat4)AMAT4_IDENT, .acceleration = (amat4)AMAT4_IDENT});
+	gpu_planet *gp = gpu_planet_new(600, gpu_planet_height, elements, num_elements);
+	entity_add(planet, (PhysicalTemp){.position = {.a = MAT3_IDENT, .t = {0, 0, -650}}, .velocity = (amat4)AMAT4_IDENT, .acceleration = (amat4)AMAT4_IDENT});
 	entity_add(planet, (ScriptableTemp){.ctx = gp, .script = entity_gpu_planet_script});
 	entity_add(planet, (CustomDrawable){.ctx = gp, .draw = entity_gpu_planet_draw, .destruct = entity_gpu_planet_destruct});
 

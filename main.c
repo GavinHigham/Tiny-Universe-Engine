@@ -151,6 +151,7 @@ int main(int argc, char **argv)
 	float screen_width = getglob(L, "screen_width", 800);
 	float screen_height = getglob(L, "screen_height", 600);
 	bool fullscreen = getglobbool(L, "fullscreen", false);
+	bool highdpi = getglobbool(L, "allow_highdpi", false);
 	SDL_SetRelativeMouseMode(getglobbool(L, "grab_mouse", false));
 
 	SDL_GLContext context = NULL;
@@ -161,7 +162,7 @@ int main(int argc, char **argv)
 		SDL_WINDOWPOS_UNDEFINED,
 		screen_width,
 		screen_height,
-		SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+		SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | (highdpi ? SDL_WINDOW_ALLOW_HIGHDPI : 0));
 
 		if (window == NULL) {
 			fprintf(stderr, "Window could not be created! SDL_Error: %s\n", SDL_GetError());
@@ -175,6 +176,10 @@ int main(int argc, char **argv)
 			goto error;
 		}
 	}
+
+	int drawable_width = screen_width;
+	int drawable_height = screen_height;
+	SDL_GL_GetDrawableSize(window, &drawable_width, &drawable_height);
 
 	result = engine_init();
 	if (result < 0) {
@@ -209,7 +214,7 @@ int main(int argc, char **argv)
 	for (int i = 0; i < LENGTH(scenes); i++)
 		if (!strcmp(chosen_scene, scenes[i]->name))
 			scene_set(scenes[i]);
-	scene_resize(screen_width, screen_height);
+	scene_resize(drawable_width, drawable_height);
 
 	if (fullscreen)
 		SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
@@ -244,6 +249,7 @@ int main(int argc, char **argv)
 				//WARNING: This modifies the input state.
 				//Done here because there are sometimes issues detecting "pressed" edges from rapid keypresses if it's placed after the SDL_Delay
 				input_event_save_prev_key_state();
+				input_event_save_prev_mouse_state();
 		} else if ((frame_time_ms - since_update_ms) > wake_early_ms) { //If there's more than wake_early_ms milliseconds left...
 			SDL_Delay(frame_time_ms - since_update_ms - wake_early_ms); //Sleep up until wake_early_ms milliseconds left. (Busywait the rest)
 		}

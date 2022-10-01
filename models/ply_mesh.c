@@ -232,24 +232,24 @@ struct ply_mesh * ply_mesh_load(const char *filename, int flags)
 	for (int i = 0; i < mesh->num_elements; i++) {
 		ply_print("Getting element %i/%lu, top: %i\n", i+1, mesh->num_elements, lua_gettop(L));
 		struct ply_element *element = &(mesh->elements[i]);
-		lua_rawgeti(L, 2, i+1);
+		lua_rawgeti(L, top+2, i+1);
 
 		ply_print("Getting properties\n");
-		lua_getfield(L, 3, "properties");
+		lua_getfield(L, top+3, "properties");
 		element->num_properties = luaL_len(L, -1);
 		element->properties = alloc_from_chunk(&slab, &remaining, sizeof(struct ply_property) * element->num_properties);
 		// lua_pop(L, 1);
 
 		ply_print("Getting name\n");
 		size_t element_name_len;
-		lua_getfield(L, 3, "name");
+		lua_getfield(L, top+3, "name");
 		const char *element_name = lua_tolstring(L, -1, &element_name_len);
 		element_name_len++;
 		element->name = alloc_from_chunk(&slab, &remaining, element_name_len);
 		memcpy(element->name, element_name, element_name_len);
 
 		ply_print("Getting count\n");
-		lua_getfield(L, 3, "count");
+		lua_getfield(L, top+3, "count");
 		element->count = lua_tointeger(L, -1);
 
 		ply_print("top: %i\n", lua_gettop(L));
@@ -258,7 +258,7 @@ struct ply_mesh * ply_mesh_load(const char *filename, int flags)
 		for (int j = 0; j < element->num_properties; j++) {
 			ply_print("Getting property %i/%lu of element %i, top: %i\n", j+1, element->num_properties, i, lua_gettop(L));
 			struct ply_property *property = &(element->properties[j]);
-			lua_rawgeti(L, 4, j+1);
+			lua_rawgeti(L, top+4, j+1);
 			size_t property_name_len;
 			lua_getfield(L, -1, "name");
 			ply_print("Getting name\n");
@@ -288,9 +288,9 @@ struct ply_mesh * ply_mesh_load(const char *filename, int flags)
 			lua_pop(L, 3);
 		}
 
-		lua_getfield(L, 3, "data_size");
+		lua_getfield(L, top+3, "data_size");
 		element->data = alloc_from_chunk(&slab, &remaining, lua_tointeger(L, -1));
-		lua_getfield(L, 3, "data");
+		lua_getfield(L, top+3, "data");
 		size_t data_count = luaL_len(L, -1);
 
 		ply_print("top: %i\n", lua_gettop(L));

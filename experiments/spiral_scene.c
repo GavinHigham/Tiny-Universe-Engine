@@ -34,6 +34,7 @@ static int texture_divisor = 0;
 static int cubemap_divisor = 0;
 static int max_cubemap_divisor = 180;
 static int max_texture_divisor = 180;
+static float iteration_bias = 0;
 static bool accumulate = true;
 bool show_tweaks = true;
 static bool draw_to_cubemap = false;
@@ -174,6 +175,8 @@ void spiral_scene_update(float dt)
 
 	if (key_pressed(SDL_SCANCODE_C))
 		draw_to_cubemap = !draw_to_cubemap;
+
+	iteration_bias = fmod(iteration_bias + 1.61803398874989, 1.0);
 }
 
 void galaxy_render_to_cubemap(struct galaxy_tweaks gt, struct galaxy_ogl gal, struct blend_params bp, amat4 camera, struct renderable_cubemap rc, int framecount, bool clear_first)
@@ -206,7 +209,7 @@ void galaxy_render_to_cubemap(struct galaxy_tweaks gt, struct galaxy_ogl gal, st
 	glUniform1f(gal.unif.bright, gt.brightness);
 	glUniform1f(gal.unif.render_dist, gt.render_dist);
 	checkErrors("After sending render_dist");
-	glUniform2f(gal.unif.time, SDL_GetTicks() / 1000.0, framecount);
+	glUniform3f(gal.unif.time, SDL_GetTicks() / 1000.0, framecount, iteration_bias);
 	glUniform4f(gal.unif.mouse, mouse_x, mouse_y, 0, 0);
 
 	glUniform4fv(gal.unif.tweaks, 1, gt.tweaks1);
@@ -339,7 +342,7 @@ void galaxy_render_to_texture(struct galaxy_tweaks gt, struct galaxy_ogl gal, st
 	glUniform1f(gal.unif.bright, gt.brightness);
 	glUniform1f(gal.unif.render_dist, gt.render_dist);
 	checkErrors("After sending render_dist");
-	glUniform2f(gal.unif.time, SDL_GetTicks() / 1000.0, framecount);
+	glUniform3f(gal.unif.time, SDL_GetTicks() / 1000.0, framecount, iteration_bias);
 	glUniform4f(gal.unif.mouse, mouse_x, mouse_y, 0, 0);
 
 	glUniform4fv(gal.unif.tweaks, 1, gt.tweaks1);

@@ -12,8 +12,6 @@ extern int64_t solar_system_star;
 extern bpos_origin eye_sector;
 extern struct star_box_ctx star_box_context; //This is just here to keep space_scene compiling while I migrate to universe_scene
 
-
-//Collect these in a camera module?
 controllable_callback(camera_control)
 {
 
