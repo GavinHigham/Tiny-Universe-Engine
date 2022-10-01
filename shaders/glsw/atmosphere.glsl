@@ -118,6 +118,7 @@ vec3 atmosphere(vec3 ro, vec3 rd, vec4 abcd, float s, vec4 pl, float rA, vec3 l,
 	vec3 b = air_lambda * planet_scale_factor;//beta(air_lambda);
 	//Length of a sample segment on AB
 	float d_ab = distance(abcd.x, abcd.y) / abSamples;
+
 	//Sum of optical depth along AB
 	float abSum = 0.0;
 	vec3 T = vec3(0.0);

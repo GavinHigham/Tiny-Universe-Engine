@@ -9,6 +9,12 @@
 void luaconf_run(lua_State *L, const char *basepath, const char *filepath);
 //Just prints an error message. Should rename this in the future when I'm feeling more creative.
 void luaconf_error(lua_State *L, const char *fmt, ...);
+//Registers a builtin library such that it can be found with "require" in Lua.
+//luaopen_fn is a Lua C library loader, and name is what should be passed to require to retrieve that loader.
+//This is done by setting a searcher function in Lua's package.searchers (after all default searchers).
+int luaconf_register_builtin_lib(lua_State *L, lua_CFunction luaopen_fn, const char *name);
+//Unregisters a builtin library
+void luaconf_unregister_builtin_lib(lua_State *L, const char *name);
 //Returns the global bool with name var from L, or d if var could not be found.
 bool getglobbool(lua_State *L, const char *var, bool d);
 //Returns the global int with name var from L, or d if var could not be found.

@@ -12,6 +12,9 @@ allow_highdpi = false --Experimental, does not handle window resize.
 -- default_scene = "spawngrid"
 default_scene = "atmosphere"
 -- default_scene = "universe"
+-- default_scene = 'lua'
+
+lua_scene = 'luaengine/scripts/proctri_scene'
 
 --ffmpeg recording
 ffmpeg_cmd = "ffmpeg -r 60 -f rawvideo -pix_fmt rgba -s " .. screen_width .. "x" .. screen_height .. " -i - -threads 0 -preset fast -y -pix_fmt yuv420p -crf 21 -vf vflip output.mp4"

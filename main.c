@@ -15,6 +15,7 @@
 #include "macros.h"
 //Scenes
 #include "space/space_scene.h"
+#include "luaengine/lua_scene.h"
 #include "experiments/icosphere_scene.h"
 #include "experiments/proctri_scene.h"
 #include "experiments/spiral_scene.h"
@@ -207,6 +208,7 @@ int main(int argc, char **argv)
 		&atmosphere_scene,
 		&universe_scene,
 		&spawngrid_scene,
+		&lua_scene,
 	};
 
 	//Scenes usually depend on OpenGL being init'd.

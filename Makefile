@@ -25,6 +25,8 @@ include experiments/experiments.mk
 include trackball/trackball.mk
 include meter/meter.mk
 include components/components.mk
+include systems/systems.mk
+include luaengine/luaengine.mk
 include test/test.mk
 
 MAIN_OBJ = main.o
