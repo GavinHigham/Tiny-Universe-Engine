@@ -6,6 +6,8 @@
 #include "glla.h"
 #include "math/bpos.h"
 #include "graphics.h"
+#include "systems/ply_mesh_renderer.h"
+
 #define CD ecs_c_constructor_destructor
 
 //Possible future work: Parse this file (or parse a separate schema file to generate this)
@@ -68,21 +70,21 @@ typedef struct component_physicaltemp {
 	amat4 velocity;
 	amat4 acceleration;
 	bpos_origin origin; //May later want to move this into a separate component for performance.
-} PhysicalTemp;
+} PhysicalTemp; //TODO(Gavin): Rename "Physical" when universe_scene reaches parity with space_scene
 
 #define scriptabletemp_callback(name) void name(uint32_t eid)
 typedef scriptabletemp_callback(scriptabletemp_callback_fn);
 typedef struct component_scriptable {
 	scriptabletemp_callback_fn *script;
 	void *ctx;
-} ScriptableTemp;
+} ScriptableTemp; //TODO(Gavin): Rename "Scriptable" when universe_scene reaches parity with space_scene
 
 typedef struct component_universal {
 
 } Universal;
 
 typedef struct component_plymesh {
-	struct ply_mesh *mesh;
+	ply_mesh_handle mesh;
 } PlyMesh;
 
 typedef struct component_target {

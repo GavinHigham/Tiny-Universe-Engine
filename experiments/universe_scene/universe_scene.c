@@ -10,6 +10,7 @@
 #include "experiments/universe_scene/universe_ecs.h"
 #include "experiments/universe_scene/universe_components.h"
 #include "experiments/universe_scene/universe_entities/gpu_planet.h"
+#include "systems/ply_mesh_renderer.h"
 #include <math.h>
 #include <assert.h>
 SCENE_IMPLEMENT(universe)
@@ -25,6 +26,8 @@ ecs_ctx *puniverse_ecs_ctx = &universe_ecs_ctx;
 #define E puniverse_ecs_ctx
 #define e universe_ecs_ctx
 #define ctypes universe_ecs_ctypes
+#define ply_get(filename) ply_mesh_renderer_get_mesh(&ply_ctx, filename)
+
 
 //This doesn't need to be in the ECS because its state can be reconstructed from the camera constructor.
 static struct trackball camera_trackball;
@@ -35,6 +38,7 @@ static struct ecs_component_init_params component_init_params[] = {
 	{.num = 10,  .size = sizeof(PhysicalTemp),   .ctype = &ctypes.physical},
 	{.num = 10,  .size = sizeof(Camera),         .ctype = &ctypes.camera,         .construct = camera_constructor},
 	{.num = 500, .size = sizeof(CustomDrawable), .ctype = &ctypes.customdrawable, .construct = customdrawable_constructor, .destruct = customdrawable_destructor},
+	{.num = 200, .size = sizeof(PlyMesh),        .ctype = &ctypes.plymesh},
 	{.num = 20,  .size = sizeof(Label),          .ctype = &ctypes.label,          .construct = label_constructor,          .destruct = label_destructor},
 	{.num = 500, .size = sizeof(ScriptableTemp), .ctype = &ctypes.scriptable},
 	{.num = 10,  .size = sizeof(Target),         .ctype = &ctypes.target},
@@ -270,7 +274,9 @@ static uint32_t entity_player_new()
 {
 	uint32_t player = entity_new();
 	entity_add(player, (ScriptableTemp){.script = entity_player_script});
-	entity_add(player, (PhysicalTemp){.position = {.a = MAT3_IDENT, .t = {0,0,-10}}});
+	entity_add(player, (PhysicalTemp){
+		.position = {.a = MAT3_IDENT, .t = {0,0,-10}}, .velocity = AMAT4_IDENT, .acceleration = AMAT4_IDENT});
+	entity_add(player, (PlyMesh){ply_get("models/source_models/newship.ply")});
 	return player;
 }
 
@@ -306,6 +312,8 @@ int universe_scene_init()
 		ecs_component_init(E, &component_init_params[i]);
 	}
 
+	ply_ctx = ply_mesh_renderer_new(10);
+
 	//TODO(Gavin): Copy other needed scene init stuff from space_scene (and convert to ECS stuff where reasonable)
 
 	//Universe entity will spawn and manage galaxy entities,
@@ -328,6 +336,7 @@ void universe_scene_deinit()
 {
 	gpu_planet_deinit();
 	ecs_free(E);
+	ply_mesh_renderer_delete(&ply_ctx);
 	checkErrors("Universe %d", __LINE__);
 }
 
