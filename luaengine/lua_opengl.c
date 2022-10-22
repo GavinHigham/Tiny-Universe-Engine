@@ -44,10 +44,22 @@ struct tu_glVertexArrays
 	GLuint arrays[0];
 };
 
+struct tu_glVertexArray
+{
+	int ref; //From luaL_ref, points to the VertexArrays object this array is part of.
+	GLuint array;
+};
+
 struct tu_glBuffers
 {
 	size_t num;
 	GLuint buffers[0];
+};
+
+struct tu_glBuffer
+{
+	int ref; //From luaL_ref, points to the Buffers object this buffer is part of.
+	GLuint buffer;
 };
 
 static int lua_glActiveTexture(lua_State *L)
@@ -60,11 +72,10 @@ static int lua_Buffers(lua_State *L)
 {
 	GLsizei n = (GLsizei)luaL_checkinteger(L, 1);
 	size_t size = sizeof(struct tu_glBuffers) + sizeof(GLuint) * n;
-	struct tu_glBuffers *buffers = lua_newuserdata(L, size);
+	struct tu_glBuffers *buffers = lua_newuserdatauv(L, size, 0);
 	memset(buffers, 0, size);
 	buffers->num = n;
-	luaL_getmetatable(L, "tu.Buffers");
-	lua_setmetatable(L, -2);
+	luaL_setmetatable(L, "tu.Buffers");
 	glGenBuffers(n, buffers->buffers);
 	return 1;
 }
@@ -72,6 +83,7 @@ static int lua_Buffers(lua_State *L)
 static int lua_Buffers__gc(lua_State *L)
 {
 	struct tu_glBuffers *buffers = luaL_checkudata(L, 1, "tu.Buffers");
+	// printf("Buffers being collected\n");
 	glDeleteBuffers(buffers->num, buffers->buffers);
 	return 0;
 }
@@ -80,17 +92,44 @@ static int lua_Buffers__index(lua_State *L)
 {
 	struct tu_glBuffers *buffers = luaL_checkudata(L, 1, "tu.Buffers");
 	lua_Integer i = luaL_checkinteger(L, 2);
-	if (i > 0 && i <= buffers->num)
-		lua_pushinteger(L, buffers->buffers[i-1]);
-	else
+	if (i > 0 && i <= buffers->num) {
+		struct tu_glBuffer *buffer = lua_newuserdatauv(L, sizeof(struct tu_glBuffer), 0);
+		//TODO: Carefully review the order of these statements.
+		luaL_getmetatable(L, "tu.Buffer");
+		lua_pushvalue(L, 1);
+		buffer->ref = luaL_ref(L, -2); //buffers will now not be collected
+		// printf("ref-ing Buffer %i\n", buffer->ref);
+		buffer->buffer = buffers->buffers[i-1];
+		lua_setmetatable(L, -2); //buffer will now unref on __gc
+	}
+	else {
 		lua_pushnil(L);
+	}
 	return 1;
+}
+
+static int lua_Buffers__len(lua_State *L)
+{
+	struct tu_glBuffers *buffers = luaL_checkudata(L, 1, "tu.Buffers");
+	lua_pushinteger(L, buffers->num);
+	return 1;
+}
+
+static int lua_Buffer__gc(lua_State *L)
+{
+	struct tu_glBuffer *buffer = luaL_checkudata(L, 1, "tu.Buffer");
+	lua_getmetatable(L, -1);
+	// printf("unref-ing Buffer %i\n", buffer->ref);
+	luaL_unref(L, -1, buffer->ref);
+	return 0;
 }
 
 static int lua_glBindBuffer(lua_State *L)
 {
-	glBindBuffer((GLenum)luaL_checkinteger(L, 1), //target
-		(GLuint)luaL_checkinteger(L, 2)); //buffer
+	GLenum *buffertarget = luaL_checkudata(L, 1, "tu.BufferTarget");
+	struct tu_glBuffer *buffer = luaL_checkudata(L, 2, "tu.Buffer");
+
+	glBindBuffer(*buffertarget, buffer->buffer);
 	return 0;
 }
 
@@ -126,6 +165,20 @@ An array of structs in C is nice because it allows named AND ordered members wit
 This is very fast and can be compatible with vertex buffers described in C.
 Unfortunately you wouldn't be able to take advantage of Lua's table constructor syntax
 (without a conversion and an attribute pointer mapping)
+
+2022/10/01
+
+Using constructor functions:
+
+VertexFormat {
+	gl.vec3 'color',
+	gl.float 'time',
+}
+
+Could be something like:
+
+local buffers = gl.Buffers(1)
+buffers:bind:bufferData
 */
 
 static int lua_glBufferData(lua_State *L)
@@ -222,7 +275,8 @@ static int lua_glDepthFunc(lua_State *L)
 
 static int lua_glDisable(lua_State *L)
 {
-	glDisable((GLenum)luaL_checkinteger(L, 1)); //cap
+	GLenum *enableval = luaL_checkudata(L, 1, "tu.EnableValue");
+	glDisable(*enableval);
 	return 0;
 }
 
@@ -239,7 +293,8 @@ static int lua_glDrawElementsInstanced(lua_State *L)
 
 static int lua_glEnable(lua_State *L)
 {
-	glEnable((GLenum)luaL_checkinteger(L, 1)); //cap
+	GLenum *enableval = luaL_checkudata(L, 1, "tu.EnableValue");
+	glEnable(*enableval);
 	return 0;
 }
 
@@ -254,11 +309,10 @@ static int lua_vertexArrays(lua_State *L)
 {
 	GLsizei n = (GLsizei)luaL_checkinteger(L, 1);
 	size_t size = sizeof(struct tu_glVertexArrays) + sizeof(GLuint) * n;
-	struct tu_glVertexArrays *arrays = lua_newuserdata(L, size);
+	struct tu_glVertexArrays *arrays = lua_newuserdatauv(L, size, 0);
 	memset(arrays, 0, size);
 	arrays->num = n;
-	luaL_getmetatable(L, "tu.VertexArrays");
-	lua_setmetatable(L, -2);
+	luaL_setmetatable(L, "tu.VertexArrays");
 	glGenVertexArrays(n, arrays->arrays);
 	return 1;
 }
@@ -361,10 +415,9 @@ static int lua_shader(lua_State *L, GLenum type)
 	const GLchar *string = lua_tolstring(L, 1, &len);
 	if (string && len) {
 		GLint success = GL_FALSE;
-		GLuint *shader = lua_newuserdata(L, sizeof(GLuint));
+		GLuint *shader = lua_newuserdatauv(L, sizeof(GLuint), 0);
 		*shader = 0;
-		luaL_getmetatable(L, "tu.Shader");
-		lua_setmetatable(L, -2);
+		luaL_setmetatable(L, "tu.Shader");
 		*shader = glCreateShader(type);
 
 		glShaderSource(*shader, 1, &string, &(GLint){len});
@@ -406,9 +459,8 @@ int lua_shaderProgram(lua_State *L)
 	GLint success = GL_TRUE;
 	int top = lua_gettop(L);
 
-	GLuint *program = lua_newuserdata(L, sizeof(GLuint));
-	luaL_getmetatable(L, "tu.ShaderProgram");
-	lua_setmetatable(L, -2);
+	GLuint *program = lua_newuserdatauv(L, sizeof(GLuint), 0);
+	luaL_setmetatable(L, "tu.ShaderProgram");
 	*program = glCreateProgram();
 
 	for (int i = 1; i <= top; i++) {
@@ -500,6 +552,62 @@ static struct {
 	ENABLEVAL(PROGRAM_POINT_SIZE),
 };
 
+//Create a table of valid targets for "glBindBuffer"
+#define BUFFERTARGET(name) {GL_##name, #name}
+static struct {
+	GLenum target;
+	const char *name;
+} lua_glBindBufferTargets[] = {
+	BUFFERTARGET(ARRAY_BUFFER),              //Vertex attributes
+	BUFFERTARGET(ATOMIC_COUNTER_BUFFER),     //Atomic counter storage
+	BUFFERTARGET(COPY_READ_BUFFER),          //Buffer copy source
+	BUFFERTARGET(COPY_WRITE_BUFFER),         //Buffer copy destination
+	BUFFERTARGET(DISPATCH_INDIRECT_BUFFER),  //Indirect compute dispatch commands
+	BUFFERTARGET(DRAW_INDIRECT_BUFFER),      //Indirect command arguments
+	BUFFERTARGET(ELEMENT_ARRAY_BUFFER),      //Vertex array indices
+	BUFFERTARGET(PIXEL_PACK_BUFFER),         //Pixel read target
+	BUFFERTARGET(PIXEL_UNPACK_BUFFER),       //Texture data source
+	BUFFERTARGET(QUERY_BUFFER),              //Query result buffer
+	BUFFERTARGET(SHADER_STORAGE_BUFFER),     //Read-write storage for shaders
+	BUFFERTARGET(TEXTURE_BUFFER),            //Texture data buffer
+	BUFFERTARGET(TRANSFORM_FEEDBACK_BUFFER), //Transform feedback buffer
+	BUFFERTARGET(UNIFORM_BUFFER),            //Uniform block storage
+};
+
+/*
+STREAM
+The data store contents will be modified once and used at most a few times.
+STATIC
+The data store contents will be modified once and used many times.
+DYNAMIC
+The data store contents will be modified repeatedly and used many times.
+
+The nature of access may be one of these:
+
+DRAW
+The data store contents are modified by the application, and used as the source for GL drawing and image specification commands.
+READ
+The data store contents are modified by reading data from the GL, and used to return that data when queried by the application.
+COPY
+The data store contents are modified by reading data from the GL, and used as the source for GL drawing and image specification commands.
+*/
+//Create a table of valid usages for "glBindBuffer"
+#define BUFFERUSAGE(name) {GL_##name, #name}
+static struct {
+	GLenum usage;
+	const char *name;
+} lua_glBindBufferUsages[] = {
+	BUFFERUSAGE(STREAM_DRAW),
+	BUFFERUSAGE(STREAM_READ),
+	BUFFERUSAGE(STREAM_COPY),
+	BUFFERUSAGE(STATIC_DRAW),
+	BUFFERUSAGE(STATIC_READ),
+	BUFFERUSAGE(STATIC_COPY),
+	BUFFERUSAGE(DYNAMIC_DRAW),
+	BUFFERUSAGE(DYNAMIC_READ),
+	BUFFERUSAGE(DYNAMIC_COPY),
+};
+
 int luaopen_lua_opengl(lua_State *L)
 {
 	//Set up garbage-collection functions for Shader and ShaderProgram userdata
@@ -522,18 +630,50 @@ int luaopen_lua_opengl(lua_State *L)
 	lua_setfield(L, -2, "__gc");
 	lua_pushcfunction(L, lua_Buffers__index);
 	lua_setfield(L, -2, "__index");
+	lua_pushcfunction(L, lua_Buffers__len);
+	lua_setfield(L, -2, "__len");
+
+	luaL_newmetatable(L, "tu.Buffer");
+	lua_pushcfunction(L, lua_Buffer__gc);
+	lua_setfield(L, -2, "__gc");
+
+	luaL_newmetatable(L, "tu.EnableValue");
+	luaL_newmetatable(L, "tu.BufferTarget");
+	luaL_newmetatable(L, "tu.BufferUsage");
 
 	//Create a table with enough room for all funcs and glEnable defines
-	size_t len_lua_opengl = (sizeof(lua_opengl) / sizeof(lua_opengl[0]));
-	size_t len_lua_glEnableVals = (sizeof(lua_glEnableVals) / sizeof(lua_glEnableVals[0]));
-	size_t nrec = len_lua_opengl + len_lua_glEnableVals;
+	size_t len_lua_opengl = sizeof(lua_opengl) / sizeof(lua_opengl[0]);
+	size_t len_enablevals = sizeof(lua_glEnableVals) / sizeof(lua_glEnableVals[0]);
+	size_t len_buffertargets = sizeof(lua_glBindBufferTargets) / sizeof(lua_glBindBufferTargets[0]);
+	size_t len_bufferusages = sizeof(lua_glBindBufferUsages) / sizeof(lua_glBindBufferUsages[0]);
+	size_t nrec = len_lua_opengl + len_enablevals + len_buffertargets + len_bufferusages;
 	lua_createtable(L, 0, nrec);
 	//Assign the functions into the table
 	luaL_setfuncs(L, lua_opengl, 0);
-	//Assign the defines into the table
-	for (int i = 0; i < len_lua_glEnableVals; i++) {
-		lua_pushinteger(L, lua_glEnableVals[i].value);
+
+	//In the future I could make these be userdata with a type to make it type-safe
+	//Assign the "enable values" defines into the table
+	for (int i = 0; i < len_enablevals; i++) {
+		GLenum *enableval = lua_newuserdatauv(L, sizeof(GLenum), 0);
+		*enableval = lua_glEnableVals[i].value;
+		luaL_setmetatable(L, "tu.EnableValue");
 		lua_setfield(L, -2, lua_glEnableVals[i].name);
 	}
+	//Assign the "buffer targets" defines into the table
+	for (int i = 0; i < len_buffertargets; i++) {
+		GLenum *buffertarget = lua_newuserdatauv(L, sizeof(GLenum), 0);
+		*buffertarget = lua_glBindBufferTargets[i].target;
+		luaL_setmetatable(L, "tu.BufferTarget");
+		lua_setfield(L, -2, lua_glBindBufferTargets[i].name);
+	}
+
+	//Assign the "buffer usages" defines into the table
+	for (int i = 0; i < len_bufferusages; i++) {
+		GLenum *bufferusage = lua_newuserdatauv(L, sizeof(GLenum), 0);
+		*bufferusage = lua_glBindBufferUsages[i].usage;
+		luaL_setmetatable(L, "tu.BufferUsage");
+		lua_setfield(L, -2, lua_glBindBufferUsages[i].name);
+	}
+
 	return 1;
 }

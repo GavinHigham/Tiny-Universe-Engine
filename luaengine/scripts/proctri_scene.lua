@@ -19,6 +19,23 @@ function proctri.init()
 	vertexArrays = gl.VertexArrays(1)
 	gl.BindVertexArray(vertexArrays[1])
 
+	--[[
+	vertexArrays[1]:bind()
+	local buffers = gl.Buffers(1)
+
+	--This could be a nice syntax
+	buffers[1]:bind(gl.ARRAY_BUFFER):bufferData(
+	'vec3 color, float time', {
+		1.0, 0.0, 0.0,  0.0,
+		0.0, 1.0, 0.0,  0.5,
+		0.0, 0.0, 1.0,  1.0
+	})
+
+	local buffers = gl.Buffers(1)
+	print("#buffers = "..#buffers)
+	gl.BindBuffer(gl.ARRAY_BUFFER, buffers[1])
+	]]
+
 	local shaders = glsw(io.open('shaders/glsw/atmosphere.glsl', 'r'):read('a'))
 	local common = glsw(io.open('shaders/glsw/common.glsl', 'r'):read('a'))
 	local vs = gl.VertexShader('#version 330\n' .. shaders['vertex.GL33'])
