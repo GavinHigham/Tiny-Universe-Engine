@@ -22,7 +22,7 @@
 #include "debug_graphics.h"
 #include "space/solar_system.h"
 #include "glsw_shaders.h"
-#include "configuration/lua_configuration.h"
+#include "luaengine/lua_configuration.h"
 #include "experiments/spiral_scene.h"
 #include <stdio.h>
 #include <stdbool.h>

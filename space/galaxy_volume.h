@@ -5,7 +5,7 @@
 #include "meter/meter.h"
 #include "buffer_group.h"
 #include "experiments/deferred_framebuffer.h"
-#include "configuration/lua_configuration.h"
+#include "luaengine/lua_configuration.h"
 
 struct blend_params {
 	GLenum blendfn, srcfact, dstfact;

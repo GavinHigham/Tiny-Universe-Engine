@@ -1,4 +1,4 @@
-#include "configuration/lua_configuration.h"
+#include "luaengine/lua_configuration.h"
 #include "datastructures/quadtree.h"
 #include "debug_graphics.h"
 #include "draw.h"

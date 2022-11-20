@@ -4,7 +4,7 @@
 #include "math/utility.h"
 #include "glsw/glsw.h"
 #include "glsw_shaders.h"
-#include "configuration/lua_configuration.h"
+#include "luaengine/lua_configuration.h"
 #include <stdio.h>
 #include <stdlib.h> //TODO(Gavin): Check if I need these two
 #include <string.h>

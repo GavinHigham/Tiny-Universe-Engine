@@ -7,7 +7,7 @@ extern struct entity_ctypes universe_ecs_ctypes;
 #define E puniverse_ecs_ctx
 #define ctypes universe_ecs_ctypes
 
-#include "configuration/lua_configuration.h"
+#include "luaengine/lua_configuration.h"
 #include "datastructures/quadtree.h"
 #include "debug_graphics.h"
 #include "draw.h"

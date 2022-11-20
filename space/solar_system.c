@@ -1,7 +1,7 @@
 #include "solar_system.h"
 #include "math/bpos.h"
 #include "math/utility.h"
-#include "configuration/lua_configuration.h"
+#include "luaengine/lua_configuration.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>

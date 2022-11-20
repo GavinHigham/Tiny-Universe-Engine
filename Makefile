@@ -14,7 +14,6 @@ LIB      = libtu.so
 
 #Module includes append to OBJECTS and define other custom rules.
 include root.mk
-include configuration/configuration.mk
 include datastructures/datastructures.mk
 include math/math.mk
 include models/models.mk

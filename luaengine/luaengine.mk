@@ -1,4 +1,5 @@
 OBJECTS += \
+	luaengine/lua_configuration.o \
 	luaengine/lua_scene.o \
 	luaengine/lua_opengl.o
 

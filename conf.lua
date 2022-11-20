@@ -1,7 +1,6 @@
 --Window config values
 screen_width  = 1024
 screen_height = 768
-screen_title = "GFreq - Gavin's Frequency Visualizer"
 fullscreen = false
 grab_mouse = false
 allow_highdpi = false --Experimental, does not handle window resize.
@@ -13,6 +12,7 @@ allow_highdpi = false --Experimental, does not handle window resize.
 default_scene = "atmosphere"
 -- default_scene = "universe"
 -- default_scene = 'lua'
+screen_title = ('Current Scene: "%s"'):format(manual_scene or default_scene)
 
 lua_scene = 'luaengine/scripts/proctri_scene'
 

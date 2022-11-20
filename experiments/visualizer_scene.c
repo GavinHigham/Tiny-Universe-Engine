@@ -1,4 +1,4 @@
-#include "configuration/lua_configuration.h"
+#include "luaengine/lua_configuration.h"
 #include "deferred_framebuffer.h"
 #include "drawf.h"
 #include "glsw/glsw.h"

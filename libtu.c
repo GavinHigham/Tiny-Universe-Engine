@@ -25,7 +25,7 @@
 //Tests
 #include "test/test_main.h"
 //Configuration
-#include "configuration/lua_configuration.h"
+#include "luaengine/lua_configuration.h"
 
 lua_State *L = NULL;
 

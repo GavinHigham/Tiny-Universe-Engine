@@ -26,7 +26,7 @@
 //Tests
 #include "test/test_main.h"
 //Configuration
-#include "configuration/lua_configuration.h"
+#include "luaengine/lua_configuration.h"
 
 static const int MS_PER_SECOND = 1000;
 static const int FRAMES_PER_SECOND = 60; //Frames per second.
@@ -126,7 +126,11 @@ static void reload_signal_handler(int signo) {
 
 int main(int argc, char **argv)
 {	
-	if (argc > 1 && !strcmp(argv[1], "test"))
+	char *arg1 = NULL;
+	if (argc > 1)
+		arg1 = argv[1];
+
+	if (arg1 && !strcmp(arg1, "test"))
 		testmode = true;
 
 	int result = 0;
@@ -144,6 +148,10 @@ int main(int argc, char **argv)
 	luaL_openlibs(L);
 	lua_pushstring(L, data_path);
 	lua_setglobal(L, "data_path");
+	if (arg1) {
+		lua_pushstring(L, arg1);
+		lua_setglobal(L, "manual_scene");
+	}
 	luaconf_run(L, data_path, luaconf_path);
 	luaconf_run(L, data_path, "libraries.lua");
 
@@ -212,7 +220,7 @@ int main(int argc, char **argv)
 	};
 
 	//Scenes usually depend on OpenGL being init'd.
-	char *chosen_scene = (argc > 1) ? argv[1] : default_scene;
+	char *chosen_scene = arg1 ? arg1 : default_scene;
 	for (int i = 0; i < LENGTH(scenes); i++)
 		if (!strcmp(chosen_scene, scenes[i]->name))
 			scene_set(scenes[i]);

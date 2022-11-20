@@ -9,7 +9,7 @@
 #include "trackball/trackball.h"
 #include "meter/meter.h"
 #include "meter/meter_ogl_renderer.h"
-#include "configuration/lua_configuration.h"
+#include "luaengine/lua_configuration.h"
 #include "shader_utils.h"
 
 #include <glla.h>

@@ -4,7 +4,7 @@
 #include "glla.h"
 #include "graphics.h"
 #include "deferred_framebuffer.h"
-#include "configuration/lua_configuration.h"
+#include "luaengine/lua_configuration.h"
 #include "meter/meter.h"
 #include <stdbool.h>
 extern struct game_scene spiral_scene;
