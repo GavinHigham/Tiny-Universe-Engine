@@ -32,6 +32,6 @@ extern struct debug_graphics_globals {
 
 void debug_graphics_init();
 void debug_graphics_deinit();
-void debug_graphics_draw();
+void debug_graphics_draw(amat4 eye_frame, float proj_view_mat[16]);
 
 #endif

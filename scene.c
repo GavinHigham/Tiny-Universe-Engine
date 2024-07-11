@@ -62,6 +62,13 @@ void scene_reload()
 	scene_set(&current_scene);
 }
 
+void scene_filedrop(const char *file)
+{
+	//filedrop is optional and rare, don't error if it's not present.
+	if (current_scene.filedrop)
+		current_scene.filedrop(file);
+}
+
 int scene_error(char *fn_name, int error)
 {
 	switch (error) {

@@ -85,30 +85,28 @@ end
 
 --[[
 Returns a table with the following structure:
-{
-	elements = {
-		[1] = {
-			name = "<element name>",
-			count = <element count>,
-			properties = {
-				[1] = {
-					type = <type>,
-					name = <property name>,
-					--if type == list, the following two are also here:
-					item_type = <type of each item in the list>,
-					count_type = <type of the list count>
-				}
-				--... possibly more properties
-			},
-			data = {
-				[1] = <the first property of this element>,
-				--... all remaining properties of this element.
-				--Any list-type property appears as a table of the list items, not including the size prefix
-			},
-			data_size = <size in bytes required to hold all data in its original format>
-		}
-		--... possibly more elements
+elements = {
+	[1] = {
+		name = "<element name>",
+		count = <element count>,
+		properties = {
+			[1] = {
+				type = <type>,
+				name = <property name>,
+				--if type == list, the following two are also here:
+				item_type = <type of each item in the list>,
+				count_type = <type of the list count>
+			}
+			--... possibly more properties
+		},
+		data = {
+			[1] = <the first property of this element>,
+			--... all remaining properties of this element.
+			--Any list-type property appears as a table of the list items, not including the size prefix
+		},
+		data_size = <size in bytes required to hold all data in its original format>
 	}
+	--... possibly more elements
 }
 if the PLY is a normal 3D model file with vertex and face elements:
 	If withTriangleIndexBuffer == true,
@@ -120,7 +118,8 @@ function ParsePLY.parseFile(file, withTriangleIndexBuffer, withTriangleAdjacency
 	local parse = coroutine.wrap(coParseLine)
 	local result
 
-	for line in io.lines(file) do
+	assert(file)
+	for line in assert(io.lines(file)) do
 		--Tokenize line
 		local tokens = {}
 		for token in string.gmatch(line, "[^%s]+") do
@@ -148,7 +147,10 @@ function ParsePLY.parseFile(file, withTriangleIndexBuffer, withTriangleAdjacency
 		element.properties = element.properties or {}
 	end
 
-	return result or file..': File ended unexpectedly, parse unsuccessful.'
+	if not result then
+		return nil, file..': File ended unexpectedly, parse unsuccessful.'
+	end
+	return result
 end
 
 function ParsePLY.postProcess(elements, addTriangleIndexBuffer, addTriangleAdjacencyIndexBuffer, addNormals)
@@ -285,7 +287,7 @@ function ParsePLY.getElementsSize(elements)
 	return size
 end
 
---Takes an element representing geometric faceseturns a table of indices (for easy upload to the GPU)
+--Takes an element representing geometric faces, returns a table of indices (for easy upload to the GPU)
 function ParsePLY.generateTriangleBuffer(faceElement)
 	local face_data = faceElement.data
 

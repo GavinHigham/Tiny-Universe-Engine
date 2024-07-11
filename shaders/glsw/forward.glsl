@@ -1,8 +1,8 @@
 -- vertex.GL33 --
 
-in vec3 vColor;
 in vec3 vPos; 
 in vec3 vNormal;
+in vec3 vColor;
 
 uniform float log_depth_intermediate_factor;
 
@@ -12,8 +12,8 @@ uniform mat4 model_view_projection_matrix;
 uniform float hella_time;
 
 out vec3 fPos;
-out vec3 fColor;
 out vec3 fNormal;
+out vec3 fColor;
 
 void main()
 {
@@ -41,8 +41,8 @@ uniform vec3 override_col = vec3(1.0, 1.0, 1.0);
 #define M_PI 3.1415926535897932384626433832795
 
 in vec3 fPos;
-in vec3 fColor;
 in vec3 fNormal;
+in vec3 fColor;
 
 out vec4 LFragment;
 

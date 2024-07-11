@@ -102,14 +102,15 @@ struct atmosphere_tweaks atmosphere_load_tweaks(lua_State *L, const char *tweaks
 	return at;
 }
 
-static void fov_updated(char *name, enum meter_state state, float value, void *context)
+void atmosphere_fov_updated(char *name, enum meter_state state, float value, void *context)
 {
 	struct atmosphere_tweaks *at = context;
 	at->focal_length = fov_to_focal(value);
 	make_projection_matrix(g_atmosphere_tweaks.fov, screen_width/screen_height, 0.1, 200, proj_mat);
 }
 
-void atmosphere_meters_init(lua_State *L, meter_ctx *M, struct atmosphere_tweaks *at, float screen_width, float screen_height)
+void 
+atmosphere_meters_init(lua_State *L, meter_ctx *M, struct atmosphere_tweaks *at, float screen_width, float screen_height)
 {
 	/* Set up meter module */
 	float y_offset = 25.0;
@@ -129,7 +130,7 @@ void atmosphere_meters_init(lua_State *L, meter_ctx *M, struct atmosphere_tweaks
 		{
 			.name = "Field of View", .x = 5.0, .y = 0, .min = 0.01, .max = 2.0*M_PI,
 			.target = &at->fov,
-			.callback = fov_updated, .callback_context = at,
+			.callback = atmosphere_fov_updated, .callback_context = at,
 			.style = wstyles, .color = {.fill = {79, 79, 207, 255}, .border = {47, 47, 95, 255}, .font = {255, 255, 255, 255}}
 		},
 		{

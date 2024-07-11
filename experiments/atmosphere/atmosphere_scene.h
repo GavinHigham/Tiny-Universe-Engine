@@ -15,6 +15,7 @@ struct atmosphere_tweaks {
 	float scale_height;
 	float planet_scale;
 	bool show_tweaks;
+	void *extra_context;
 };
 
 #endif

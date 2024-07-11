@@ -164,6 +164,7 @@ struct ply_mesh * ply_mesh_load(const char *filename, int flags)
 	}
 
 	//At this point, the table (or nil) is on the stack
+	#warning I broke this by making parseFile return nil, errorString when it fails
 	const char *error = "(result is nil)";
 	switch(lua_type(L, -1)) {
 	case LUA_TSTRING:

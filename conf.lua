@@ -9,12 +9,13 @@ allow_highdpi = false --Experimental, does not handle window resize.
 -- default_scene = "visualizer"
 -- default_scene = "spiral"
 -- default_scene = "spawngrid"
-default_scene = "atmosphere"
+-- default_scene = "atmosphere"
 -- default_scene = "universe"
--- default_scene = 'lua'
+default_scene = 'lua'
 screen_title = ('Current Scene: "%s"'):format(manual_scene or default_scene)
 
-lua_scene = 'luaengine/scripts/proctri_scene'
+package.path = package.path .. ';./luaengine/scripts/?.lua'
+lua_scene = 'luaengine/scripts/scenes/space_scene'
 
 --ffmpeg recording
 ffmpeg_cmd = "ffmpeg -r 60 -f rawvideo -pix_fmt rgba -s " .. screen_width .. "x" .. screen_height .. " -i - -threads 0 -preset fast -y -pix_fmt yuv420p -crf 21 -vf vflip output.mp4"
@@ -90,7 +91,7 @@ If the background appears red, it means the bar visualization is too wide for th
 -- wav_filename = "Twit_cover.wav"
 -- wav_filename = "Greenseomusic_Happy New Start.wav"
 -- wav_filename = "DallaDalla_cover.wav"
-wav_filename = "SpringDay_cover_1.wav"
+wav_filename = "/Users/gavin/Code/Sock_Media/SpringDay_cover_1.wav"
 if (default_scene == "visualizer") then
 	recording_width, recording_height = 800, 400
 	wav_filename = io.popen([[osascript -e 'POSIX path of {choose file with prompt "Please choose a WAV file:" of type {"wav"}}']]):read('a'):gsub('^%s+', ''):gsub('%s+$', '')

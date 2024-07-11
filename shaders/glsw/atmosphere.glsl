@@ -19,6 +19,11 @@ void main()
 
 -- fragment.GL33 --
 
+// So I can override the atmosphere function by appending
+#ifndef OVERRIDE_ATMOSPHERE
+#define atmosphere atmosphere1
+#endif
+
 uniform mat3 dir_mat;
 uniform vec3 eye_pos;
 uniform vec4 planet; //Position, radius
@@ -33,6 +38,7 @@ uniform float planet_scale = 6371000;
 uniform vec2 resolution;
 uniform int octaves = 5;
 uniform vec3 air_b = vec3(0.00000519673, 0.0000121427, 0.0000296453);
+uniform int selected_primitive = 0;
 
 in vec4 fposition;
 in vec2 ftx;
@@ -106,7 +112,7 @@ float gamma(float cos_theta)
 }
 
 //Atmosphere intersection nearest camera, other atmosphere intersection, planet, light position, light intensity
-vec3 atmosphere(vec3 ro, vec3 rd, vec4 abcd, float s, vec4 pl, float rA, vec3 l, vec3 lI, float planet_scale_factor, vec2 samples)
+vec3 atmosphere1(vec3 ro, vec3 rd, vec4 abcd, float s, vec4 pl, float rA, vec3 l, vec3 lI, float planet_scale_factor, vec2 samples)
 {
 	//Number of sample points P we consider along AB
 	float abSamples = samples[0];
@@ -493,12 +499,15 @@ void main() {
 	//planet_scale is 6371000.0
 	//planet_radius is 1
 	//atmosphere height is 0.02
-	if (uv.x+uv.y > 0.0) {
-		color += atmosphere(ro, rd, vec4(sia.y, b, 0.0, 0.0), 0.0, planet, planet_atm.w, light_pos, vec3(1.0), planet_scale_factor, samples);
+	// if (uv.x+uv.y > 0.0) {
+	// if () {
+		color += atmosphere1(ro, rd, vec4(sia.y, b, 0.0, 0.0), 0.0, planet, planet_atm.w, light_pos, vec3(1.0), planet_scale_factor, samples);
 		// color += vec3(.2,.0,.0);
-	} else {
-		color += atmosphere3(ro, rd, vec4(sia.y, b, 0.0, 0.0), (sia.z-sia.y)/2.0, planet, planet_atm.w, light_pos, vec3(1.0), planet_scale_factor, samples);
-	}
+	// } else {
+		// color += atmosphere3(ro, rd, vec4(sia.y, b, 0.0, 0.0), (sia.z-sia.y)/2.0, planet, planet_atm.w, light_pos, vec3(1.0), planet_scale_factor, samples);
+	// }
+
+	//minka.com? clouds
 
 	// float d = ((sia.z - sia.y) - (si.z - si.y));
 	// float unscientificScatter = dot(pa - planet.xyz, normalize(light_pos - planet.xyz))*0.5 + 0.5;
@@ -514,6 +523,9 @@ void main() {
 	float fExposure = 1.0;
 	color = 1.0 - exp(-fExposure * color);
 	LFragment = vec4(color, 1.0);
+	// LFragment = vec4(ftx, 0.0, 1.0);
+	// if (selected_primitive == gl_PrimitiveID)
+	// 	LFragment = vec4(1.0, 1.0, 1.0, 1.0);
 }
 
 /*

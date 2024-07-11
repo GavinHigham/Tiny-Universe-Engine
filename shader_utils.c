@@ -35,7 +35,7 @@ void printLog(GLuint handle, bool is_program)
 	}
 }
 
-char *shader_enum_to_string(GLenum shader_type)
+const char *shader_enum_to_string(GLenum shader_type)
 {
 	switch (shader_type) {
 	case GL_VERTEX_SHADER:   return "vertex shader";

@@ -82,7 +82,7 @@ int meter_add(meter_ctx *M, char *name, float width, float height, float min, fl
 	return 0;
 }
 
-int meter_change(meter_ctx *M, char *name, float width, float height, float min, float max, float value)
+int meter_change(meter_ctx *M, char *name, float width, float height, float min, float value, float max)
 {
 	METER_GET_INDEX_OR_RET_ERROR(M, name, mi)
 

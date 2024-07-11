@@ -129,11 +129,11 @@ int meter_get_index(meter_ctx *M, char *name);
 float meter_fraction(struct meter *m);
 
 //Add a new meter. Returns 0 on success.
-int meter_add(meter_ctx *M, char *name, float width, float height, float min, float max, float value);
+int meter_add(meter_ctx *M, char *name, float width, float height, float min, float value, float max);
 //
 // int meter_add_lua
 //Change an existing meter. Returns 0 on success.
-int meter_change(meter_ctx *M, char *name, float width, float height, float min, float max, float value);
+int meter_change(meter_ctx *M, char *name, float width, float height, float min, float value, float max);
 //Move an existing meter to position x, y. Not relative to current position.
 int meter_position(meter_ctx *M, char *name, float x, float y);
 //Set a callback to be called when an existing meter is clicked, dragged, or released.

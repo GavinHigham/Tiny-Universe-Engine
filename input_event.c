@@ -7,10 +7,10 @@
 #include "macros.h"
 
 static int key_state_numkeys = 0;
-const Uint8 *key_state = NULL;
-Uint8 *key_state_prev = NULL;
-static Uint32 mouse_state = 0;
-static Uint32 mouse_state_prev = 0;
+const uint8_t *key_state = NULL;
+uint8_t *key_state_prev = NULL;
+static uint32_t mouse_state = 0;
+static uint32_t mouse_state_prev = 0;
 SDL_Event input_mouse_wheel_sum;
 
 Sint16 axes[NUM_HANDLED_AXES] = {0};
@@ -52,10 +52,8 @@ void input_event_device_arrival(int which)
 void input_event_init()
 {
 	key_state = SDL_GetKeyboardState(&key_state_numkeys);
-	key_state_prev = malloc(key_state_numkeys);
+	key_state_prev = calloc(key_state_numkeys, sizeof(uint8_t));
 
-	for (int i = 0; i < key_state_numkeys; i++)
-		key_state_prev[i] = 0;
 	for (int i = 0; i < LENGTH(nes30_buttons); i++)
 		nes30_buttons[i] = false;
 	controller_init();
@@ -69,8 +67,7 @@ void input_event_deinit()
 
 void input_event_save_prev_key_state()
 {
-	for (int i = 0; i < key_state_numkeys; i++)
-		key_state_prev[i] = key_state[i];
+	memcpy(key_state_prev, key_state, key_state_numkeys * sizeof(uint8_t));
 }
 
 void input_event_save_prev_mouse_state()
@@ -168,12 +165,17 @@ void mousewheelreset()
 //A key is "pressed" if this is the first frame in which it is down.
 //A key is "held" if it is down, and it was down the previous frame.
 // key held == ! key pressed
-Uint8 key_pressed(SDL_Scancode s)
+bool key_pressed(SDL_Scancode s)
 {
 	return key_state[s] && !key_state_prev[s];
 }
 
-Uint8 mouse_button_pressed(int *x, int *y)
+bool key_down(SDL_Scancode s)
+{
+	return key_state[s];
+}
+
+uint8_t mouse_button_pressed(int *x, int *y)
 {
 	//Does not necessarily return the most recent mouse state, for intra-frame consistency
 	SDL_GetMouseState(x, y);

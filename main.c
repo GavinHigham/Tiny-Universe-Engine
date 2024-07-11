@@ -92,7 +92,7 @@ bool drain_event_queue()
 {
 	mousewheelreset();
 	SDL_Event e;
-	while (SDL_PollEvent(&e)) { //Exhaust our event queue before updating and rendering
+	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
 		case SDL_QUIT:                  return false;
 		case SDL_KEYDOWN:               global_keys(e.key.keysym, (SDL_EventType)e.type); break;
@@ -111,7 +111,13 @@ bool drain_event_queue()
 					scene_resize(e.window.data1, e.window.data2);
 					break;
 				}
-			}
+			} break;
+		case SDL_DROPFILE: {
+				// SDL_ShowSimpleMessageBox(
+				// 	SDL_MESSAGEBOX_INFORMATION, "File dropped on window", e.drop.file, window);
+				scene_filedrop(e.drop.file);
+				SDL_free(e.drop.file);
+			} break;
 		}
 	}
 	return true;
@@ -178,6 +184,7 @@ int main(int argc, char **argv)
 			result = -2;
 			goto error;
 		}
+		SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
 
 		if (gl_init(&context, window)) {
 			fprintf(stderr, "OpenGL could not be initiated!\n");
