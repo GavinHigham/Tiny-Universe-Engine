@@ -1,0 +1,2 @@
+OBJECTS += \
+	effects/effects.o
