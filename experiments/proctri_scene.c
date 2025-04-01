@@ -75,7 +75,7 @@ static struct instance_attributes {
 } instance_data[20];
 //float uniform_data[tu_len * 3 * 20];
 
-int proctri_scene_init()
+int proctri_scene_init(bool reload)
 {
 	glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);

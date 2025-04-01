@@ -10,7 +10,7 @@
 extern struct game_scene spiral_scene;
 extern meter_ctx g_galaxy_meters;
 
-int spiral_scene_init();
+int spiral_scene_init(bool reload);
 void spiral_scene_deinit();
 void spiral_scene_resize(float width, float height);
 void spiral_scene_update(float dt);

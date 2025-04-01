@@ -280,7 +280,7 @@ static uint32_t entity_player_new()
 	return player;
 }
 
-int universe_scene_init()
+int universe_scene_init(bool reload)
 {
 	float width = 800, height = 600;
 	//Old-style shader loading, for star box

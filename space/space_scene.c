@@ -196,7 +196,7 @@ void space_scene_resize(float width, float height)
 }
 
 //Set up everything needed to start rendering frames.
-int space_scene_init()
+int space_scene_init(bool reload)
 {
 	srand(open_simplex_noise_seed);
 	checkErrors("Function enter");
@@ -213,7 +213,7 @@ int space_scene_init()
 
 	glGenVertexArrays(1, &gVAO);
 
-	spiral_scene_init();
+	spiral_scene_init(reload);
 
 	glUseProgram(0);
 	glClearDepth(1);

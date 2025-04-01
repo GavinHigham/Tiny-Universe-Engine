@@ -61,7 +61,7 @@ static void meter_clear_accum_callback(char *name, enum meter_state state, float
 	clear_active_accumulation_buffer = true;
 }
 
-int spiral_scene_init()
+int spiral_scene_init(bool reload)
 {
 	glGenVertexArrays(1, &g_galaxy_ogl.vao);
 	glBindVertexArray(g_galaxy_ogl.vao);

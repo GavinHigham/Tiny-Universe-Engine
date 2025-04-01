@@ -4,7 +4,7 @@
 #include "scene.h"
 
 extern struct game_scene universe_scene;
-int universe_scene_init();
+int universe_scene_init(bool reload);
 void universe_scene_deinit();
 void universe_scene_update(float dt);
 void universe_scene_render();

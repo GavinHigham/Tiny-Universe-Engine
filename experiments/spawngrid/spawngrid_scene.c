@@ -89,7 +89,7 @@ void spawngrid_meters_init(lua_State *L, meter_ctx *M, struct spawngrid_tweaks *
 	}
 }
 
-int spawngrid_scene_init()
+int spawngrid_scene_init(bool reload)
 {
 	glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);

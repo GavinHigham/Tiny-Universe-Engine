@@ -186,7 +186,7 @@ atmosphere_meters_init(lua_State *L, meter_ctx *M, struct atmosphere_tweaks *at,
 	}
 }
 
-int atmosphere_scene_init()
+int atmosphere_scene_init(bool reload)
 {
 	glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);

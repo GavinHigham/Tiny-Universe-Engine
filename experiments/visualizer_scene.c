@@ -183,7 +183,7 @@ void rem_viz_meters(widget_meter *widgets, int num_widgets, float *y_offset)
 	*y_offset -= num_widgets * 25;
 }
 
-int visualizer_scene_init()
+int visualizer_scene_init(bool reload)
 {
 	glGenVertexArrays(1, &g_visualizer_ogl.vao);
 	glBindVertexArray(g_visualizer_ogl.vao);

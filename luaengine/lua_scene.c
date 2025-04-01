@@ -181,7 +181,7 @@ void lua_scene_meters_init(lua_State *L, meter_ctx *M, struct atmosphere_tweaks 
 
 /* End Atmosphere stuff */
 
-int lua_scene_init()
+int lua_scene_init(bool reload)
 {
 	luaconf_register_builtin_lib(L, luaopen_l_opengl, "OpenGL");
 	luaconf_register_builtin_lib(L, luaopen_l_glla, "glla");

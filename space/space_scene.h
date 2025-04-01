@@ -6,7 +6,7 @@
 extern float screen_width;
 extern float screen_height;
 extern struct game_scene space_scene;
-int space_scene_init();
+int space_scene_init(bool reload);
 void space_scene_deinit();
 void space_scene_update(float dt); //should be moved to its own source file when things get big
 void space_scene_render();

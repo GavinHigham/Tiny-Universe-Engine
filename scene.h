@@ -1,7 +1,9 @@
 #ifndef SCENE_H
 #define SCENE_H
 
-typedef int (scene_init_fn)(void);
+#include <stdbool.h>
+
+typedef int (scene_init_fn)(bool reload);
 typedef void (scene_deinit_fn)(void);
 typedef void (scene_update_fn)(float dt);
 typedef void (scene_render_fn)(void);
@@ -10,6 +12,7 @@ typedef void (scene_filedrop_fn)(const char *file);
 
 struct game_scene {
 	const char *name;
+	bool reloaded;
 	scene_init_fn *init;
 	scene_deinit_fn *deinit;
 	scene_update_fn *update;
@@ -36,7 +39,7 @@ void scene_filedrop(const char *file);
 #endif
 
 #define SCENE_FUNCS(name)                                     \
-	int  name##_scene_init();                                 \
+	int  name##_scene_init(bool reload);                      \
 	void name##_scene_deinit();                               \
 	void name##_scene_update(float dt);                       \
 	void name##_scene_render();                               \
@@ -45,6 +48,7 @@ void scene_filedrop(const char *file);
 
 #define SCENE_VTABLE(name) struct game_scene name##_scene = { \
 	#name,                                                    \
+	false,													  \
 	name##_scene_init,                                        \
 	name##_scene_deinit,                                      \
 	name##_scene_update,                                      \

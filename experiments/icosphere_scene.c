@@ -59,7 +59,7 @@ static GLuint SHADER, VAO, MM, MVPM;
 static GLint POSITION_ATTR, TX_ATTR, SAMPLER0;
 static GLuint test_gl_tx = 0;
 
-int icosphere_scene_init()
+int icosphere_scene_init(bool reload)
 {
 	glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);
