@@ -58,7 +58,7 @@ void global_keys(SDL_Keysym keysym, SDL_EventType type)
 		}
 		break;
 	case SDL_SCANCODE_R:
-		if (key_pressed(keysym.scancode)) {
+		if ((key_down(SDL_SCANCODE_LSHIFT) || key_down(SDL_SCANCODE_RSHIFT)) && key_pressed(keysym.scancode)) {
 			ffmpeg_recording = !ffmpeg_recording;
 			if (ffmpeg_recording) {
 				printf("Starting to record!\n");

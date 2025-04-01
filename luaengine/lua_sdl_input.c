@@ -23,6 +23,54 @@ static int l_isScancodeDown(lua_State *L)
     return 1;
 }
 
+static int l_isModifierDown(lua_State *L)
+{
+	const char *modstrs[] = {
+		"none",
+		"lshift",
+		"rshift",
+		"lctrl",
+		"rctrl",
+		"lalt",
+		"ralt",
+		"lgui",
+		"rgui",
+		"num",
+		"caps",
+		"mode",
+		"scroll",
+		"ctrl",
+		"shift",
+		"alt",
+		"gui",
+	};
+
+	const uint32_t mods[] = {
+		0x0000,
+		0x0001,
+		0x0002,
+		0x0040,
+		0x0080,
+		0x0100,
+		0x0200,
+		0x0400,
+		0x0800,
+		0x1000,
+		0x2000,
+		0x4000,
+		0x8000,
+		KMOD_LCTRL | KMOD_RCTRL,
+		KMOD_LSHIFT | KMOD_RSHIFT,
+		KMOD_LALT | KMOD_RALT,
+		KMOD_LGUI | KMOD_RGUI,
+	};
+
+	//Map option string to modifier flag, check against modifier state.
+	//Ex. 'lshift' -> 1 -> 0x0001
+	lua_pushboolean(L, mods[luaL_checkoption(L, 1, NULL, modstrs)] & SDL_GetModState());
+	return 1;
+}
+
 static int l_isScancodePressed(lua_State *L)
 {
 	lua_pushboolean(L, key_pressed(SDL_GetScancodeFromName(luaL_checkstring(L, 1))));
@@ -57,6 +105,7 @@ int luaopen_l_sdl_input(lua_State *L)
 	luaL_Reg l_sdl_input[] = {
 		{"isKeyDown", l_isKeyDown},
 		{"isKeyPressed", l_isKeyPressed},
+		{"isModifierDown", l_isModifierDown},
 		{"isScancodeDown", l_isScancodeDown},
 		{"isScancodePressed", l_isScancodePressed},
 		{"scancodeDirectional", l_scancodeDirectional},

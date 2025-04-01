@@ -385,27 +385,27 @@ static int l_vec4__newindex(lua_State *L)
 }
 static int l_vec4__tostring(lua_State *L)
 {
-  // Get the vec3 object from the arguments
-  vec4 *v = luaL_checkudata(L, 1, "tu.vec4");
-  luaL_Buffer b;
-  luaL_buffinit(L, &b);
+	// Get the vec3 object from the arguments
+	vec4 *v = luaL_checkudata(L, 1, "tu.vec4");
+	luaL_Buffer b;
+	luaL_buffinit(L, &b);
 
-  luaL_addstring(&b, "vec4(");
-  lua_pushnumber(L, v->x);
-  luaL_addvalue(&b);
-  luaL_addstring(&b, ", ");
-  lua_pushnumber(L, v->y);
-  luaL_addvalue(&b);
-  luaL_addstring(&b, ", ");
-  lua_pushnumber(L, v->z);
-  luaL_addvalue(&b);
-  luaL_addstring(&b, ", ");
-  lua_pushnumber(L, v->w);
-  luaL_addvalue(&b);
-  luaL_addstring(&b, ")");
+	luaL_addstring(&b, "vec4(");
+	lua_pushnumber(L, v->x);
+	luaL_addvalue(&b);
+	luaL_addstring(&b, ", ");
+	lua_pushnumber(L, v->y);
+	luaL_addvalue(&b);
+	luaL_addstring(&b, ", ");
+	lua_pushnumber(L, v->z);
+	luaL_addvalue(&b);
+	luaL_addstring(&b, ", ");
+	lua_pushnumber(L, v->w);
+	luaL_addvalue(&b);
+	luaL_addstring(&b, ")");
 
-  luaL_pushresult(&b);
-  return 1;
+	luaL_pushresult(&b);
+	return 1;
 }
 //TODO: Allow scalar operands
 static int l_vec4_add(lua_State *L)
@@ -512,12 +512,12 @@ static int l_vec4_div(lua_State *L)
 
 static int l_vec3_multmat3(lua_State *L)
 {
-    vec3 *a = luaL_checkudata(L, 1, "tu.vec3");
-    mat3 *b = luaL_checkudata(L, 2, "tu.mat3");
-    vec3 *c = lua_newuserdatauv(L, sizeof(vec3), 0);
-    *c = vec3_multmat3(*a, *b);
-    luaL_setmetatable(L, "tu.vec3");
-    return 1;
+	vec3 *a = luaL_checkudata(L, 1, "tu.vec3");
+	mat3 *b = luaL_checkudata(L, 2, "tu.mat3");
+	vec3 *c = lua_newuserdatauv(L, sizeof(vec3), 0);
+	*c = vec3_multmat3(*a, *b);
+	luaL_setmetatable(L, "tu.vec3");
+	return 1;
 }
 
 static int l_mat3_new(lua_State *L)
@@ -609,42 +609,42 @@ static int l_mat3__newindex(lua_State *L)
 
 static int l_mat3__mul(lua_State *L)
 {
-    mat3 *a = luaL_checkudata(L, 1, "tu.mat3");
-    vec3 *v = luaL_testudata(L, 2, "tu.vec3");
-    if (v) {
-    	vec3 *c = lua_newuserdatauv(L, sizeof(vec3), 0);
-    	*c = mat3_multvec(*a, *v);
-    	luaL_setmetatable(L, "tu.vec3");
-    	return 1;
-    }
-    mat3 *b = luaL_checkudata(L, 2, "tu.mat3");
-    mat3 *c = lua_newuserdatauv(L, sizeof(mat3), 0);
-    *c = mat3_mult(*a, *b);
-    luaL_setmetatable(L, "tu.mat3");
-    return 1;
+	mat3 *a = luaL_checkudata(L, 1, "tu.mat3");
+	vec3 *v = luaL_testudata(L, 2, "tu.vec3");
+	if (v) {
+		vec3 *c = lua_newuserdatauv(L, sizeof(vec3), 0);
+		*c = mat3_multvec(*a, *v);
+		luaL_setmetatable(L, "tu.vec3");
+		return 1;
+	}
+	mat3 *b = luaL_checkudata(L, 2, "tu.mat3");
+	mat3 *c = lua_newuserdatauv(L, sizeof(mat3), 0);
+	*c = mat3_mult(*a, *b);
+	luaL_setmetatable(L, "tu.mat3");
+	return 1;
 }
 
 static int l_mat3_multvec(lua_State *L)
 {
-    mat3 *a = luaL_checkudata(L, 1, "tu.mat3");
-    vec3 *b = luaL_checkudata(L, 2, "tu.vec3");
-    vec3 *c = lua_newuserdatauv(L, sizeof(vec3), 0);
-    *c = mat3_multvec(*a, *b);
-    luaL_setmetatable(L, "tu.vec3");
-    return 1;
+	mat3 *a = luaL_checkudata(L, 1, "tu.mat3");
+	vec3 *b = luaL_checkudata(L, 2, "tu.vec3");
+	vec3 *c = lua_newuserdatauv(L, sizeof(vec3), 0);
+	*c = mat3_multvec(*a, *b);
+	luaL_setmetatable(L, "tu.vec3");
+	return 1;
 }
 
 static int l_mat3_rot(lua_State *L)
 {
-    mat3 *a = luaL_checkudata(L, 1, "tu.mat3");
-    float ux = luaL_checknumber(L, 2);
-    float uy = luaL_checknumber(L, 3);
-    float uz = luaL_checknumber(L, 4);
-    float s = luaL_checknumber(L, 5);
-    float c = luaL_checknumber(L, 6);
-    mat3 *tmp = lua_newuserdatauv(L, sizeof(mat3), 0);
-    *tmp = mat3_rot(*a, ux, uy, uz, s, c);
-    luaL_setmetatable(L, "tu.mat3");
+	mat3 *a = luaL_checkudata(L, 1, "tu.mat3");
+	float ux = luaL_checknumber(L, 2);
+	float uy = luaL_checknumber(L, 3);
+	float uz = luaL_checknumber(L, 4);
+	float s = luaL_checknumber(L, 5);
+	float c = luaL_checknumber(L, 6);
+	mat3 *tmp = lua_newuserdatauv(L, sizeof(mat3), 0);
+	*tmp = mat3_rot(*a, ux, uy, uz, s, c);
+	luaL_setmetatable(L, "tu.mat3");
 	return 1;
 }
 
@@ -845,63 +845,73 @@ static int l_amat4_mult(lua_State *L)
 
 static int l_amat4_multpoint(lua_State *L)
 {
-    amat4 *a = luaL_checkudata(L, 1, "tu.amat4");
-    vec3 *b = luaL_checkudata(L, 2, "tu.vec3");
-    vec3 *c = lua_newuserdatauv(L, sizeof(vec3), 0);
-    *c = amat4_multpoint(*a, *b);
-    luaL_setmetatable(L, "tu.vec3");
-    return 1;
+	amat4 *a = luaL_checkudata(L, 1, "tu.amat4");
+	vec3 *b = luaL_checkudata(L, 2, "tu.vec3");
+	vec3 *c = lua_newuserdatauv(L, sizeof(vec3), 0);
+	*c = amat4_multpoint(*a, *b);
+	luaL_setmetatable(L, "tu.vec3");
+	return 1;
+}
+
+static int l_mat4_multpoint(lua_State *L)
+{
+	float *a = luaL_checkudata(L, 1, "tu.mat4");
+	vec3 *b = luaL_checkudata(L, 2, "tu.vec3");
+	vec3 *c = lua_newuserdatauv(L, sizeof(vec3), 0);
+	*c = amat4_buf_multpoint(a, (float [4]){b->x, b->y, b->z, 1.0}, NULL);
+	luaL_setmetatable(L, "tu.vec3");
+	return 1;
 }
 
 static int l_amat4_multvec(lua_State *L)
 {
-    amat4 *a = luaL_checkudata(L, 1, "tu.amat4");
-    vec3 *b = luaL_checkudata(L, 2, "tu.vec3");
-    vec3 *c = lua_newuserdatauv(L, sizeof(vec3), 0);
-    *c = amat4_multvec(*a, *b);
-    luaL_setmetatable(L, "tu.vec3");
-    return 1;
+	amat4 *a = luaL_checkudata(L, 1, "tu.amat4");
+	vec3 *b = luaL_checkudata(L, 2, "tu.vec3");
+	vec3 *c = lua_newuserdatauv(L, sizeof(vec3), 0);
+	*c = amat4_multvec(*a, *b);
+	luaL_setmetatable(L, "tu.vec3");
+	return 1;
 }
 
 static int l_amat4_rot(lua_State *L)
 {
-    amat4 *a = luaL_checkudata(L, 1, "tu.amat4");
-    float ux = luaL_checknumber(L, 2);
-    float uy = luaL_checknumber(L, 3);
-    float uz = luaL_checknumber(L, 4);
-    float s = luaL_checknumber(L, 5);
-    float c = luaL_checknumber(L, 6);
-    amat4 *tmp = lua_newuserdatauv(L, sizeof(amat4), 0);
-    *tmp = amat4_rot(*a, ux, uy, uz, s, c);
+	amat4 *a = luaL_checkudata(L, 1, "tu.amat4");
+	float ux = luaL_checknumber(L, 2);
+	float uy = luaL_checknumber(L, 3);
+	float uz = luaL_checknumber(L, 4);
+	float s = luaL_checknumber(L, 5);
+	float c = luaL_checknumber(L, 6);
+	amat4 *tmp = lua_newuserdatauv(L, sizeof(amat4), 0);
+	*tmp = amat4_rot(*a, ux, uy, uz, s, c);
 	luaL_setmetatable(L, "tu.amat4");
-return 1;
+	return 1;
 }
 
 static int l_amat4_lookat(lua_State *L)
 {
-    vec3 *p = luaL_checkudata(L, 1, "tu.vec3");
-    vec3 *q = luaL_checkudata(L, 2, "tu.vec3");
-    vec3 *u = luaL_checkudata(L, 3, "tu.vec3");
-    amat4 *c = lua_newuserdatauv(L, sizeof(amat4), 0);
-    *c = amat4_lookat(*p, *q, *u);
-    luaL_setmetatable(L, "tu.amat4");
-    return 1;
+	vec3 *p = luaL_checkudata(L, 1, "tu.vec3");
+	vec3 *q = luaL_checkudata(L, 2, "tu.vec3");
+	vec3 *u = luaL_checkudata(L, 3, "tu.vec3");
+	amat4 *c = lua_newuserdatauv(L, sizeof(amat4), 0);
+	*c = amat4_lookat(*p, *q, *u);
+	luaL_setmetatable(L, "tu.amat4");
+	return 1;
 }
 
 static int l_amat4_inverse(lua_State *L)
 {
-    amat4 *a = luaL_checkudata(L, 1, "tu.amat4");
-    *a = amat4_inverse(*a);
-    return 0;
+	amat4 *a = luaL_checkudata(L, 1, "tu.amat4");
+	*a = amat4_inverse(*a);
+	return 0;
 }
 
 static int l_amat4_inversed(lua_State *L)
 {
-    amat4 *a = luaL_checkudata(L, 1, "tu.amat4");
-    amat4 *c = lua_newuserdatauv(L, sizeof(amat4), 0);
-    *c = amat4_inverse(*a);
-    luaL_setmetatable(L, "tu.amat4");
-    return 1;
+	amat4 *a = luaL_checkudata(L, 1, "tu.amat4");
+	amat4 *c = lua_newuserdatauv(L, sizeof(amat4), 0);
+	*c = amat4_inverse(*a);
+	luaL_setmetatable(L, "tu.amat4");
+	return 1;
 }
 
 //Pushes a onto the Lua stack as a "tu.mat4" userdata value
@@ -911,6 +921,50 @@ void l_mat4_push(lua_State *L, float a[16])
 	luaL_setmetatable(L, "tu.mat4");
 	memcpy(m, a, sizeof(float) * 16);
 }
+
+void make_projection_matrix(float fov, float a, float n, float f, float *buf);
+static int l_mat4_projection(lua_State *L)
+{
+	float m[16];
+	float fov = luaL_checknumber(L, 1);
+	float aspect = luaL_checknumber(L, 2);
+	float near = luaL_checknumber(L, 3);
+	float far = luaL_checknumber(L, 4);
+	make_projection_matrix(fov, aspect, near, far, m);
+	l_mat4_push(L, m);
+	return 1;
+}
+
+void make_ortho_matrix(float l, float r, float b, float t, float n, float f, float *buf);
+static int l_mat4_orthographic(lua_State *L)
+{
+	float m[16];
+	float l = luaL_checknumber(L, 1);
+	float r = luaL_checknumber(L, 2);
+	float b = luaL_checknumber(L, 3);
+	float t = luaL_checknumber(L, 4);
+	float n = luaL_checknumber(L, 5);
+	float f = luaL_checknumber(L, 6);
+	make_ortho_matrix(l, r, b, t, n, f, m);
+	l_mat4_push(L, m);
+	return 1;
+}
+
+void make_ortho_inverse_matrix(float l, float r, float b, float t, float n, float f, float *buf);
+static int l_mat4_orthographic_inverse(lua_State *L)
+{
+	float m[16];
+	float l = luaL_checknumber(L, 1);
+	float r = luaL_checknumber(L, 2);
+	float b = luaL_checknumber(L, 3);
+	float t = luaL_checknumber(L, 4);
+	float n = luaL_checknumber(L, 5);
+	float f = luaL_checknumber(L, 6);
+	make_ortho_inverse_matrix(l, r, b, t, n, f, m);
+	l_mat4_push(L, m);
+	return 1;
+}
+static 
 
 int l_amat4__tostring(lua_State *L)
 {
@@ -1107,14 +1161,16 @@ static luaL_Reg l_mat4[] = {
 	{"__mul", l_amat4_mult},
 	{"__index", l_mat4__index},
 	{"__tostring", l_mat4__tostring},
+	{"multpoint", l_mat4_multpoint},
+	{"projection", l_mat4_projection},
+	{"orthographic", l_mat4_orthographic},
+	{"orthographic_inverse", l_mat4_orthographic_inverse},
 	{NULL, NULL}
 };
 
 int luaopen_l_glla(lua_State *L)
 {
 	luaL_newmetatable(L, "tu.vec2");
-	luaL_newmetatable(L, "tu.mat4");
-	luaL_setfuncs(L, l_mat4, 0);
 	luaL_newlib(L, lua_glla);
 
 	luaL_newmetatable(L, "tu.vec3");
@@ -1132,6 +1188,10 @@ int luaopen_l_glla(lua_State *L)
 	lua_setfield(L, -2, "__call");
 	lua_setmetatable(L, -2);
 	lua_setfield(L, -2, "mat3");
+
+	luaL_newmetatable(L, "tu.mat4");
+	luaL_setfuncs(L, l_mat4, 0);
+	lua_setfield(L, -2, "mat4");
 
 	luaL_newmetatable(L, "tu.amat4");
 	luaL_setfuncs(L, l_amat4, 0);

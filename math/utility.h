@@ -97,6 +97,10 @@ qvec3 qhypertoroidal_buffer_slot(qvec3 p, qvec3 slot_width, qvec3 num_slots, qve
 //Stick it into buffer buf, ready to send to OpenGL.
 void make_projection_matrix(float fov, float a, float n, float f, float *buf);
 
+//Create an orthographic projection matrix and stick it into buffer buf,
+//with parameters left, right, bottom, top, near, far.
+void make_ortho_matrix(float l, float r, float b, float t, float n, float f, float *buf);
+
 //
 int get_tri_lerp_vals(float *lerps, int num_rows);
 

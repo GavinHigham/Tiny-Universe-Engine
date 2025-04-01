@@ -9,11 +9,20 @@ local function clamp(val, min, max)
     return val
 end
 
-local function trackball(target, radius)
+local function trackball(target, radius_or_eye)
+    local radius, x, y, eye
+    if type(radius_or_eye) == 'number' then
+        radius = radius_or_eye
+    else
+        eye = radius_or_eye - target
+        radius = vec3.mag(eye)
+        x = math.asin(eye.x / radius)
+        y = math.asin(eye.y / radius)
+    end
     local t = {
-        camera = amat4(mat3.identity(), vec3(0, 0, radius) + target),
+        camera = amat4(mat3.identity(), eye or vec3(0, 0, radius) + target),
         target = target,
-        rotation = vec3(0, 0, 0),
+        rotation = vec3(x or 0, y or 0, 0),
         prev_rotation = vec3(0, 0, 0),
         speed = vec3(radius / 300.0, radius / 300.0, radius / 300.0),
         radius = radius,
@@ -31,6 +40,7 @@ local function trackball(target, radius)
         local a = vec3(r * math.sin(x), 0, r * math.cos(x))
         local b = vec3.normalized(a) * r * math.cos(y)
         b.y = r * math.sin(y)
+        b = b + t.target
         t.camera = amat4(mat3.lookat(b, t.target, vec3(0, 1, 0)), b)
     end
 
@@ -80,6 +90,7 @@ local function trackball(target, radius)
                 t.mouse.y = mouse_y
                 t.mouse.scroll.x = scroll_x
                 t.mouse.scroll.y = scroll_y
+                t.prev_rotation = t.rotation
             else
 --NO DRAG
             end
@@ -92,6 +103,8 @@ local function trackball(target, radius)
 
         return 0
     end
+
+    update()
 
     return t
 end

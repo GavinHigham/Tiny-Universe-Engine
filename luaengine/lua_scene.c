@@ -48,6 +48,7 @@ extern lua_State *L;
 int luaopen_l_opengl(lua_State *L);
 int luaopen_l_glla(lua_State *L);
 int luaopen_l_sdl_input(lua_State *L);
+int luaopen_l_image(lua_State *L);
 void l_mat4_push(lua_State *L, float a[16]);
 
 /* Atmosphere stuff Frankenstein'd in */
@@ -186,6 +187,7 @@ int lua_scene_init(bool reload)
 	luaconf_register_builtin_lib(L, luaopen_l_opengl, "OpenGL");
 	luaconf_register_builtin_lib(L, luaopen_l_glla, "glla");
 	luaconf_register_builtin_lib(L, luaopen_l_sdl_input, "input");
+	luaconf_register_builtin_lib(L, luaopen_l_image, "image");
 
 	/* Retrieve scene table and save it to Lua registry */
 	int top = lua_gettop(L);
@@ -203,9 +205,10 @@ int lua_scene_init(bool reload)
 
 	lua_setfield(L, LUA_REGISTRYINDEX, "tu_lua_scene");
 	/* Call the init function */
-	if (lua_getfield(L, LUA_REGISTRYINDEX, "tu_lua_scene") != LUA_TTABLE) {
+	int result = lua_getfield(L, LUA_REGISTRYINDEX, "tu_lua_scene") != LUA_TTABLE;
+	if (result) {
 		printf("tu_lua_scene is not a table\n");
-		return -1;
+		goto unsave_package;
 	}
 
 	//Get the meters table set up before, in case I use it in init.
@@ -214,24 +217,32 @@ int lua_scene_init(bool reload)
 	lua_setfield(L, -3, "meters");
 	lua_setfield(L, LUA_REGISTRYINDEX, "tu_lua_scene_meters");
 
-	if (lua_getfield(L, -1, "init") != LUA_TFUNCTION) {
+	result = lua_getfield(L, -1, "init") != LUA_TFUNCTION;
+	if (result) {
 		printf("No \"init\" function found in Lua Scene table.\n");
-		return -1;
+		goto unsave_package;
 	}
+	lua_pushboolean(L, reload);
 
 	//If there's no error return value, a nil is pushed
-	if (lua_pcall(L, 0, 1, 0) != LUA_OK) {
+	result = lua_pcall(L, 1, 1, 0) != LUA_OK;
+	if (result) {
 		//Handle Lua errors
 		if (lua_isstring(L, -1))
 			printf("%s\n", lua_tostring(L, -1));
-		return -1;
+		goto unsave_package;
 	}
 
 	//Check for errors indicated by return value
 	//TODO: Allow string errors as well
-	int result = lua_tointeger(L, -1);
-	if (result)
+	result = lua_tointeger(L, -1);
+
+	unsave_package:
+	if (result) {
+		//Unsave the package so the user has a chance to fix and reload it
+		luaL_dostring(L, "package.loaded[lua_scene] = nil");
 		return result;
+	}
 
 	lua_settop(L, top);
 
@@ -254,6 +265,7 @@ void lua_scene_resize(float width, float height)
 	lua_pcall(L, 2, 0, 0);
 	lua_settop(L, top);
 
+	printf("Resizing! width: %f, height: %f\n", width, height);
 	glViewport(0, 0, width, height);
 	screen_width = width;
 	screen_height = height;
@@ -274,9 +286,19 @@ void lua_scene_deinit()
 	lua_getfield(L, LUA_REGISTRYINDEX, "tu_lua_scene");
 	lua_getfield(L, -1, "deinit");
 	lua_pcall(L, 0, 0, 0);
+
+	//package.loaded[lua_scene] = nil
+	lua_getglobal(L, "package");
+	lua_getfield(L, -1, "loaded");
+	lua_getglobal(L, "lua_scene");
+	lua_pushnil(L);
+	lua_settable(L, -3);
 	lua_settop(L, top);
 
 	luaconf_unregister_builtin_lib(L, "OpenGL");
+	luaconf_unregister_builtin_lib(L, "glla");
+	luaconf_unregister_builtin_lib(L, "input");
+	luaconf_unregister_builtin_lib(L, "image");
 }
 
 void lua_scene_update(float dt)

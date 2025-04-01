@@ -2,6 +2,7 @@ local util = {}
 local gl_unsafe = require 'OpenGL'
 local gl_safe
 local gl = gl_unsafe
+local glla
 
 --[[
 You can do this to receive a "safe" wrapper around OpenGL, and enable within this module:

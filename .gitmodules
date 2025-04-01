@@ -8,3 +8,6 @@
 	path = ceffectpp
 	url = https://github.com/GavinHigham/ceffectpp.git
 	branch = master
+[submodule "luaengine/scripts/lib/debug"]
+	path = luaengine/scripts/lib/debug
+	url = https://github.com/slembcke/debugger.lua.git

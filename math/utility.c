@@ -229,6 +229,30 @@ void make_projection_matrix(float fov, float a, float n, float f, float *buf)
 	memcpy(buf, tmp, sizeof(tmp));
 }
 
+void make_ortho_matrix(float l, float r, float b, float t, float n, float f, float *buf)
+{
+	float tmp[] = (float[]){
+		2.0 / (r - l), 0.0,           0.0,            -(r + l) / (r - l),
+		0.0,           2.0 / (t - b), 0.0,            -(t + b) / (t - b),
+		0.0,           0.0,           -2.0 / (f - n), -(f + n) / (f - n),
+		0.0,           0.0,           0.0,            1.0
+	};
+	memcpy(buf, tmp, sizeof(tmp));
+}
+
+void make_ortho_inverse_matrix(float l, float r, float b, float t, float n, float f, float *buf)
+{
+	float tmp[] = (float[]){
+		(r - l)/2.0, 0.0,         0.0,           (r + l)/2.0,
+		0.0,         (t - b)/2.0, 0.0,           (t + b)/2.0,
+		0.0,         0.0,         -(f - n)/2.0, -(f + n)/2.0,
+		0.0,         0.0,         0.0,           1.0
+	};
+	memcpy(buf, tmp, sizeof(tmp));
+}
+
+
+
 uint32_t float3_hash(float *f, int precision)
 {
 	float sum = 0;

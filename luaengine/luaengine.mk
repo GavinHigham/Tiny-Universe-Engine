@@ -2,6 +2,7 @@ OBJECTS += \
 	luaengine/lua_configuration.o \
 	luaengine/lua_scene.o \
 	luaengine/lua_opengl.o \
+	luaengine/lua_image.o \
 	luaengine/lua_glla.o \
 	luaengine/lua_sdl_input.o
 

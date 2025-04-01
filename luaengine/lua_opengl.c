@@ -6,39 +6,6 @@
 #include "graphics.h"
 #include "glla.h"
 
-/*
-Lua wrappers for
-"
-glActiveTexture"
-glBindBuffer
-glBindTexture
-glBindVertexArray
-glBufferData
-glClear
-glClearColor
-glClearDepth
-glDeleteBuffers
-glDeleteProgram
-glDeleteVertexArrays
-glDepthFunc
-glDisable
-glDrawElementsInstanced
-glEnable
-glEnableVertexAttribArray
-glGenBuffers
-glGenVertexArrays
-glGetAttribLocation
-glGetUniformLocation
-glPolygonMode
-glPrimitiveRestartIndex
-glUseProgram
-glVertexAttribDivisor
-glVertexAttribPointer
-glViewport
-
-TODO(Gavin): Make userdata types for all parameters so that calling OpenGL functions is "typesafe"
-*/
-
 struct tu_gluint_array
 {
 	size_t num;
@@ -183,7 +150,7 @@ static int l_glPack32f(lua_State *L)
 	luaL_setmetatable(L, "tu.gl.PackedBuffer");
 	lua_pushinteger(L, sizeof(float) * len);
 	lua_setiuservalue(L, -2, 1);
-	printf("Packing %lu elements into a float buffer\n", len);
+	// printf("Packing %lu elements into a float buffer\n", len);
 
 	float *p = data;
 	for (int i = 1; i <= top; i++) {
@@ -212,7 +179,7 @@ static int l_glPack32i(lua_State *L)
 	luaL_setmetatable(L, "tu.gl.PackedBuffer");
 	lua_pushinteger(L, sizeof(uint32_t) * len);
 	lua_setiuservalue(L, -2, 1);
-	printf("Packing %lu elements into an int buffer\n", len);
+	// printf("Packing %lu elements into an int buffer\n", len);
 
 	uint32_t *p = data;
 	for (int i = 1; i <= top; i++) {
@@ -236,7 +203,7 @@ static int l_glBufferData(lua_State *L)
 	if (packed_size < size)
 		return luaL_error(L, "Trying to copy a larger number of bytes than size of buffer");
 
-	printf("Buffering %lld bytes (%lld packed)\n", size, packed_size);
+	// printf("Buffering %lld bytes (%lld packed)\n", size, packed_size);
 	glBufferData(
 		*(GLenum *)luaL_checkudata(L, 1, "tu.gl.BufferTarget"),
 		size,
@@ -683,8 +650,8 @@ static int l_glGetError(lua_State *L)
 	case GL_INVALID_ENUM: lua_pushliteral(L, "GL_INVALID_ENUM"); break;
 	case GL_INVALID_VALUE: lua_pushliteral(L, "GL_INVALID_VALUE"); break;
 	case GL_INVALID_OPERATION: lua_pushliteral(L, "GL_INVALID_OPERATION"); break;
-	case GL_STACK_OVERFLOW: lua_pushliteral(L, "GL_STACK_OVERFLOW"); break;
-	case GL_STACK_UNDERFLOW: lua_pushliteral(L, "GL_STACK_UNDERFLOW"); break;
+	// case GL_STACK_OVERFLOW: lua_pushliteral(L, "GL_STACK_OVERFLOW"); break;
+	// case GL_STACK_UNDERFLOW: lua_pushliteral(L, "GL_STACK_UNDERFLOW"); break;
 	case GL_OUT_OF_MEMORY: lua_pushliteral(L, "GL_OUT_OF_MEMORY"); break;
 	default: lua_pushinteger(L, glGetError());
 	}
@@ -949,6 +916,7 @@ int lua_shaderProgram(lua_State *L)
 #define TULUA_TVEC4 5
 #define TULUA_TMAT3 6
 #define TULUA_TMAT4 7
+#define TULUA_TTEX 8
 static void send_lua_value_as_uniform(lua_State *L, int value_idx, int type_idx)
 {
 	int top = lua_gettop(L);
@@ -996,6 +964,17 @@ static void send_lua_value_as_uniform(lua_State *L, int value_idx, int type_idx)
 				break;
 			}
 			luaL_error(L, "Uniform is mat4, expected amat4 or mat4 value assignment");
+		case TULUA_TTEX:
+			// Could be a texture unit integer, or a Lua-wrapped texture object ("tu.image.texture").
+			// If it's an integer, just do glActiveTexture(GL_TEXTURE0 + unit) and glUniform1i(location, unit)
+			// If it's an object, find an unused texture unit, bind the texture to it, and glUniform1i(location, unit)
+
+			if (lua_isinteger(L, value_idx)) {
+				glUniform1i(location, lua_tointeger(L, value_idx));
+				break;
+			}
+
+			break;
 		default:
 			return;
 		}
@@ -1138,6 +1117,7 @@ static luaL_Reg l_opengl[] = {
 	{"FragmentShader", lua_fragmentShader},
 	{"GeometryShader", lua_geometryShader},
 	{"ShaderProgram", lua_shaderProgram},
+	//TODO(Gavin): Use placeholders here (NULL pointer) to simplify lib creation
 	{NULL, NULL}
 };
 
@@ -1151,8 +1131,8 @@ static struct {
 	ENABLEVAL(BLEND),
 	ENABLEVAL(COLOR_LOGIC_OP),
 	ENABLEVAL(CULL_FACE),
-	ENABLEVAL(DEBUG_OUTPUT),
-	ENABLEVAL(DEBUG_OUTPUT_SYNCHRONOUS),
+	// ENABLEVAL(DEBUG_OUTPUT),
+	// ENABLEVAL(DEBUG_OUTPUT_SYNCHRONOUS),
 	ENABLEVAL(DEPTH_CLAMP),
 	ENABLEVAL(DEPTH_TEST),
 	ENABLEVAL(DITHER),
@@ -1164,7 +1144,7 @@ static struct {
 	ENABLEVAL(POLYGON_OFFSET_POINT),
 	ENABLEVAL(POLYGON_SMOOTH),
 	ENABLEVAL(PRIMITIVE_RESTART),
-	ENABLEVAL(PRIMITIVE_RESTART_FIXED_INDEX),
+	// ENABLEVAL(PRIMITIVE_RESTART_FIXED_INDEX),
 	ENABLEVAL(RASTERIZER_DISCARD),
 	ENABLEVAL(SAMPLE_ALPHA_TO_COVERAGE),
 	ENABLEVAL(SAMPLE_ALPHA_TO_ONE),
@@ -1187,13 +1167,13 @@ static struct {
 	BUFFERTARGET(ATOMIC_COUNTER_BUFFER),     //Atomic counter storage
 	BUFFERTARGET(COPY_READ_BUFFER),          //Buffer copy source
 	BUFFERTARGET(COPY_WRITE_BUFFER),         //Buffer copy destination
-	BUFFERTARGET(DISPATCH_INDIRECT_BUFFER),  //Indirect compute dispatch commands
+	// BUFFERTARGET(DISPATCH_INDIRECT_BUFFER),  //Indirect compute dispatch commands
 	BUFFERTARGET(DRAW_INDIRECT_BUFFER),      //Indirect command arguments
 	BUFFERTARGET(ELEMENT_ARRAY_BUFFER),      //Vertex array indices
 	BUFFERTARGET(PIXEL_PACK_BUFFER),         //Pixel read target
 	BUFFERTARGET(PIXEL_UNPACK_BUFFER),       //Texture data source
-	BUFFERTARGET(QUERY_BUFFER),              //Query result buffer
-	BUFFERTARGET(SHADER_STORAGE_BUFFER),     //Read-write storage for shaders
+	// BUFFERTARGET(QUERY_BUFFER),              //Query result buffer
+	// BUFFERTARGET(SHADER_STORAGE_BUFFER),     //Read-write storage for shaders
 	BUFFERTARGET(TEXTURE_BUFFER),            //Texture data buffer
 	BUFFERTARGET(TRANSFORM_FEEDBACK_BUFFER), //Transform feedback buffer
 	BUFFERTARGET(UNIFORM_BUFFER),            //Uniform block storage
@@ -1240,7 +1220,7 @@ static struct {
 } l_glClearBits[] = {
 	CLEARBIT(COLOR_BUFFER_BIT),
 	CLEARBIT(DEPTH_BUFFER_BIT),
-	CLEARBIT(ACCUM_BUFFER_BIT),
+	// CLEARBIT(ACCUM_BUFFER_BIT),
 	CLEARBIT(STENCIL_BUFFER_BIT),
 };
 
@@ -1403,7 +1383,7 @@ int luaopen_l_opengl(lua_State *L)
 			"--print('shaderStrings[1]='..type(shaderStrings[1]))\n"
 			"uniforms = uniforms or {}\n"
 			"--Placeholder enum values for each type\n"
-			"local enums = {float = "VAL_AS_STR(TULUA_TFLOAT)", int = "VAL_AS_STR(TULUA_TINT)", bool = "VAL_AS_STR(TULUA_TBOOL)", vec2 = "VAL_AS_STR(TULUA_TVEC2)", vec3 = "VAL_AS_STR(TULUA_TVEC3)", vec4 = "VAL_AS_STR(TULUA_TVEC4)", mat3 = "VAL_AS_STR(TULUA_TMAT3)", mat4 = "VAL_AS_STR(TULUA_TMAT4)"}\n"
+			"local enums = {float = "VAL_AS_STR(TULUA_TFLOAT)", int = "VAL_AS_STR(TULUA_TINT)", bool = "VAL_AS_STR(TULUA_TBOOL)", vec2 = "VAL_AS_STR(TULUA_TVEC2)", vec3 = "VAL_AS_STR(TULUA_TVEC3)", vec4 = "VAL_AS_STR(TULUA_TVEC4)", mat3 = "VAL_AS_STR(TULUA_TMAT3)", mat4 = "VAL_AS_STR(TULUA_TMAT4)", sampler2D = "VAL_AS_STR(TULUA_TTEX)"}\n"
 			"local name = '[%a_][%w_]*'\n"
 			"for i,s in ipairs(shaderStrings) do\n"
 				"for uniform_type, uniform_name, count in s:gmatch('%s*uniform%s+('..name..')%s+('..name..')([%[%d%]]*)') do\n"
@@ -1422,6 +1402,8 @@ int luaopen_l_opengl(lua_State *L)
 	lua_call(L, 0, LUA_MULTRET);
 	lua_setfield(L, LUA_REGISTRYINDEX, "tu_builtin_uniformsFromShaderString");
 	lua_setfield(L, LUA_REGISTRYINDEX, "tu_builtin_attributesFromShaderStrings");
+	lua_createtable(L, 80, 0);
+	lua_setfield(L, LUA_REGISTRYINDEX, "tu_gl_texture_units");
 
 	luaL_newmetatable(L, "tu.gl.VertexArrays");
 	lua_pushcfunction(L, l_VertexArrays__gc);
