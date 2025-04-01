@@ -7,7 +7,6 @@ OBJECTS += \
 	drawf.o \
 	draw.o \
 	open-simplex-noise-in-c/open-simplex-noise.o \
-	effects.o \
 	glla/glla.o \
 	mesh.o \
 	state_machine.o \

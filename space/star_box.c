@@ -3,7 +3,6 @@
 #include "math/bpos.h"
 #include "math/utility.h"
 #include "graphics.h"
-#include "effects.h"
 #include "entity/scriptable.h"
 #include "entity/physical.h"
 #include "macros.h"

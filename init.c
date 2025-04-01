@@ -5,8 +5,6 @@
 //#include <SDL2/SDL_opengl.h>
 #include "graphics.h"
 #include "init.h"
-#include "effects.h"
-#include "shader_utils.h"
 #include "math/utility.h"
 #include "macros.h"
 #include "input_event.h"
@@ -16,7 +14,7 @@ int open_simplex_noise_seed = 83619; //No special significance, I just mashed on
 struct osn_context *osnctx;
 
 int gl_init(SDL_GLContext *context, SDL_Window *window);
-int glew_init();
+int glad_init();
 
 int engine_init()
 {
@@ -53,23 +51,19 @@ error:
 		printf("Warning: Unable to set VSync! SDL Error: %s\n", SDL_GetError());
 	}
 
-	checkErrors("After init_gl");
-
-	if (glew_init())
+	if (glad_init())
 		return -1;
-	checkErrors("glew_init");
+	checkErrors("glad_init");
 
 	return 0;
 }
 
-int glew_init()
+int glad_init()
 {
-	glewExperimental = true;
-	GLenum glewError = glewInit();
-	checkErrors("After glewInit");
-	if (glewError != GLEW_OK) {
-		printf("Error initializing GLEW! %s\n", glewGetErrorString(glewError));
-		return -1;
+	int version = gladLoadGL((GLADloadfunc) SDL_GL_GetProcAddress);
+	if (version == 0) {
+	    printf("Failed to initialize OpenGL context\n");
+	    return -1;
 	}
 	return 0;
 }

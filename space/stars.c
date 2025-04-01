@@ -1,6 +1,5 @@
 #include "glla.h"
 #include "macros.h"
-#include "effects.h"
 #include "math/utility.h"
 #include "math/bpos.h"
 #include "graphics.h"

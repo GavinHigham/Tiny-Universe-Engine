@@ -1,9 +1,8 @@
 #include "debug_graphics.h"
+#include "graphics.h"
 #include "macros.h"
-#include "effects.h"
 #include "math/utility.h"
 #include "math/bpos.h"
-#include "shader_utils.h"
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>

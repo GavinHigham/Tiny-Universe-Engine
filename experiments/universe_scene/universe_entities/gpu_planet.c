@@ -12,7 +12,6 @@ extern struct entity_ctypes universe_ecs_ctypes;
 #include "debug_graphics.h"
 #include "draw.h"
 #include "drawf.h" //For draw planets
-#include "effects.h"
 #include "space/element.h"
 #include "glsw/glsw.h"
 #include "glsw_shaders.h"
@@ -23,7 +22,6 @@ extern struct entity_ctypes universe_ecs_ctypes;
 #include "math/utility.h"
 #include "open-simplex-noise-in-c/open-simplex-noise.h"
 #include "gpu_planet.h"
-#include "shader_utils.h"
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>

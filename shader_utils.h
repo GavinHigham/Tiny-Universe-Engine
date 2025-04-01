@@ -1,10 +1,13 @@
 #ifndef SHADER_UTILS_H
 #define SHADER_UTILS_H
 
-#include "effects.h"
+#include "graphics.h"
+#include "effects/effects.h"
 #include <stdbool.h>
+#include <assert.h>
 
-#define checkErrors(args...) ({ int error = glGetError();\
+#define checkErrors(args...) ({ assert(glGetError); \
+    int error = glGetError();\
 	if (error != GL_NO_ERROR) {\
 		printf(args);\
 		printf(": %d\n", error);\

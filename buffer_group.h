@@ -1,7 +1,7 @@
 #ifndef BUFFER_GROUP_H
 #define BUFFER_GROUP_H
 #include "graphics.h"
-#include "effects.h"
+#include "effects/effects.h"
 
 enum {
 	BG_BUFFER_NORMALS    = 1,

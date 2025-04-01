@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#include <GL/glew.h>
 
 enum {MAX_NUM_KEYS = 5};
 struct glsw_shaders glsw = {0};

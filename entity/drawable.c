@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include "drawable.h"
 #include "glla.h"
-#include "effects.h"
+#include "graphics.h"
 #include "math/bpos.h"
 #include "buffer_group.h"
 #include "entity/entity.h"

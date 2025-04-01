@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include "glla.h"
-#include "../effects.h"
+#include "../graphics.h"
 #include "../buffer_group.h"
 #include "math/bpos.h"
 

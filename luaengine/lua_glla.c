@@ -150,7 +150,7 @@ static int l_vec3__tostring(lua_State *L)
 	luaL_addstring(&b, ")");
 
 	luaL_pushresult(&b);
-  return 1;
+	return 1;
 }
 //TODO: Allow scalar operands
 static int l_vec3_add(lua_State *L)

@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include "glla.h"
 #include "graphics.h"
-#include "effects.h"
 
 /*
 A mesh consists of vertices, edges and faces (implicit or explicit), defining a 3D surface.

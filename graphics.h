@@ -11,8 +11,7 @@
 		// #ifdef _WIN32
 		//     #define APIENTRY __stdcall
 		// #endif
-		// #include "glad/glad.h"
-		#include <GL/glew.h> //TODO(Gavin): Try a different extension wrangler.
+		#include "glad/include/glad/gl.h"
 		#include <shader_utils.h>
 
 		#define CHECK_ERRORS() {int error = glGetError(); if (error != GL_NO_ERROR) printf("%s[%d]: %d\n", __FUNCTION__, __LINE__, error);}

@@ -5,9 +5,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include "graphics.h"
-#include "effects.h"
 #include "math/utility.h"
-#include "shader_utils.h"
 
 #ifndef LENGTH
 	#define LENGTH(array) (sizeof(array)/sizeof(array[0]))

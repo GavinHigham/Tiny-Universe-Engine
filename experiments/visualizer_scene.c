@@ -14,7 +14,6 @@
 #include "visualizer_scene.h"
 
 #include <assert.h>
-#include <GL/glew.h>
 #include <glla.h>
 #include <stdio.h>
 

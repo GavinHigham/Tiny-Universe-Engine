@@ -2,8 +2,7 @@
 #define DRAW_H
 
 #include "glla.h"
-#include "draw.h"
-#include "effects.h"
+#include "graphics.h"
 #include "buffer_group.h"
 
 void draw_forward(EFFECT *effect, struct buffer_group bg, amat4 model_matrix);

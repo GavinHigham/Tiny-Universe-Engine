@@ -1,7 +1,7 @@
 //AUTO-GENERATED FILE, CHANGES MAY BE OVERWRITTEN.
 
-#include <GL/glew.h>
-#include "effects.h"
+#include <graphics.h>
+#include "effects/effects.h"
 
 const char *shader_file_paths[] = {
 	"shaders/debug_graphics.vs",

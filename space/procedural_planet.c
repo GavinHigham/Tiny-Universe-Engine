@@ -3,7 +3,6 @@
 #include "debug_graphics.h"
 #include "draw.h"
 #include "drawf.h" //For draw planets
-#include "effects.h"
 #include "element.h"
 #include "glsw/glsw.h"
 #include "glsw_shaders.h"
@@ -14,7 +13,6 @@
 #include "math/utility.h"
 #include "open-simplex-noise-in-c/open-simplex-noise.h"
 #include "procedural_planet.h"
-#include "shader_utils.h"
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>

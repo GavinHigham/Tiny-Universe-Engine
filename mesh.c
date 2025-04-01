@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include "mesh.h"
-#include "effects.h"
+#include "graphics.h"
 
 /*
 A VAO (among other things) tells a shader how to interpret a vertex buffer to retrieve vertex attributes.

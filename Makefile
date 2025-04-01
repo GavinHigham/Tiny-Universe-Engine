@@ -2,7 +2,7 @@ CC = gcc
 
 SANITIZE = -fsanitize=address -fsanitize=undefined
 MACOS_CFLAGS  = -F/Library/Frameworks
-MACOS_LDFLAGS = -F/Library/Frameworks -framework SDL2 -framework SDL2_image -framework OpenGL -lGLEW 
+MACOS_LDFLAGS = -F/Library/Frameworks -rpath /Library/Frameworks -framework SDL2 -framework SDL2_image -framework OpenGL
 
 INCLUDES = -Iglla -I$(CURDIR)
 LDFLAGS	 = $(SDL) -Llua-5.4.4/src -llua $(MACOS_LDFLAGS)
@@ -12,12 +12,13 @@ SHADERS	 = $(wildcard shaders/*.vs shaders/*.fs shaders/*.gs)
 EXE 	 = tu
 LIB      = libtu.so
 
-#Module includes append to OBJECTS and define other custom rules.
+#Module includes append to OBJECTS and INCLUDES and define other custom rules.
 include root.mk
 include datastructures/datastructures.mk
 include math/math.mk
 include models/models.mk
 include entity/entity.mk
+include glad/glad.mk
 include glsw/glsw.mk
 include space/space.mk
 include experiments/experiments.mk
@@ -26,6 +27,7 @@ include meter/meter.mk
 include components/components.mk
 include systems/systems.mk
 include luaengine/luaengine.mk
+include effects/effects.mk
 include test/test.mk
 
 MAIN_OBJ = main.o
@@ -50,17 +52,17 @@ include models/Makefile
 .depend:
 	gcc -MM $(INCLUDES) $(CFLAGS) $(patsubst %.o,%.c,$(OBJECTS)) > .depend #Generate dependencies from all .c files, searching recursively.
 
-effects.c: $(SHADERS) effects.h lua-5.4.4 ceffectpp/ceffectpp
-	ceffectpp/ceffectpp -c $(SHADERS) > effects.c
-
-effects.h: $(SHADERS) lua-5.4.4 ceffectpp/ceffectpp
-	ceffectpp/ceffectpp -h $(SHADERS) > effects.h
-
-ceffectpp/ceffectpp:
-	cd ceffectpp; make
-
 open-simplex-noise.o:
 	cd open-simplex-noise-in-c; make
+
+effects/effects.c: $(SHADERS) effects/effects.h lua-5.4.4 effects/ceffectpp/ceffectpp
+	effects/ceffectpp/ceffectpp -c $(SHADERS) > effects/effects.c
+
+effects/effects.h: $(SHADERS) lua-5.4.4 effects/ceffectpp/ceffectpp
+	effects/ceffectpp/ceffectpp -h $(SHADERS) > effects/effects.h
+
+effects/ceffectpp/ceffectpp:
+	cd effects/ceffectpp; make
 
 lua-5.4.4:
 	cd lua-5.4.4; make macosx
@@ -69,7 +71,7 @@ clean:
 	rm $(OBJECTS)
 	rm $(EXE)
 	rm .depend
-	cd ceffectpp; make clean
+	cd effects/ceffectpp; make clean
 	cd open-simplex-noise-in-c; make clean
 
 include .depend
