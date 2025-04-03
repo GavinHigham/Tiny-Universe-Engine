@@ -17,19 +17,12 @@ The executable will be "tu". You can change this in the Makefile.
 ## Dependencies ##
 I try to keep TU light on dependencies, but there are a few things that can't be avoided.
 
-### SDL 2.0 ###
-SDL 2.0 is a game library that creates the window context, OpenGL context, handles input, etc.
-
-[http://libsdl.org/download-2.0.php](http://libsdl.org/download-2.0.php)
+### SDL3 ###
+SDL3 is a framework that creates the window context, OpenGL context, handles input, etc.
 
 ### SDL_image ###
 SDL_image is used for loading different image formats into the engine to be used as textures.
 
-[http://www.libsdl.org/projects/SDL_image/](http://www.libsdl.org/projects/SDL_image/)
-### GLEW ###
-GLEW helps manage OpenGL extensions.
-
-This may come pre-installed with macOS, otherwise you can get it from Homebrew.
 ### OpenGL (3.3 minimum) ###
 This project uses the OpenGL interface.
 
@@ -38,5 +31,5 @@ Awk is used to convert model files into header files to compile them into the en
 
 This should come pre-installed with macOS.
 
-### Lua 5.3 ###
+### Lua 5.4 ###
 I'm gradually integrating Lua as a scripting and configuration language for the project. I'm also in the process of converting my awk scripts to Lua to reduce dependencies. At the moment, you'll need both the Lua library and the binary. In the future I'll have the library compiled first so it can be used to run the Lua build scripts.
