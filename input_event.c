@@ -2,13 +2,13 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdbool.h>
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 #include "input_event.h"
 #include "macros.h"
 
 static int key_state_numkeys = 0;
-const uint8_t *key_state = NULL;
-uint8_t *key_state_prev = NULL;
+const bool *key_state = NULL;
+bool *key_state_prev = NULL;
 static uint32_t mouse_state = 0;
 static uint32_t mouse_state_prev = 0;
 SDL_Event input_mouse_wheel_sum;
@@ -16,37 +16,62 @@ SDL_Event input_mouse_wheel_sum;
 Sint16 axes[NUM_HANDLED_AXES] = {0};
 bool nes30_buttons[16] = {false};
 
-SDL_GameController *input_controller = NULL;
+SDL_Gamepad *input_controller = NULL;
 SDL_Joystick *input_joystick = NULL;
 
 void controller_init()
 {
 	/* Open the first available controller. */
-	SDL_GameController *controller = NULL;
-	SDL_Joystick *joystick = NULL;
-	for (int i = 0; i < SDL_NumJoysticks(); ++i) {
-		printf("Testing controller %i\n", i);
-		if (SDL_IsGameController(i)) {
-			controller = SDL_GameControllerOpen(i);
-			if (controller) {
-				printf("Successfully opened controller %i\n", i);
-				break;
-			} else {
-				printf("Could not open gamecontroller %i: %s\n", i, SDL_GetError());
+	// SDL_Gamepad *controller = NULL;
+	// SDL_Joystick *joystick = NULL;
+	// for (int i = 0; i < SDL_NumJoysticks(); ++i) {
+	// 	printf("Testing controller %i\n", i);
+	// 	if (/* FIXME MIGRATION: check for valid instance */
+	// 		SDL_IsGamepad(GetJoystickInstanceFromIndex(i))) {
+	// 		controller = SDL_OpenGamepad(i);
+	// 		if (controller) {
+	// 			printf("Successfully opened controller %i\n", i);
+	// 			break;
+	// 		} else {
+	// 			printf("Could not open gamecontroller %i: %s\n", i, SDL_GetError());
+	// 		}
+	// 	} else {
+	// 		joystick = SDL_OpenJoystick(i);
+	// 		printf("Controller %i is not a controller?\n", i);
+	// 	}
+	// }
+	bool joystick_exists = false;
+
+	if (SDL_InitSubSystem(SDL_INIT_JOYSTICK)) {
+		int i, num_joysticks;
+		SDL_JoystickID *joysticks = SDL_GetJoysticks(&num_joysticks);
+		if (joysticks) {
+			for (i = 0; i < num_joysticks; ++i) {
+				joystick_exists = true;
+				SDL_JoystickID instance_id = joysticks[i];
+				const char *name = SDL_GetJoystickNameForID(instance_id);
+				const char *path = SDL_GetJoystickPathForID(instance_id);
+
+				SDL_Log("Joystick %" SDL_PRIu32 ": %s%s%s VID 0x%.4x, PID 0x%.4x",
+						instance_id, name ? name : "Unknown", path ? ", " : "", path ? path : "", SDL_GetJoystickVendorForID(instance_id), SDL_GetJoystickProductForID(instance_id));
 			}
-		} else {
-			joystick = SDL_JoystickOpen(i);
-			printf("Controller %i is not a controller?\n", i);
+			SDL_free(joysticks);
 		}
+		SDL_QuitSubSystem(SDL_INIT_JOYSTICK);
 	}
+
+	if (joystick_exists)
+		printf("Joystick/gamepad detected, warning: joystick/gamepad support is currently nonexistent (as of SDL3)\n");
 }
 
 void input_event_device_arrival(int which)
 {
-	if (SDL_IsGameController(which))
-		input_controller = input_controller ? input_controller : SDL_GameControllerOpen(which);
-	else
-		input_joystick = input_joystick ? input_joystick : SDL_JoystickOpen(which);
+	printf("Device Arrived, warning: joystick/gamepad support is currently nonexistent (as of SDL3)\n");
+	// if (/* FIXME MIGRATION: check for valid instance */
+	// 	SDL_IsGamepad(GetJoystickInstanceFromIndex(which)))
+	// 	input_controller = input_controller ? input_controller : SDL_OpenGamepad(which);
+	// else
+	// 	input_joystick = input_joystick ? input_joystick : SDL_OpenJoystick(which);
 }
 
 void input_event_init()
@@ -67,7 +92,7 @@ void input_event_deinit()
 
 void input_event_save_prev_key_state()
 {
-	memcpy(key_state_prev, key_state, key_state_numkeys * sizeof(uint8_t));
+	memcpy(key_state_prev, key_state, key_state_numkeys * sizeof(bool));
 }
 
 void input_event_save_prev_mouse_state()
@@ -78,19 +103,19 @@ void input_event_save_prev_mouse_state()
 
 void caxisevent(SDL_Event e)
 {
-	switch (e.caxis.axis) {
-	case SDL_CONTROLLER_AXIS_LEFTX:
-		axes[LEFTX] = e.caxis.value; break;
-	case SDL_CONTROLLER_AXIS_LEFTY:
-		axes[LEFTY] = e.caxis.value; break;
-	case SDL_CONTROLLER_AXIS_RIGHTX:
-		axes[RIGHTX] = e.caxis.value; break;
-	case SDL_CONTROLLER_AXIS_RIGHTY:
-		axes[RIGHTY] = e.caxis.value; break;
-	case SDL_CONTROLLER_AXIS_TRIGGERLEFT:
-		axes[TRIGGERLEFT] = e.caxis.value; break;
-	case SDL_CONTROLLER_AXIS_TRIGGERRIGHT:
-		axes[TRIGGERRIGHT] = e.caxis.value; break;
+	switch (e.gaxis.axis) {
+	case SDL_GAMEPAD_AXIS_LEFTX :
+		axes[LEFTX] = e.gaxis.value; break;
+	case SDL_GAMEPAD_AXIS_LEFTY :
+		axes[LEFTY] = e.gaxis.value; break;
+	case SDL_GAMEPAD_AXIS_RIGHTX :
+		axes[RIGHTX] = e.gaxis.value; break;
+	case SDL_GAMEPAD_AXIS_RIGHTY :
+		axes[RIGHTY] = e.gaxis.value; break;
+	case SDL_GAMEPAD_AXIS_LEFT_TRIGGER :
+		axes[TRIGGERLEFT] = e.gaxis.value; break;
+	case SDL_GAMEPAD_AXIS_RIGHT_TRIGGER :
+		axes[TRIGGERRIGHT] = e.gaxis.value; break;
 	}
 }
 
@@ -129,9 +154,9 @@ void jbuttonevent(SDL_Event e)
 
 	int button = e.jbutton.button;
 	if (0 <= button && button < LENGTH(nes30_buttons)) {
-		if (e.jbutton.type == SDL_JOYBUTTONDOWN)
+		if (e.jbutton.type == SDL_EVENT_JOYSTICK_BUTTON_DOWN)
 			nes30_buttons[button] = true;
-		else if (e.jbutton.type == SDL_JOYBUTTONUP)
+		else if (e.jbutton.type == SDL_EVENT_JOYSTICK_BUTTON_UP)
 			nes30_buttons[button] = false;
 	} else {
 		printf("Button %d not supported.", button);
@@ -175,7 +200,7 @@ bool key_down(SDL_Scancode s)
 	return key_state[s];
 }
 
-uint8_t mouse_button_pressed(int *x, int *y)
+uint32_t mouse_button_pressed(float *x, float *y)
 {
 	//Does not necessarily return the most recent mouse state, for intra-frame consistency
 	SDL_GetMouseState(x, y);

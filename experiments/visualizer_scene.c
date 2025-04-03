@@ -1,3 +1,10 @@
+
+//
+//
+// This needs to be updated for SDL3
+//
+//
+
 #include "luaengine/lua_configuration.h"
 #include "deferred_framebuffer.h"
 #include "drawf.h"
@@ -252,11 +259,11 @@ int visualizer_scene_init(bool reload)
 	char *wav_file = getglobstr(L, "wav_filename", "");
 
 	/* Load the WAV */
-	if (SDL_LoadWAV(wav_file, &g_wav_spec, &g_wav_buffer, &g_wav_length) == NULL) {
+	if (!SDL_LoadWAV(wav_file, &g_wav_spec, &g_wav_buffer, &g_wav_length)) {
 		fprintf(stderr, "Could not open %s: %s\n", wav_file, SDL_GetError());
 	} else {
 		/* Do stuff with the WAV data, and then... */
-		printf("freq: %d, fmt: %x, channels: %d, samples: %d, length %d\n", g_wav_spec.freq, g_wav_spec.format, g_wav_spec.channels, g_wav_spec.samples, g_wav_length);
+		printf("freq: %d, fmt: %x, channels: %d, length %d\n", g_wav_spec.freq, g_wav_spec.format, g_wav_spec.channels, g_wav_length);
 
 		// SDL_AudioSpec want;
 		SDL_AudioSpec have;
@@ -278,7 +285,7 @@ int visualizer_scene_init(bool reload)
 				SDL_Log("We didn't get requested audio format.");
 			}
 			SDL_QueueAudio(dev, g_wav_buffer, g_wav_length);
-			SDL_PauseAudioDevice(dev, 0); /* start audio playing. */
+			SDL_ResumeAudioDevice(dev); /* start audio playing. */
 			// SDL_Delay(5000); /* let the audio callback play some sound for 5 seconds. */
 			// SDL_CloseAudioDevice(dev);
 		}
@@ -404,7 +411,7 @@ void visualizer_scene_deinit()
 	glDeleteVertexArrays(1, &g_visualizer_ogl.vao);
 	glDeleteBuffers(1, &g_visualizer_ogl.vbo);
 	glDeleteProgram(g_visualizer_ogl.shader);
-	SDL_FreeWAV(g_wav_buffer);
+	SDL_free(g_wav_buffer);
 	free(cfg);
 	meter_deinit(&g_viz_meters);
 	color_buffer_delete(obuffer);
@@ -462,7 +469,7 @@ void visualizer_scene_update(float dt)
 	static float seconds = 0;
 	
 	Uint32 buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
-	bool button = buttons & SDL_BUTTON(SDL_BUTTON_LEFT);
+	bool button = buttons & SDL_BUTTON_MASK(SDL_BUTTON_LEFT);
 	if (show_tweaks)
 		button = !meter_mouse_relative(&g_viz_meters, mouse_x, mouse_y, button,
 		key_state[SDL_SCANCODE_LSHIFT] || key_state[SDL_SCANCODE_RSHIFT],
@@ -497,7 +504,7 @@ void visualizer_scene_update(float dt)
 	if (key_pressed(SDL_SCANCODE_TAB))
 		show_tweaks = !show_tweaks;
 
-	if (key_state[SDL_SCANCODE_M] && buttons & SDL_BUTTON(SDL_BUTTON_LEFT)) {
+	if (key_state[SDL_SCANCODE_M] && buttons & SDL_BUTTON_MASK(SDL_BUTTON_LEFT)) {
 		g_offset_x = mouse_x;
 		g_offset_y = screen_height - mouse_y;
 	}

@@ -73,15 +73,15 @@ error:
 
 static int l_image_Surface(lua_State *L)
 {
-	SDL_Surface *surface = SDL_CreateRGBSurface(0, //flags (should be 0)
-		luaL_checkinteger(L, 1), //width
-		luaL_checkinteger(L, 2), //height
-		luaL_optinteger(L, 3, 32), //depth
-		luaL_optinteger(L, 4, 0), //Rmask
-		luaL_optinteger(L, 5, 0), //Gmask
-		luaL_optinteger(L, 6, 0), //Bmask
-		luaL_optinteger(L, 7, 0) //Amask
-		);
+	SDL_Surface *surface = SDL_CreateSurface(
+		luaL_checkinteger(L, 1),
+		luaL_checkinteger(L, 2),
+		SDL_GetPixelFormatForMasks(
+			luaL_optinteger(L, 3, 32),
+			luaL_optinteger(L, 4, 0),
+			luaL_optinteger(L, 5, 0),
+			luaL_optinteger(L, 6, 0),
+			luaL_optinteger(L, 7, 0)));
 	if (!surface)
 		return luaL_error(L, "Could not create a Surface");
 	SDL_Surface **surface_ud = lua_newuserdatauv(L, sizeof(SDL_Surface *), 0);
@@ -104,7 +104,7 @@ static int l_image_Surface_fromFile(lua_State *L)
 static int l_image__gc(lua_State *L)
 {
 	SDL_Surface **surface = luaL_checkudata(L, 1, "tu.image.surface");
-	SDL_FreeSurface(*surface);
+	SDL_DestroySurface(*surface);
 	return 0;
 }
 
@@ -551,8 +551,9 @@ static int l_image_toTexture(lua_State *L)
 	lua_setiuservalue(L, texidx, 1);
 
 	//Choose a format based on the SDL surface format (ignore the one from l_image_texture_setParameters_internal)
-	bool rgb = surface->format->Rmask == 0x000000ff;
-	switch(surface->format->BytesPerPixel) {
+	const SDL_PixelFormatDetails *details = SDL_GetPixelFormatDetails(surface->format);
+	bool rgb = details->Rmask == 0x000000ff;
+	switch(details->bytes_per_pixel) {
 	case 1: //TODO
 		return luaL_error(L, "Single-channel images are not yet supported.");
 	case 3: //No alpha channel

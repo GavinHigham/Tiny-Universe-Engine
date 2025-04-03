@@ -9,7 +9,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <assert.h>
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 
 #define RANDOM_SEED 42 * 1337 + 0xBAE + 'G'+'r'+'e'+'e'+'n' //An excellent random seed
 static uint32_t utility_seed = RANDOM_SEED;
@@ -349,7 +349,7 @@ SDL_Texture * load_texture(SDL_Renderer *renderer, char *image_path) {
 
 	loaded_surface = IMG_Load(image_path);
 	if (loaded_surface == NULL) {
-		printf("Unable to load image %s! SDL_image Error: %s\n", image_path, IMG_GetError());
+		printf("Unable to load image %s! SDL_image Error: %s\n", image_path, SDL_GetError());
 		return NULL;
 	}
 	
@@ -358,7 +358,7 @@ SDL_Texture * load_texture(SDL_Renderer *renderer, char *image_path) {
 		printf("Unable to create texture from %s! SDL Error: %s\n", image_path, SDL_GetError());
 	}
 
-	SDL_FreeSurface(loaded_surface);
+	SDL_DestroySurface(loaded_surface);
 	return loaded_texture;
 }
 
@@ -373,8 +373,9 @@ GLuint load_gl_texture(char *path)
 	}
 
 	// Get the number of channels in the SDL surface.
-	int num_colors = surface->format->BytesPerPixel;
-	bool rgb = surface->format->Rmask == 0x000000ff;
+	const SDL_PixelFormatDetails *details = SDL_GetPixelFormatDetails(surface->format);
+	int num_colors = details->bytes_per_pixel;
+	bool rgb = details->Rmask == 0x000000ff;
 	if (num_colors == 4) {
 		texture_format = rgb ? GL_RGBA : GL_BGRA;
 	} else if (num_colors == 3) {
@@ -393,6 +394,6 @@ GLuint load_gl_texture(char *path)
 	SDL_UnlockSurface(surface);
 
 error:
-	SDL_FreeSurface(surface);
+	SDL_DestroySurface(surface);
 	return texture;
 }

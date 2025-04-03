@@ -34,10 +34,7 @@ Later, Lua wrappers for OpenGL handles will ensure they are generated and delete
 SCENE_IMPLEMENT(lua);
 
 static float screen_width = 640, screen_height = 480;
-static int mouse_x = 0, mouse_y = 0;
-
-// Temporary for an experiment, should go away when I refactor the meter logic a bit
-static float dither_transparency = 1.0;
+static float mouse_x = 0, mouse_y = 0;
 
 static float proj_mat_near = 0.1;
 static float proj_mat_far = 10000000;
@@ -323,7 +320,7 @@ void lua_scene_update(float dt)
 	lua_settop(L, top);
 
 	Uint32 buttons_held = SDL_GetMouseState(&mouse_x, &mouse_y);
-	bool button = buttons_held & SDL_BUTTON(SDL_BUTTON_LEFT);
+	bool button = buttons_held & SDL_BUTTON_MASK(SDL_BUTTON_LEFT);
 
 	if (g_luascene_tweaks.show_tweaks)
 		button = !meter_mouse_relative(&g_luascene_meters, mouse_x, mouse_y, button,

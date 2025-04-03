@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include <signal.h>
 #include <string.h>
-//#include <SDL2/SDL_opengl.h>
+//#include <SDL3/SDL_opengl.h>
 //Lua headers
 #include <lua-5.4.4/src/lua.h>
 #include <lua-5.4.4/src/lauxlib.h>
@@ -19,7 +19,7 @@
 #include "experiments/icosphere_scene.h"
 #include "experiments/proctri_scene.h"
 #include "experiments/spiral_scene.h"
-#include "experiments/visualizer_scene.h"
+// #include "experiments/visualizer_scene.h"
 #include "experiments/atmosphere/atmosphere_scene.h"
 #include "experiments/universe_scene/universe_scene.h"
 #include "experiments/spawngrid/spawngrid_scene.h"
@@ -42,23 +42,23 @@ static int *ffmpeg_buffer = NULL;
 static FILE *ffmpeg_file;
 
 lua_State *L = NULL;
-char *data_path = NULL;
+const char *data_path = NULL;
 
-void global_keys(SDL_Keysym keysym, SDL_EventType type)
+void global_keys(SDL_Keycode code, SDL_EventType type)
 {
-	static int fullscreen = 0;
-	switch (keysym.scancode) {
+	static bool fullscreen = false;
+	switch (code) {
 	case SDL_SCANCODE_ESCAPE:
-		SDL_PushEvent(&(SDL_Event){.type = SDL_QUIT}); //If it fails, the quit keypress was just eaten ¯\_(ツ)_/¯
+		SDL_PushEvent(&(SDL_Event){.type = SDL_EVENT_QUIT}); //If it fails, the quit keypress was just eaten ¯\_(ツ)_/¯
 		break;
 	case SDL_SCANCODE_F:
-		if (key_pressed(keysym.scancode)) {
-			fullscreen ^= SDL_WINDOW_FULLSCREEN_DESKTOP;
+		if (key_pressed(code)) {
+			fullscreen = !fullscreen;
 			SDL_SetWindowFullscreen(window, fullscreen);
 		}
 		break;
 	case SDL_SCANCODE_R:
-		if ((key_down(SDL_SCANCODE_LSHIFT) || key_down(SDL_SCANCODE_RSHIFT)) && key_pressed(keysym.scancode)) {
+		if ((key_down(SDL_SCANCODE_LSHIFT) || key_down(SDL_SCANCODE_RSHIFT)) && key_pressed(code)) {
 			ffmpeg_recording = !ffmpeg_recording;
 			if (ffmpeg_recording) {
 				printf("Starting to record!\n");
@@ -79,7 +79,7 @@ void global_keys(SDL_Keysym keysym, SDL_EventType type)
 		}
 		break;
 	case SDL_SCANCODE_1:
-		if (key_pressed(keysym.scancode))
+		if (key_pressed(code))
 			scene_reload();
 		break;
 	default:
@@ -94,30 +94,18 @@ bool drain_event_queue()
 	SDL_Event e;
 	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
-		case SDL_QUIT:                  return false;
-		case SDL_KEYDOWN:               global_keys(e.key.keysym, (SDL_EventType)e.type); break;
-		case SDL_KEYUP:                 global_keys(e.key.keysym, (SDL_EventType)e.type); break;
-		case SDL_CONTROLLERAXISMOTION:  caxisevent(e); break;
-		case SDL_JOYAXISMOTION:         jaxisevent(e); break;
-		case SDL_JOYBUTTONDOWN:         jbuttonevent(e); break;
-		case SDL_JOYBUTTONUP:           jbuttonevent(e); break;
-		case SDL_MOUSEWHEEL:			mousewheelevent(e); break;
-		case SDL_CONTROLLERDEVICEADDED: //Fall-through
-		case SDL_JOYDEVICEADDED:        input_event_device_arrival(e.jdevice.which); break;
-		case SDL_WINDOWEVENT:
-			if (e.window.windowID == windowID) {
-				switch (e.window.event)  {
-				case SDL_WINDOWEVENT_SIZE_CHANGED:
-					scene_resize(e.window.data1, e.window.data2);
-					break;
-				}
-			} break;
-		case SDL_DROPFILE: {
-				// SDL_ShowSimpleMessageBox(
-				// 	SDL_MESSAGEBOX_INFORMATION, "File dropped on window", e.drop.file, window);
-				scene_filedrop(e.drop.file);
-				SDL_free(e.drop.file);
-			} break;
+		case SDL_EVENT_QUIT :                 return false;
+		case SDL_EVENT_KEY_DOWN :             global_keys(e.key.scancode, (SDL_EventType)e.type); break;
+		case SDL_EVENT_KEY_UP :               global_keys(e.key.scancode, (SDL_EventType)e.type); break;
+		case SDL_EVENT_GAMEPAD_AXIS_MOTION :  caxisevent(e); break;
+		case SDL_EVENT_JOYSTICK_AXIS_MOTION : jaxisevent(e); break;
+		case SDL_EVENT_JOYSTICK_BUTTON_DOWN : jbuttonevent(e); break;
+		case SDL_EVENT_JOYSTICK_BUTTON_UP :   jbuttonevent(e); break;
+		case SDL_EVENT_MOUSE_WHEEL :          mousewheelevent(e); break;
+		case SDL_EVENT_GAMEPAD_ADDED : //Fall-through
+		case SDL_EVENT_JOYSTICK_ADDED :       input_event_device_arrival(e.jdevice.which); break;
+		case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED: if (e.window.windowID == windowID) scene_resize(e.window.data1, e.window.data2); break;
+		case SDL_EVENT_DROP_FILE :            scene_filedrop(e.drop.data);
 		}
 	}
 	return true;
@@ -140,15 +128,16 @@ int main(int argc, char **argv)
 		testmode = true;
 
 	int result = 0;
-	if ((result = SDL_Init(SDL_INIT_EVERYTHING)) != 0) {
+	SDL_InitFlags init_flags = SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_GAMEPAD;
+	if (!SDL_Init(init_flags)) {
 		fprintf(stderr, "SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
-		return result;
+		return -1;
 	}
 
 	//Get a base path for any application files (shaders, scripts)
 	data_path = SDL_GetBasePath();
 	if (!data_path)
-		data_path = SDL_strdup("./");
+		data_path = "./";
 
 	L = luaL_newstate();
 	luaL_openlibs(L);
@@ -167,24 +156,22 @@ int main(int argc, char **argv)
 	float screen_height = getglob(L, "screen_height", 600);
 	bool fullscreen = getglobbool(L, "fullscreen", false);
 	bool highdpi = getglobbool(L, "allow_highdpi", false);
-	SDL_SetRelativeMouseMode(getglobbool(L, "grab_mouse", false));
 
 	SDL_GLContext context = NULL;
 	if (!testmode) { //Skip window creation, OpenGL init, and and GLEW init in test mode.
 		window = SDL_CreateWindow(
-		screen_title,
-		SDL_WINDOWPOS_UNDEFINED,
-		SDL_WINDOWPOS_UNDEFINED,
-		screen_width,
-		screen_height,
-		SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | (highdpi ? SDL_WINDOW_ALLOW_HIGHDPI : 0));
+			screen_title,
+			screen_width,
+			screen_height,
+			SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | (highdpi ? SDL_WINDOW_HIGH_PIXEL_DENSITY : 0));
 
 		if (window == NULL) {
 			fprintf(stderr, "Window could not be created! SDL_Error: %s\n", SDL_GetError());
 			result = -2;
 			goto error;
 		}
-		SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
+		SDL_SetEventEnabled(SDL_EVENT_DROP_FILE, true);
+		SDL_SetWindowRelativeMouseMode(window, getglobbool(L, "grab_mouse", false));
 
 		if (gl_init(&context, window)) {
 			fprintf(stderr, "OpenGL could not be initiated!\n");
@@ -195,7 +182,7 @@ int main(int argc, char **argv)
 
 	int drawable_width = screen_width;
 	int drawable_height = screen_height;
-	SDL_GL_GetDrawableSize(window, &drawable_width, &drawable_height);
+	SDL_GetWindowSizeInPixels(window, &drawable_width, &drawable_height);
 
 	result = engine_init();
 	if (result < 0) {
@@ -219,7 +206,7 @@ int main(int argc, char **argv)
 		&proctri_scene,
 		&spiral_scene,
 		&icosphere_scene,
-		&visualizer_scene,
+		// &visualizer_scene,
 		&atmosphere_scene,
 		&universe_scene,
 		&spawngrid_scene,
@@ -232,9 +219,9 @@ int main(int argc, char **argv)
 		if (!strcmp(chosen_scene, scenes[i]->name))
 			scene_set(scenes[i]);
 	scene_resize(drawable_width, drawable_height);
-
-	if (fullscreen)
-		SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+	//Does this cause a SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED event?
+	//If so, I can skip the scene_resize above
+	SDL_SetWindowFullscreen(window, fullscreen);
 
 	windowID = SDL_GetWindowID(window);
 	uint32_t last_swap_timestamp = SDL_GetTicks();
@@ -295,8 +282,7 @@ int main(int argc, char **argv)
 
 error:
 	scene_set(NULL);
-	SDL_free(data_path);
-	SDL_GL_DeleteContext(context);
+	SDL_GL_DestroyContext(context);
 	SDL_DestroyWindow(window);
 	engine_deinit();
 	free(screen_title);

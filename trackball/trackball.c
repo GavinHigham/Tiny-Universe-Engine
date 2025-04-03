@@ -64,7 +64,7 @@ static void trackball_update(struct trackball *t)
 	t->camera = (amat4){mat3_lookat(b, t->target, (vec3){0, 1, 0}), b};
 }
 
-int trackball_step(struct trackball *t, int mouse_x, int mouse_y, bool button, int scroll_x, int scroll_y)
+int trackball_step(struct trackball *t, float mouse_x, float mouse_y, bool button, int scroll_x, int scroll_y)
 {
 	t->radius = fclamp(t->radius + scroll_y * t->speed.z, t->min_radius, t->max_radius);
 	if (t->mouse.button) {

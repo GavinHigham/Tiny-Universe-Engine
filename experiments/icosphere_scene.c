@@ -11,6 +11,7 @@
 #include <glla.h>
 #include <stdio.h>
 #include <math.h>
+#include <stddef.h>
 #include "graphics.h"
 
 /* Implementing scene "interface" */
@@ -19,7 +20,7 @@ static struct trackball icosphere_trackball;
 
 static SDL_Surface *test_surface = NULL;
 static float screen_width = 640, screen_height = 480;
-static int mouse_x = 0, mouse_y = 0;
+static float mouse_x = 0, mouse_y = 0;
 
 static amat4 eye_frame = {.a = MAT3_IDENT, .t = {0, 0, 5}}; 
 static amat4 ico_frame = {.a = MAT3_IDENT, .t = {0, 0, 0}};
@@ -149,7 +150,7 @@ void icosphere_scene_deinit()
 	glDeleteVertexArrays(1, &VAO);
 	glDeleteBuffers(2, &gl_buffers[VBO]);
 	glDeleteProgram(SHADER);
-	SDL_FreeSurface(test_surface);
+	SDL_DestroySurface(test_surface);
 }
 
 void icosphere_scene_update(float dt)
@@ -160,9 +161,9 @@ void icosphere_scene_update(float dt)
 		key_state[SDL_SCANCODE_S] - key_state[SDL_SCANCODE_W],
 	} * 0.15;
 	
-	Uint32 buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
+	uint32_t buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
 	int scroll_x = input_mouse_wheel_sum.wheel.x, scroll_y = input_mouse_wheel_sum.wheel.y;
-	trackball_step(&icosphere_trackball, mouse_x, mouse_y, buttons & SDL_BUTTON(SDL_BUTTON_LEFT), scroll_x, scroll_y);
+	trackball_step(&icosphere_trackball, mouse_x, mouse_y, buttons & SDL_BUTTON_MASK(SDL_BUTTON_LEFT), scroll_x, scroll_y);
 }
 
 void icosphere_scene_render()

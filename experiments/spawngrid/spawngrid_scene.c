@@ -24,7 +24,7 @@ extern lua_State *L;
 SCENE_IMPLEMENT(spawngrid);
 
 static float screen_width = 640, screen_height = 480;
-static int mouse_x = 0, mouse_y = 0;
+static float mouse_x = 0, mouse_y = 0;
 
 static GLfloat vertices[] = {-1, -1, 1, -1, -1, 1, 1, 1};
 
@@ -172,7 +172,7 @@ void spawngrid_scene_update(float dt)
 	g_spawngrid_tweaks.scene_time += dt;
 	
 	Uint32 buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
-	bool button = buttons & SDL_BUTTON(SDL_BUTTON_LEFT);
+	bool button = buttons & SDL_BUTTON_MASK(SDL_BUTTON_LEFT);
 
 	if (g_spawngrid_tweaks.show_tweaks)
 		button = !meter_mouse_relative(&g_spawngrid_meters, mouse_x, mouse_y, button,

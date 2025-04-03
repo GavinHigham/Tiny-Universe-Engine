@@ -25,7 +25,7 @@
 SCENE_IMPLEMENT(spiral);
 
 static float screen_width = 640, screen_height = 480;
-static int mouse_x = 0, mouse_y = 0;
+static float mouse_x = 0, mouse_y = 0;
 static struct trackball spiral_trackball;
 static struct color_buffer cbuffer;
 static struct renderable_cubemap rcube;
@@ -145,7 +145,7 @@ void spiral_scene_update(float dt)
 	// } * 0.15;
 	
 	Uint32 buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
-	bool button = buttons & SDL_BUTTON(SDL_BUTTON_LEFT);
+	bool button = buttons & SDL_BUTTON_MASK(SDL_BUTTON_LEFT);
 	if (show_tweaks)
 		button = !meter_mouse_relative(&g_galaxy_meters, mouse_x, mouse_y, button,
 		key_state[SDL_SCANCODE_LSHIFT] || key_state[SDL_SCANCODE_RSHIFT],

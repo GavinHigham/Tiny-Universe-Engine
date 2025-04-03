@@ -7,13 +7,13 @@
 
 static int l_isKeyDown(lua_State *L)
 {
-	lua_pushboolean(L, key_down(SDL_GetScancodeFromKey(SDL_GetKeyFromName((luaL_checkstring(L, 1))))));
+	lua_pushboolean(L, key_down(SDL_GetScancodeFromKey(SDL_GetKeyFromName((luaL_checkstring(L, 1))), NULL)));
     return 1;
 }
 
 static int l_isKeyPressed(lua_State *L)
 {
-	lua_pushboolean(L, key_pressed(SDL_GetScancodeFromKey(SDL_GetKeyFromName((luaL_checkstring(L, 1))))));
+	lua_pushboolean(L, key_pressed(SDL_GetScancodeFromKey(SDL_GetKeyFromName((luaL_checkstring(L, 1))), NULL)));
     return 1;
 }
 
@@ -59,10 +59,10 @@ static int l_isModifierDown(lua_State *L)
 		0x2000,
 		0x4000,
 		0x8000,
-		KMOD_LCTRL | KMOD_RCTRL,
-		KMOD_LSHIFT | KMOD_RSHIFT,
-		KMOD_LALT | KMOD_RALT,
-		KMOD_LGUI | KMOD_RGUI,
+		SDL_KMOD_LCTRL | SDL_KMOD_RCTRL,
+		SDL_KMOD_LSHIFT | SDL_KMOD_RSHIFT,
+		SDL_KMOD_LALT | SDL_KMOD_RALT,
+		SDL_KMOD_LGUI | SDL_KMOD_RGUI,
 	};
 
 	//Map option string to modifier flag, check against modifier state.
@@ -88,9 +88,9 @@ static int l_scancodeDirectional(lua_State *L)
 
 static int l_mouseForUI(lua_State *L)
 {
-	int mouse_x, mouse_y;
+	float mouse_x, mouse_y;
 	uint32_t buttons_held = SDL_GetMouseState(&mouse_x, &mouse_y);
-	bool button = buttons_held & SDL_BUTTON(SDL_BUTTON_LEFT);
+	bool button = buttons_held & SDL_BUTTON_MASK(SDL_BUTTON_LEFT);
 	int scroll_x = input_mouse_wheel_sum.wheel.x, scroll_y = input_mouse_wheel_sum.wheel.y;
 	lua_pushinteger(L, mouse_x);
 	lua_pushinteger(L, mouse_y);

@@ -24,7 +24,7 @@
 SCENE_IMPLEMENT(proctri);
 
 static float screen_width = 640, screen_height = 480;
-static int mouse_x = 0, mouse_y = 0;
+static float mouse_x = 0, mouse_y = 0;
 
 static amat4 eye_frame = {.a = MAT3_IDENT, .t = {0, 0, 5}}; 
 static amat4 tri_frame = {.a = MAT3_IDENT, .t = {0, 0, 0}};

@@ -1,3 +1,4 @@
+#include <math.h>
 #include "components.h"
 #include "math/utility.h"
 

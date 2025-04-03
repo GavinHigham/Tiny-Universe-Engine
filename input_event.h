@@ -1,10 +1,10 @@
 #ifndef INPUT_EVENT_H
 #define INPUT_EVENT_H
 
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 #include <stdbool.h>
 
-extern const Uint8 *key_state;
+extern const bool *key_state;
 extern SDL_Event input_mouse_wheel_sum;
 
 enum {
@@ -46,8 +46,8 @@ struct controller_axis_input {
 };
 
 struct mouse_input {
-	Uint32 buttons;
-	int x, y;
+	uint32_t buttons;
+	float x, y;
 };
 
 void input_event_init();
@@ -62,8 +62,7 @@ void mousewheelevent(SDL_Event e);
 void mousewheelreset();
 bool key_pressed(SDL_Scancode s);
 bool key_down(SDL_Scancode s);
-Uint8 mouse_button_pressed(int *x, int *y);
-void keyevent(SDL_Keysym keysym, SDL_EventType type);
+uint32_t mouse_button_pressed(float *x, float *y);
 struct controller_axis_input controller_input_apply_threshold(struct controller_axis_input input, float threshold);
 
 #endif

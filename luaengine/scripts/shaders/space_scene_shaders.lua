@@ -301,7 +301,7 @@ void main() {
 		if (dot(normal, lv4) <= 0)
 			EmitQuadLines(-lv4, -lv0, lp4, lp0);
 	}
-}]]
+}]],
 
 
 shadowf = --[[glsl]][[

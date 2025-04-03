@@ -4,7 +4,7 @@
 #include "graphics.h"
 #include <stdlib.h>
 #include <inttypes.h>
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 
 //TODO(Gavin): Move this out of the "math" directory.
 

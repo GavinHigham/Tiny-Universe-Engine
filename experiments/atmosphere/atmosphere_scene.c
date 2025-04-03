@@ -25,7 +25,7 @@ SCENE_IMPLEMENT(atmosphere);
 static struct trackball atmosphere_trackball;
 
 static float screen_width = 640, screen_height = 480;
-static int mouse_x = 0, mouse_y = 0;
+static float mouse_x = 0, mouse_y = 0;
 
 static amat4 eye_frame = {.a = MAT3_IDENT, .t = {0, 0, 0}}; 
 static amat4 ico_frame = {.a = MAT3_IDENT, .t = {0, 0, 0}};
@@ -305,7 +305,7 @@ void atmosphere_scene_update(float dt)
 	g_atmosphere_tweaks.scene_time += dt;
 	
 	Uint32 buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
-	bool button = buttons & SDL_BUTTON(SDL_BUTTON_LEFT);
+	bool button = buttons & SDL_BUTTON_MASK(SDL_BUTTON_LEFT);
 
 	if (g_atmosphere_tweaks.show_tweaks)
 		button = !meter_mouse_relative(&g_atmosphere_meters, mouse_x, mouse_y, button,

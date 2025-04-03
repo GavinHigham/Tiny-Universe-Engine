@@ -63,7 +63,7 @@ extern "C" {
 #define GLAD_PLATFORM_H_
 
 #ifndef GLAD_PLATFORM_WIN32
-  #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32) || defined(__MINGW32__)
+  #if defined(_WIN32) || defined(SDL_PLATFORM_WIN32) || defined(WIN32) || defined(__MINGW32__)
     #define GLAD_PLATFORM_WIN32 1
   #else
     #define GLAD_PLATFORM_WIN32 0
@@ -71,7 +71,7 @@ extern "C" {
 #endif
 
 #ifndef GLAD_PLATFORM_APPLE
-  #ifdef __APPLE__
+  #ifdef SDL_PLATFORM_APPLE
     #define GLAD_PLATFORM_APPLE 1
   #else
     #define GLAD_PLATFORM_APPLE 0
@@ -1241,7 +1241,7 @@ typedef void *GLeglClientBufferEXT;
 typedef void *GLeglImageOES;
 typedef char GLchar;
 typedef char GLcharARB;
-#ifdef __APPLE__
+#ifdef SDL_PLATFORM_APPLE
 typedef void *GLhandleARB;
 #else
 typedef unsigned int GLhandleARB;

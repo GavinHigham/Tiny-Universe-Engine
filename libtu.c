@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include <signal.h>
 #include <string.h>
-//#include <SDL2/SDL_opengl.h>
+//#include <SDL3/SDL_opengl.h>
 //Lua headers
 #include <lua-5.4.4/src/lua.h>
 #include <lua-5.4.4/src/lauxlib.h>

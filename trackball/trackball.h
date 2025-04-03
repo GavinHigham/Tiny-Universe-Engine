@@ -29,7 +29,7 @@ struct trackball {
 	} bounds;
 	struct {
 		bool button;
-		int x, y;
+		float x, y;
 		struct {
 			int x, y;
 		} scroll;
@@ -45,6 +45,6 @@ void trackball_set_speed(struct trackball *t, float horizontal, float vertical, 
 //Values greater than 2pi assume no limits. Recommended to keep top and bottom < pi/2.
 void trackball_set_bounds(struct trackball *t, float top, float bottom, float left, float right);
 //Returns 1 if the trackball was turned.
-int trackball_step(struct trackball *t, int mouse_x, int mouse_y, bool button, int scroll_x, int scroll_y);
+int trackball_step(struct trackball *t, float mouse_x, float mouse_y, bool button, int scroll_x, int scroll_y);
 
 #endif

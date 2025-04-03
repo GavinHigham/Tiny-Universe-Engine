@@ -138,12 +138,12 @@ void draw_skybox_forward(EFFECT *e, struct buffer_group bg, amat4 model_matrix)
 		glDepthFunc(GL_LEQUAL);
 	}
 
-	static vec3 last_cubemap_loc = (vec3){0.0, 0.0, 0.0};
+	// static vec3 last_cubemap_loc = (vec3){0.0, 0.0, 0.0};
 	static bool rendered_once = false;
 	static int num_frames = 1;
 	// if (!rendered_once || vec3_dist(last_cubemap_loc, eye_frame.t) > 100.0) {
 		num_frames = galaxy_no_worries_just_render_cubemap(!rendered_once);
-		last_cubemap_loc = eye_frame.t;
+		// last_cubemap_loc = eye_frame.t;
 		glViewport(0, 0, screen_width, screen_height);
 		glUseProgram(e->handle);
 		rendered_once = true;

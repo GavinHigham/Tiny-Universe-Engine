@@ -137,9 +137,9 @@ scriptabletemp_callback(entity_camera_script)
 	assert(c && p && t);
 
 	c->origin = p->origin;
-	int mouse_x = 0, mouse_y = 0;
-	Uint32 buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
-	bool button = buttons & SDL_BUTTON(SDL_BUTTON_LEFT);
+	float mouse_x = 0, mouse_y = 0;
+	uint32_t buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
+	bool button = buttons & SDL_BUTTON_MASK(SDL_BUTTON_LEFT);
 	int scroll_x = input_mouse_wheel_sum.wheel.x, scroll_y = input_mouse_wheel_sum.wheel.y;
 	trackball_step(&t->trackball, mouse_x, mouse_y, button, scroll_x, scroll_y);
 
