@@ -406,6 +406,12 @@ static void l_checkframebufferstatus(lua_State *L, GLenum fbo_binding, GLint fbo
 
 static int l_image_texture_drawTo(lua_State *L)
 {
+	//prev_fbo_static is the (assumed) bound FBO at the time this function is entered
+	//the value of prev_fbo_static could change within nested calls,
+	//so we save its value to prev_fbo, which lives on the stack, before calling the drawing function
+	static GLuint prev_fbo_static = 0;
+	GLuint prev_fbo = prev_fbo_static;
+
 	GLuint *texture = luaL_checkudata(L, 1, "tu.image.texture");
 	luaL_checktype(L, 2, LUA_TFUNCTION);
 
@@ -478,10 +484,12 @@ static int l_image_texture_drawTo(lua_State *L)
 	glGetIntegerv(GL_VIEWPORT, viewport);
 	glViewport(0, 0, width, height);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+	prev_fbo_static = fbo;
 	//If we're a color texture and skipdepth is false, create and attach a depth texture
 	lua_settop(L, 2); //Wipe out anything above the function argument, then call it.
 	lua_call(L, 0, 0);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_fbo);
+	prev_fbo_static = prev_fbo;
 	glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
 	return 0;
 }

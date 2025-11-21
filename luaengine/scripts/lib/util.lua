@@ -3,6 +3,11 @@ local gl_unsafe = require 'OpenGL'
 local gl_safe
 local gl = gl_unsafe
 local glla
+local dbg = require 'dbg'
+local lexer = require 'lib/lpil53/lexer'
+local parser = require 'lib/lpil53/parser'
+local sem = require 'lib/lpil53/sem'
+local traversal = require 'lib/lpil53/traversal'
 
 --[[
 You can do this to receive a "safe" wrapper around OpenGL, and enable within this module:
@@ -117,6 +122,70 @@ function util.glsw(shader)
 		j_prev, match_prev = j, match
 	until not match
 	return matches
+end
+
+--Takes a filepath for a file which assigns shader strings to variables
+--returns a table of line numbers on which each shader string begins, indexed by the variable name
+--for use with GLSL's #line directive
+function util.shaderTableLines(filepath)
+	print(filepath)
+	local filestr = assert(io.open(filepath, 'r')):read('a')
+	local lex = lexer.tokenize(filestr)
+	local parse = parser(lex).parse_chunk()
+	local parse_sema = sem.sema(parse)
+
+	local retstat
+	for node in traversal.pre_bfs(parse) do
+		if node[1] == 'retstat' then
+			retstat = node
+			break
+		end
+	end
+
+	-- dbg()
+
+--[[
+Need to find the first top-level retstat, then work backwards to find its tableconstructor.
+Then, we need to track assignments into that table. There may be an initial nested fieldlist.
+There could also be assignments (pulled out by semantic analysis already).
+
+Technically doing all this properly requires actually interpreting Lua (or solving the halting problem)
+but we can do a decent best-effort that will still "magically" be able to pick up various ways the table
+could be assigned into.
+It might also be nice to track string concatenations to give correct line numbers from snippets glued together.
+]]
+
+	--Find the top-level retstat and the table it returns
+	-- assert(parse[1] == 'chunk'
+	-- local last = parse[#parse]
+	-- assert(type(last) == 'table' and last[1] == 'block')
+
+	-- for node in traversal.pre_dfs(parse) do
+	-- 	if node[1] == 'retstat' then
+	-- 		local retstat = node
+	-- 		local tableconstructor = nil
+	-- 		local fieldlist = nil
+	-- 		for i=2,#node do
+	-- 			if type(node[i]) == 'table' and node[i][1] == 'tableconstructor' then
+	-- 				tableconstructor = node[i]
+	-- 				break
+	-- 			end
+	-- 		end
+	-- 		if tableconstructor then
+	-- 			--Find the fieldlist in the table constructor, if it exists
+	-- 			for i=2,#tableconstructor do
+	-- 				if type(tableconstructor[i]) == 'table' and tableconstructor[i][1] == 'fieldlist' then
+	-- 					fieldlist = tableconstructor[i]
+	-- 					break
+	-- 				end
+	-- 			end
+	-- 		end
+
+	-- 		return retstat, tableconstructor, fieldlist
+	-- 	end
+	-- end
+
+	--If we didn't find a retstat, return nil
 end
 
 return util

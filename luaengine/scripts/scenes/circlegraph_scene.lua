@@ -2,9 +2,9 @@ local glla = require 'glla'
 local util,gl = require 'lib/util'.safe()
 local glsw = util.glsw
 local vec3 = glla.vec3
-circlegraph = {}
+local circlegraph = {}
 
-function circlegraph.init()
+function scene.init()
 
 	local shaders = glsw(io.open('shaders/glsw/atmosphere.glsl', 'r'):read('a'))
 	local common = glsw(io.open('shaders/glsw/common.glsl', 'r'):read('a'))
@@ -39,18 +39,18 @@ function circlegraph.init()
 	return 0
 end
 
-function circlegraph.deinit()
+function scene.deinit()
 	shaderProgram = nil
 	collectgarbage()
 end
 
-function circlegraph.resize(width, height)
+function scene.resize(width, height)
 end
 
-function circlegraph.update(dt)
+function scene.update(dt)
 end
 
-function circlegraph.render()
+function scene.render()
 	gl.ClearColor(0.01, 0.22, 0.23, 1.0);
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT)
 	gl.BindVertexArray(vertexArrays[1])

@@ -14,6 +14,8 @@
 #include "space/triangular_terrain_tile.h"
 #include "meter/meter.h"
 #include "meter/meter_ogl_renderer.h"
+#define DEBUGGER_LUA_IMPLEMENTATION
+#include "scripts/lib/debug/debugger_lua.h"
 #include <assert.h>
 #include <glla.h>
 #include <math.h>
@@ -89,7 +91,7 @@ void lua_scene_filedrop(const char *file) {
 	lua_getfield(L, LUA_REGISTRYINDEX, "tu_lua_scene");
 	lua_getfield(L, -1, "onfiledrop");
 	lua_pushstring(L, file);
-	if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
+	if (dbg_pcall(L, 1, 0, 0) != LUA_OK) {
 		printf("%s\n", lua_tostring(L, -1));
 	}
 	lua_settop(L, top);
@@ -160,12 +162,17 @@ void lua_scene_meters_init(lua_State *L, meter_ctx *M, struct atmosphere_tweaks 
 			.target = &at->planet_scale,
 			.style = wstyles, .color = {.fill = {79, 79, 207, 255}, .border = {47, 47, 95, 255}, .font = {255, 255, 255, 255}}
 		},
+		{
+			.name = "Shadow Silhouette Dilation", .x = 5.0, .y = 0, .min = 0.0, .max = 100.0, .value = 0.0,
+			.style = wstyles, .color = {.fill = {79, 79, 207, 255}, .border = {47, 47, 95, 255}, .font = {255, 255, 255, 255}}
+		},
 	};
 	for (int i = 0; i < LENGTH(widgets); i++) {
 		widget_meter *w = &widgets[i];
-		//TODO: Make it possible to define these without having a target (we NULL-deref in that case currently)
-		meter_add(M, w->name, w->style.width, w->style.height, w->min, *w->target, w->max);
-		meter_target(M, w->name, w->target);
+		float value = w->target ? *w->target : w->value;
+		meter_add(M, w->name, w->style.width, w->style.height, w->min, value, w->max);
+		if (w->target)
+			meter_target(M, w->name, w->target);
 		meter_position(M, w->name, w->x, w->y + y_offset);
 		if (w->callback)
 			meter_callback(M, w->name, w->callback, w->callback_context);
@@ -190,7 +197,7 @@ int lua_scene_init(bool reload)
 	int top = lua_gettop(L);
 	lua_getglobal(L, "require");
 	lua_getglobal(L, "lua_scene");
-	if (lua_pcall(L, 1, 1, 0) != LUA_OK) {
+	if (dbg_pcall(L, 1, 1, 0) != LUA_OK) {
 		printf("%s\n", lua_tostring(L, -1));
 		return -1;
 	}
@@ -222,7 +229,7 @@ int lua_scene_init(bool reload)
 	lua_pushboolean(L, reload);
 
 	//If there's no error return value, a nil is pushed
-	result = lua_pcall(L, 1, 1, 0) != LUA_OK;
+	result = dbg_pcall(L, 1, 1, 0) != LUA_OK;
 	if (result) {
 		//Handle Lua errors
 		if (lua_isstring(L, -1))
@@ -234,7 +241,12 @@ int lua_scene_init(bool reload)
 	//TODO: Allow string errors as well
 	result = lua_tointeger(L, -1);
 
-	unsave_package:
+	g_luascene_tweaks = atmosphere_load_tweaks(L, "atmosphere_defaults");
+	g_luascene_tweaks.extra_context = L;
+	g_luascene_tweaks.show_tweaks = false;
+	lua_scene_meters_init(L, &g_luascene_meters, &g_luascene_tweaks, screen_width, screen_height);
+
+unsave_package:
 	if (result) {
 		//Unsave the package so the user has a chance to fix and reload it
 		luaL_dostring(L, "package.loaded[lua_scene] = nil");
@@ -242,11 +254,6 @@ int lua_scene_init(bool reload)
 	}
 
 	lua_settop(L, top);
-
-	g_luascene_tweaks = atmosphere_load_tweaks(L, "atmosphere_defaults");
-	g_luascene_tweaks.extra_context = L;
-	g_luascene_tweaks.show_tweaks = false;
-	lua_scene_meters_init(L, &g_luascene_meters, &g_luascene_tweaks, screen_width, screen_height);
 
 	return 0;
 }
@@ -259,7 +266,7 @@ void lua_scene_resize(float width, float height)
 	lua_getfield(L, -1, "resize");
 	lua_pushnumber(L, width);
 	lua_pushnumber(L, height);
-	lua_pcall(L, 2, 0, 0);
+	dbg_pcall(L, 2, 0, 0);
 	lua_settop(L, top);
 
 	printf("Resizing! width: %f, height: %f\n", width, height);
@@ -282,7 +289,7 @@ void lua_scene_deinit()
 	int top = lua_gettop(L);
 	lua_getfield(L, LUA_REGISTRYINDEX, "tu_lua_scene");
 	lua_getfield(L, -1, "deinit");
-	lua_pcall(L, 0, 0, 0);
+	dbg_pcall(L, 0, 0, 0);
 
 	//package.loaded[lua_scene] = nil
 	lua_getglobal(L, "package");
@@ -305,7 +312,7 @@ void lua_scene_update(float dt)
 	if (lua_getfield(L, LUA_REGISTRYINDEX, "tu_lua_scene") == LUA_TTABLE) {
 		lua_getfield(L, -1, "update");
 		lua_pushnumber(L, dt);
-		if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
+		if (dbg_pcall(L, 1, 0, 0) != LUA_OK) {
 			if (lua_isstring(L, -1))
 				printf("%s\n", lua_tostring(L, -1));
 			return;
@@ -337,7 +344,7 @@ void lua_scene_render()
 	int top = lua_gettop(L);
 	if (lua_getfield(L, LUA_REGISTRYINDEX, "tu_lua_scene") == LUA_TTABLE) {
 		lua_getfield(L, -1, "render");
-		if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
+		if (dbg_pcall(L, 0, 0, 0) != LUA_OK) {
 			if (lua_isstring(L, -1))
 				printf("%s\n", lua_tostring(L, -1));
 			return;

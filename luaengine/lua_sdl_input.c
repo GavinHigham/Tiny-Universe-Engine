@@ -100,6 +100,12 @@ static int l_mouseForUI(lua_State *L)
 	return 5;
 }
 
+//Assume new gamepads have already been opened
+void tu_lua_sdl_input_onevent(lua_State *L, SDL_Event e)
+{
+	//TODO: Handle event somehow (pass to Lua, store it, etc.)
+}
+
 int luaopen_l_sdl_input(lua_State *L)
 {
 	luaL_Reg l_sdl_input[] = {
@@ -112,6 +118,15 @@ int luaopen_l_sdl_input(lua_State *L)
 		{"mouseForUI", l_mouseForUI},
 		{NULL, NULL}
 	};
+
+	/*TODO:
+	Open gamepads when library is opened, register for notification of new ones
+	(or listen for events?)
+
+	Provide APIs to just query the state of a given gamepad
+	Maybe just provide by player index, with a default if none is specified
+	Also expose API to set a gamepad's player index, for game UI that assigns a player to a gamepad
+	*/
 
 	luaL_newlib(L, l_sdl_input);
 	return 1;

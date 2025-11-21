@@ -6,6 +6,8 @@
 //Graphics header includes OpenGL
 #include "graphics.h"
 #include "glla.h"
+#include "macros.h"
+#include "scripts/lib/debug/debugger_lua.h"
 
 struct tu_gluint_array
 {
@@ -715,7 +717,6 @@ extern char *shader_enum_to_string(GLenum shader_type);
 //Pushes the log string onto the Lua stack [-0, +1, e]
 static void l_pushLog(lua_State *L, GLuint handle, GLboolean is_program)
 {
-	int top = lua_gettop(L);
 	//Why write two log printing functions when you can use FUNCTION POINTERS AND TERNARY OPERATORS >:D
 	GLboolean (*glIs)(GLuint)                                  = is_program? glIsProgram         : glIsShader;
 	void (*glGetiv)(GLuint, GLenum, GLint *)                   = is_program? glGetProgramiv      : glGetShaderiv;
@@ -772,9 +773,19 @@ static int lua_shader(lua_State *L, GLenum type)
 		lua_pushliteral(L, " ");                        // 3
 		lua_pushinteger(L, *shader);                    // 4
 		lua_pushliteral(L, "!\n");                      // 5
-		l_pushLog(L, *shader, GL_FALSE);              // 6
-		lua_concat(L, 6);
+		l_pushLog(L, *shader, GL_FALSE);                // 6
+		lua_pushliteral(L, "\n"ANSI_COLOR_BLUE"Shader source:\n"ANSI_COLOR_RESET); // 7
+		lua_getfield(L, LUA_REGISTRYINDEX, "tu_builtin_shaderSourceError"); //
+		lua_pushvalue(L, 1);                                                //
+		lua_pushnil(L);                                                     //
+		lua_pushvalue(L, -5);                                               //
+		dbg_pcall(L, 3, 1, 0);                                              // 8
+		lua_concat(L, 8);
 		return 2; //Returns nil, error string
+
+		//Would be nice to do a string replacement on each line to add line numbers.
+		//Would also be nice to parse out the error line number and highlight that specific line.
+		//Probably easiest to call a Lua function for that.
 	}
 
 	return 0;
@@ -847,7 +858,7 @@ int lua_shaderProgram(lua_State *L)
 		lua_pushliteral(L, "Unable to link program "); // 1
 		lua_pushinteger(L, *program);                  // 2
 		lua_pushliteral(L, "!\n");                     // 3
-		l_pushLog(L, *program, GL_TRUE);             // 4
+		l_pushLog(L, *program, GL_TRUE);               // 4
 		lua_concat(L, 4);
 		return 2;
 	}
@@ -1336,6 +1347,17 @@ int luaopen_l_opengl(lua_State *L)
 	#define STRINGIFY(x) #x
 	#define VAL_AS_STR(x) STRINGIFY(x)
 	
+	lua_pushliteral(L,
+		"local VERTEX_SHADER_TYPE = "VAL_AS_STR(GL_VERTEX_SHADER)"\n"
+		"local SHADER_TYPES = {float = "VAL_AS_STR(TULUA_TFLOAT)", int = "VAL_AS_STR(TULUA_TINT)", bool = "VAL_AS_STR(TULUA_TBOOL)", vec2 = "VAL_AS_STR(TULUA_TVEC2)", vec3 = "VAL_AS_STR(TULUA_TVEC3)", vec4 = "VAL_AS_STR(TULUA_TVEC4)", mat3 = "VAL_AS_STR(TULUA_TMAT3)", mat4 = "VAL_AS_STR(TULUA_TMAT4)", sampler2D = "VAL_AS_STR(TULUA_TTEX)"}\n");
+	lua_pushstring(L, (const char []){
+		#embed "builtin_opengl_fns.lua" suffix(, 0)
+	});
+	lua_concat(L, 2);
+	luaL_loadstring(L, lua_tostring(L, -1));
+	lua_call(L, 0, LUA_MULTRET);
+	//Might be possible to do the concat at compile time? Both strings are literals.
+
 	//Source for any builtin functions, which will be compiled once then assigned into the registry
 	const char *builtin_fns =
 		"local types = {float = true, int = true, bool = true, vec2 = true, vec3 = true, vec4 = true}\n"
@@ -1397,10 +1419,26 @@ int luaopen_l_opengl(lua_State *L)
 			"end\n"
 			"return uniforms\n"
 		"end\n"
-		"return attributesFromShaderStrings, uniformsFromShaderString\n";
 
-	luaL_loadstring(L, builtin_fns);
-	lua_call(L, 0, LUA_MULTRET);
+		"local function shaderSourceError(shader, errorline, errorstring)\n"
+			"local currentline = 0\n"
+			"errorline = errorline or tonumber(errorstring:match('%d+:(%d+)'))\n"
+			"return string.gsub(shader, '[^\\r\\n]*', function (line)\n"
+				"currentline = currentline + 1\n"
+				"local linenumber = string.format('%03d: ', currentline)\n"
+				"if currentline == errorline then\n"
+					"return '\\27[31m'..linenumber..line..'\\27[0m'\n"
+				"else\n"
+					"return linenumber..line\n"
+				"end\n"
+			"end)\n"
+		"end\n"
+		"return attributesFromShaderStrings, uniformsFromShaderString, shaderSourceError\n";
+
+	// luaL_loadstring(L, builtin_fns);
+	// lua_call(L, 0, LUA_MULTRET);
+	//We're popping these off the stack, so reverse the order from above!
+	lua_setfield(L, LUA_REGISTRYINDEX, "tu_builtin_shaderSourceError");
 	lua_setfield(L, LUA_REGISTRYINDEX, "tu_builtin_uniformsFromShaderString");
 	lua_setfield(L, LUA_REGISTRYINDEX, "tu_builtin_attributesFromShaderStrings");
 	lua_createtable(L, 80, 0);

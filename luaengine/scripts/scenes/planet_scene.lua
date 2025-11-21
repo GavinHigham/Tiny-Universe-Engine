@@ -11,7 +11,7 @@ local vec4 = glla.vec4
 local mat3 = glla.mat3
 local amat4 = glla.amat4
 
-planet = {}
+local scene = {}
 local stuff
 
 local time = 0.0
@@ -41,7 +41,7 @@ local function CubeVertexData()
 		.indices({0,1,2, 3,4,5, 6,3,7, 2,4,3,2,1,5,5,1,0,6,0,2,7,3,5,0,6,7,6,2,3,4,2,5,7,5,0,}).mode(gl.TRIANGLES)
 end
 
-function planet.init()
+function scene.init()
 	-- util.print_gl_calls = true
 
 	local v0 = vec3(0,0,0)
@@ -110,15 +110,15 @@ function planet.init()
 	return 0
 end
 
-function planet.deinit()
+function scene.deinit()
 	planetShader = nil
 end
 
-function planet.resize(width, height)
+function scene.resize(width, height)
 	screen_width, screen_height = width, height
 end
 
-function planet.update(dt)
+function scene.update(dt)
 	time = time + dt
 	eye_frame.t = eye_frame.t + sphere_trackball.camera.a * vec3(input.scancodeDirectional('D', 'A', 'E', 'Q', 'S', 'W')) * 0.15
 	sphere_trackball.step(input.mouseForUI())
@@ -133,7 +133,7 @@ function planet.update(dt)
 	end
 end
 
-function planet.render()
+function scene.render()
 	gl.ClearColor(0,0,0,0)
 	gl.DepthFunc(gl.LESS)
 	gl.ClearDepth(1)
@@ -155,13 +155,13 @@ function planet.render()
 		shader.uLight_pos = vec3(30,30,30)
 		shader.uLight_col = vec3(1,1,1)
 		shader.uLight_attr = vec4(0.0, 0.0, 1, 5)
-		-- print('log depth intermediate factor:', planet.log_depth_intermediate_factor)
-		shader.log_depth_intermediate_factor = planet.log_depth_intermediate_factor
+		-- print('log depth intermediate factor:', scene.log_depth_intermediate_factor)
+		shader.log_depth_intermediate_factor = scene.log_depth_intermediate_factor
 
 		local mm = mat3.identity()
 		shader.model_matrix = amat4(mm, pos or tri_frame.t)
 		shader.model_view_normal_matrix = amat4(mm:transposed(), vec3(0,0,0))
-		shader.model_view_projection_matrix = planet.proj_mat * amat4(sphere_trackball.camera.a, eye_frame.t):inversed() * shader.model_matrix
+		shader.model_view_projection_matrix = scene.proj_mat * amat4(sphere_trackball.camera.a, eye_frame.t):inversed() * shader.model_matrix
 		shader.hella_time = time
 		shader.camera_position = vec3(0,0,0)
 		shader.ambient_pass = 0
@@ -182,7 +182,7 @@ function planet.render()
 	-- forward_draw(forwardShader, roomvdata)
 end
 
-function planet.onfiledrop(filename)
+function scene.onfiledrop(filename)
 	print('File was dropped: '..filename)
 	if filename:sub(-4, -1) == '.ply' then
 		local plyfile = PlyFileVertexData(filename)
@@ -190,4 +190,4 @@ function planet.onfiledrop(filename)
 	end
 end
 
-return planet
+return scene

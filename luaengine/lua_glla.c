@@ -710,8 +710,15 @@ static int l_amat4_new(lua_State *L)
 {
 	//Since this is called with __call, arg 1 is the callable object
 	amat4 *m = lua_newuserdatauv(L, sizeof(amat4), 0);
-	m->a = *(mat3 *)luaL_checkudata(L, 2, "tu.mat3");
-	m->t = *(vec3 *)luaL_checkudata(L, 3, "tu.vec3");
+	vec3 *v = luaL_testudata(L, 2, "tu.vec3");
+	//If first arg is a vector, it's a translation-only matrix
+	if (v) {
+		m->a = (mat3)MAT3_IDENT;
+		m->t = *v;
+	} else {
+		m->a = *(mat3 *)luaL_checkudata(L, 2, "tu.mat3");
+		m->t = *(vec3 *)luaL_checkudata(L, 3, "tu.vec3");
+	}
 	luaL_setmetatable(L, "tu.amat4");
 	return 1;
 }

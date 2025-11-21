@@ -10,7 +10,7 @@ local vec3 = glla.vec3
 local vec4 = glla.vec4
 local mat3 = glla.mat3
 local amat4 = glla.amat4
-proctri = {}
+local scene = {}
 local time = 0.0
 local screen_width, screen_height
 local selected_primitive = 0
@@ -51,7 +51,7 @@ local function IcoVertexData(s)
 	return VertexData.VertexData(s).vertices(vertices)--.indices(ico_i)
 end
 
-function proctri.init()
+function scene.init()
 	-- util.print_gl_calls = true
 	vertexArrays = gl.VertexArrays(1)
 	gl.BindVertexArray(vertexArrays[1])
@@ -163,17 +163,17 @@ function proctri.init()
 	return 0
 end
 
-function proctri.deinit()
+function scene.deinit()
 	shaderProgram = nil
 	collectgarbage()
 end
 
-function proctri.resize(width, height)
+function scene.resize(width, height)
 	screen_width, screen_height = width, height
 	shaderProgram.resolution = vec2(width, height)
 end
 
-function proctri.update(dt)
+function scene.update(dt)
 	time = time + dt
 	eye_frame.t = eye_frame.t + sphere_trackball.camera.a * vec3(input.scancodeDirectional('D', 'A', 'E', 'Q', 'S', 'W')) * 0.15
 	sphere_trackball.step(input.mouseForUI())
@@ -188,7 +188,7 @@ local function ico_inscribed_radius(edge_len)
 	return sqrt(3)*(3+sqrt(5))*edge_len/12.0;
 end
 
-function proctri.render()
+function scene.render()
 	-- gl.ClearColor(0.01, 0.22, 0.23, 1.0)
 	gl.ClearColor(0,0,0,0)
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT)
@@ -202,26 +202,26 @@ function proctri.render()
 	end
 
 	shaderProgram.selected_primitive = selected_primitive
-	shaderProgram.samples_ab = proctri.meters['Samples along AB'] or 10
-	shaderProgram.samples_cp = proctri.meters['Samples along CP'] or 10
-	shaderProgram.atmosphere_height = proctri.meters['"Atmosphere Height"'] or 0.02
-	shaderProgram.focal_length = proctri.meters['Field of View'] or 1.0/math.tan(math.pi/12)
-	shaderProgram.p_and_p = proctri.meters['Poke and Prod Variable'] or 1
+	shaderProgram.samples_ab = scene.meters['Samples along AB'] or 10
+	shaderProgram.samples_cp = scene.meters['Samples along CP'] or 10
+	shaderProgram.atmosphere_height = scene.meters['"Atmosphere Height"'] or 0.02
+	shaderProgram.focal_length = scene.meters['Field of View'] or 1.0/math.tan(math.pi/12)
+	shaderProgram.p_and_p = scene.meters['Poke and Prod Variable'] or 1
 	shaderProgram.air_b = vec3(
-		proctri.meters['Air Particle Interaction Transmittance R'] or 0.00000519673,
-		proctri.meters['Air Particle Interaction Transmittance G'] or 0.0000121427,
-		proctri.meters['Air Particle Interaction Transmittance B'] or 0.0000296453)
-	shaderProgram.scale_height = proctri.meters['Scale Height'] or 8500.0
-	shaderProgram.planet_scale = proctri.meters['Planet Scale'] or 6371000.0
+		scene.meters['Air Particle Interaction Transmittance R'] or 0.00000519673,
+		scene.meters['Air Particle Interaction Transmittance G'] or 0.0000121427,
+		scene.meters['Air Particle Interaction Transmittance B'] or 0.0000296453)
+	shaderProgram.scale_height = scene.meters['Scale Height'] or 8500.0
+	shaderProgram.planet_scale = scene.meters['Planet Scale'] or 6371000.0
 	shaderProgram.resolution = vec2(screen_width or 1024, screen_height or 768)
 	shaderProgram.time = time
-	shaderProgram.planet = vec4(0,0,0, proctri.meters['Planet Radius'] or 1)
+	shaderProgram.planet = vec4(0,0,0, scene.meters['Planet Radius'] or 1)
 	shaderProgram.ico_scale = (shaderProgram.planet.w + shaderProgram.atmosphere_height) / ico_inscribed_radius(2*ico_x)
 
 	shaderProgram.dir_mat = sphere_trackball.camera.a:transposed()
 	shaderProgram.eye_pos = eye_frame.t
 	shaderProgram.model_matrix = amat4(mat3.identity(), tri_frame.t)
-	shaderProgram.model_view_projection_matrix = proctri.proj_mat * amat4(sphere_trackball.camera.a, eye_frame.t):inversed() * shaderProgram.model_matrix
+	shaderProgram.model_view_projection_matrix = scene.proj_mat * amat4(sphere_trackball.camera.a, eye_frame.t):inversed() * shaderProgram.model_matrix
 	icovdata.draw(shaderProgram)
 
 --[[
@@ -276,7 +276,7 @@ Next, I want a way to tweak uniforms with minimal fiddling. Something like:
 ]]
 end
 
-return proctri
+return scene
 
 --[[
 TODO 11/11/2021

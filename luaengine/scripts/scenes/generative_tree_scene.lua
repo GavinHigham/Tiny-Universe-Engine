@@ -11,7 +11,7 @@ local vec3 = glla.vec3
 local vec4 = glla.vec4
 local mat3 = glla.mat3
 local amat4 = glla.amat4
-generative_tree = {}
+local generative_tree = {}
 local time = 0.0
 local screen_width, screen_height = 1024, 768
 local selected_primitive = 0
@@ -218,7 +218,7 @@ local function TreeVertexData(seed)
 end
 
 
-function generative_tree.init()
+function scene.init()
 	-- util.print_gl_calls = true
 	local atmos = glsw(io.open('shaders/glsw/atmosphere.glsl', 'r'):read('a'))
 	local common = glsw(io.open('shaders/glsw/common.glsl', 'r'):read('a'))
@@ -284,15 +284,15 @@ function generative_tree.init()
 	return 0
 end
 
-function generative_tree.deinit()
+function scene.deinit()
 	planetShader = nil
 end
 
-function generative_tree.resize(width, height)
+function scene.resize(width, height)
 	screen_width, screen_height = width, height
 end
 
-function generative_tree.update(dt)
+function scene.update(dt)
 	time = time + dt
 	eye_frame.t = eye_frame.t + sphere_trackball.camera.a * vec3(input.scancodeDirectional('D', 'A', 'E', 'Q', 'S', 'W')) * 0.15
 	sphere_trackball.step(input.mouseForUI())
@@ -307,7 +307,7 @@ local function ico_inscribed_radius(edge_len)
 	return sqrt(3)*(3+sqrt(5))*edge_len/12.0;
 end
 
-function generative_tree.render()
+function scene.render()
 	-- gl.ClearColor(0,0,0,0)
 	gl.ClearColor(0.5,0.5,0.5,1)
 	gl.DepthFunc(gl.LESS)
@@ -328,26 +328,26 @@ function generative_tree.render()
 	local function planet_draw(shader, vdata, pos)
 		gl.UseProgram(shader)
 		shader.resolution = vec2(screen_width, screen_height)
-		shader.samples_ab = generative_tree.meters['Samples along AB'] or 10
-		shader.samples_cp = generative_tree.meters['Samples along CP'] or 10
-		shader.atmosphere_height = generative_tree.meters['"Atmosphere Height"'] or 0.02
-		shader.focal_length = generative_tree.meters['Field of View'] or 1.0/math.tan(math.pi/12)
-		shader.p_and_p = generative_tree.meters['Poke and Prod Variable'] or 1
+		shader.samples_ab = scene.meters['Samples along AB'] or 10
+		shader.samples_cp = scene.meters['Samples along CP'] or 10
+		shader.atmosphere_height = scene.meters['"Atmosphere Height"'] or 0.02
+		shader.focal_length = scene.meters['Field of View'] or 1.0/math.tan(math.pi/12)
+		shader.p_and_p = scene.meters['Poke and Prod Variable'] or 1
 		shader.air_b = vec3(
-			generative_tree.meters['Air Particle Interaction Transmittance R'] or 0.00000519673,
-			generative_tree.meters['Air Particle Interaction Transmittance G'] or 0.0000121427,
-			generative_tree.meters['Air Particle Interaction Transmittance B'] or 0.0000296453)
-		shader.scale_height = generative_tree.meters['Scale Height'] or 8500.0
-		shader.planet_scale = generative_tree.meters['Planet Scale'] or 6371000.0
+			scene.meters['Air Particle Interaction Transmittance R'] or 0.00000519673,
+			scene.meters['Air Particle Interaction Transmittance G'] or 0.0000121427,
+			scene.meters['Air Particle Interaction Transmittance B'] or 0.0000296453)
+		shader.scale_height = scene.meters['Scale Height'] or 8500.0
+		shader.planet_scale = scene.meters['Planet Scale'] or 6371000.0
 		shader.resolution = vec2(screen_width or 1024, screen_height or 768)
 		shader.time = time
-		shader.planet = vec4(0,0,0, generative_tree.meters['Planet Radius'] or 1)
+		shader.planet = vec4(0,0,0, scene.meters['Planet Radius'] or 1)
 		shader.ico_scale = (shader.planet.w + shader.atmosphere_height) / ico_inscribed_radius(2*ico_x)
 
 		shader.dir_mat = sphere_trackball.camera.a:transposed()
 		shader.eye_pos = eye_frame.t
 		shader.model_matrix = amat4(mat3.identity(), pos or tri_frame.t)
-		shader.model_view_projection_matrix = generative_tree.proj_mat * amat4(sphere_trackball.camera.a, eye_frame.t):inversed() * shader.model_matrix
+		shader.model_view_projection_matrix = scene.proj_mat * amat4(sphere_trackball.camera.a, eye_frame.t):inversed() * shader.model_matrix
 		vdata.draw(shader)
 	end
 
@@ -356,13 +356,13 @@ function generative_tree.render()
 		shader.uLight_pos = vec3(30,30,30)
 		shader.uLight_col = vec3(1,1,1)
 		shader.uLight_attr = vec4(0.0, 0.0, 1, 5)
-		-- print('log depth intermediate factor:', generative_tree.log_depth_intermediate_factor)
-		shader.log_depth_intermediate_factor = generative_tree.log_depth_intermediate_factor
+		-- print('log depth intermediate factor:', scene.log_depth_intermediate_factor)
+		shader.log_depth_intermediate_factor = scene.log_depth_intermediate_factor
 
 		local mm = mat3.identity()
 		shader.model_matrix = amat4(mm, pos or tri_frame.t)
 		shader.model_view_normal_matrix = amat4(mm:transposed(), vec3(0,0,0))
-		shader.model_view_projection_matrix = generative_tree.proj_mat * amat4(sphere_trackball.camera.a, eye_frame.t):inversed() * shader.model_matrix
+		shader.model_view_projection_matrix = scene.proj_mat * amat4(sphere_trackball.camera.a, eye_frame.t):inversed() * shader.model_matrix
 		shader.hella_time = time
 		shader.camera_position = vec3(0,0,0)
 		shader.ambient_pass = 0
