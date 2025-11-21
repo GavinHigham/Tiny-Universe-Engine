@@ -1,8 +1,12 @@
-CC = gcc
+CC = clang
 
 SANITIZE = -fsanitize=address -fsanitize=undefined
 MACOS_CFLAGS  = -F/Library/Frameworks
 MACOS_LDFLAGS = -F/Library/Frameworks -rpath /Library/Frameworks -framework SDL3 -framework SDL3_image -framework OpenGL
+
+#Silly hack to make spaces in paths work
+space := $(subst ,, )
+CURDIR := $(subst $(space),\$(space),$(CURDIR))
 
 INCLUDES = -Iglla -I$(CURDIR)
 LDFLAGS	 = $(SDL) -Llua-5.4.4/src -llua $(MACOS_LDFLAGS)
@@ -33,8 +37,8 @@ include test/test.mk
 MAIN_OBJ = main.o
 LIBTU_OBJ = libtu.o
 
-CFLAGS = -Wall -c -std=c11 -g -pthread $(MACOS_CFLAGS) $(INCLUDES) #-march=native -O3
-all: $(OBJECTS) $(MAIN_OBJ) $(LIBTU_OBJ) #ceffectpp/ceffectpp
+CFLAGS = -Wall -c -std=c23 -g -pthread $(MACOS_CFLAGS) $(INCLUDES) #-march=native -O3
+all: $(OBJECTS) $(MAIN_OBJ) $(LIBTU_OBJ) lua-5.4.4 #ceffectpp/ceffectpp
 	$(CC) $(LDFLAGS) $(OBJECTS) $(MAIN_OBJ) -o $(EXE)
 	$(CC) $(LIBFLAGS) $(OBJECTS) $(LIBTU_OBJ) -o $(LIB)
 
@@ -68,10 +72,12 @@ lua-5.4.4:
 	cd lua-5.4.4; make macosx
 
 clean:
+	rm $(MAIN_OBJ)
 	rm $(OBJECTS)
 	rm $(EXE)
 	rm .depend
 	cd effects/ceffectpp; make clean
 	cd open-simplex-noise-in-c; make clean
+	cd lua-5.4.4; make clean
 
 include .depend

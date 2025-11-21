@@ -11,3 +11,6 @@
 [submodule "luaengine/scripts/lib/debug"]
 	path = luaengine/scripts/lib/debug
 	url = https://github.com/slembcke/debugger.lua.git
+[submodule "luaengine/scripts/lib/lpil53"]
+	path = luaengine/scripts/lib/lpil53
+	url = git@github.com:GavinHigham/lpil53.git
