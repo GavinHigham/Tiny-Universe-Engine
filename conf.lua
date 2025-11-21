@@ -2,6 +2,7 @@
 screen_width  = 1024
 screen_height = 768
 fullscreen = false
+-- floating = true
 grab_mouse = false
 allow_highdpi = false --Experimental, does not handle window resize.
 

@@ -3404,58 +3404,6 @@ int buffer_ball(struct buffer_group bg)
 	return sizeof(ball_indices)/sizeof(ball_indices[0]);
 }
 
-GLfloat cube_positions[] = {
-	1.000000, 1.000000, -1.000000,
-	-1.000000, 1.000000, -1.000000,
-	-1.000000, -1.000000, -1.000000,
-	0.999999, -1.000001, 1.000000,
-	-1.000000, -1.000000, 1.000000,
-	-1.000000, 1.000000, 1.000000,
-	1.000000, -1.000000, -1.000000,
-	1.000000, 0.999999, 1.000000,
-};
-
-GLuint cube_indices_adjacent[] = {
-	0, 5, 1, 5, 2, 6,
-	3, 2, 4, 2, 5, 7,
-	6, 2, 3, 5, 7, 0,
-	2, 5, 4, 5, 3, 6,
-	2, 0, 1, 0, 5, 4,
-	5, 2, 1, 2, 0, 7,
-	6, 7, 0, 1, 2, 3,
-	7, 6, 3, 4, 5, 0,
-	0, 2, 6, 3, 7, 5,
-	6, 0, 2, 4, 3, 7,
-	4, 3, 2, 1, 5, 3,
-	7, 3, 5, 1, 0, 6,
-};
-
-GLuint cube_indices[] = {
-	0, 1, 2,
-	3, 4, 5,
-	6, 3, 7,
-	2, 4, 3,
-	2, 1, 5,
-	5, 1, 0,
-	6, 0, 2,
-	7, 3, 5,
-	0, 6, 7,
-	6, 2, 3,
-	4, 2, 5,
-	7, 5, 0,
-};
-
-int buffer_cube(struct buffer_group bg)
-{
-	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(cube_positions), cube_positions, GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_indices_adjacent), cube_indices_adjacent, GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_indices), cube_indices, GL_STATIC_DRAW);
-	return sizeof(cube_indices)/sizeof(cube_indices[0]);
-}
-
 GLfloat cube_with_normals_positions[] = {
 	1.000000, 1.000000, -1.000000,
 	-1.000000, 1.000000, -1.000000,
@@ -3519,6 +3467,58 @@ int buffer_cube_with_normals(struct buffer_group bg)
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_with_normals_indices), cube_with_normals_indices, GL_STATIC_DRAW);
 	return sizeof(cube_with_normals_indices)/sizeof(cube_with_normals_indices[0]);
+}
+
+GLfloat cube_positions[] = {
+	1.000000, 1.000000, -1.000000,
+	-1.000000, 1.000000, -1.000000,
+	-1.000000, -1.000000, -1.000000,
+	0.999999, -1.000001, 1.000000,
+	-1.000000, -1.000000, 1.000000,
+	-1.000000, 1.000000, 1.000000,
+	1.000000, -1.000000, -1.000000,
+	1.000000, 0.999999, 1.000000,
+};
+
+GLuint cube_indices_adjacent[] = {
+	0, 5, 1, 5, 2, 6,
+	3, 2, 4, 2, 5, 7,
+	6, 2, 3, 5, 7, 0,
+	2, 5, 4, 5, 3, 6,
+	2, 0, 1, 0, 5, 4,
+	5, 2, 1, 2, 0, 7,
+	6, 7, 0, 1, 2, 3,
+	7, 6, 3, 4, 5, 0,
+	0, 2, 6, 3, 7, 5,
+	6, 0, 2, 4, 3, 7,
+	4, 3, 2, 1, 5, 3,
+	7, 3, 5, 1, 0, 6,
+};
+
+GLuint cube_indices[] = {
+	0, 1, 2,
+	3, 4, 5,
+	6, 3, 7,
+	2, 4, 3,
+	2, 1, 5,
+	5, 1, 0,
+	6, 0, 2,
+	7, 3, 5,
+	0, 6, 7,
+	6, 2, 3,
+	4, 2, 5,
+	7, 5, 0,
+};
+
+int buffer_cube(struct buffer_group bg)
+{
+	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cube_positions), cube_positions, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_indices_adjacent), cube_indices_adjacent, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_indices), cube_indices, GL_STATIC_DRAW);
+	return sizeof(cube_indices)/sizeof(cube_indices[0]);
 }
 
 GLfloat icosphere_positions[] = {
@@ -76100,118 +76100,6 @@ int buffer_teardropship(struct buffer_group bg)
 	return sizeof(teardropship_indices)/sizeof(teardropship_indices[0]);
 }
 
-GLfloat thrust_flare_positions[] = {
-	0.477647, -0.018501, 3.215790,
-	0.434526, -0.202746, 3.215790,
-	0.416799, -0.123805, 3.215790,
-	0.604458, -0.185031, 3.215790,
-	0.526868, -0.214137, 3.215790,
-	0.658535, -0.097557, 3.215790,
-	-0.658535, -0.097557, 3.215790,
-	-0.526868, -0.214137, 3.215790,
-	-0.604458, -0.185031, 3.215790,
-	-0.416799, -0.123805, 3.215790,
-	-0.434526, -0.202746, 3.215790,
-	-0.477647, -0.018501, 3.215790,
-	-0.519806, -0.140296, 5.057219,
-	0.519805, -0.140296, 5.057219,
-};
-
-GLfloat thrust_flare_normals[] = {
-	-0.259468, 0.788629, -0.557390,
-	-0.551195, -0.603168, -0.576495,
-	-0.781549, 0.119419, -0.612262,
-	0.499130, -0.602252, -0.623005,
-	0.090182, -0.761254, -0.642109,
-	0.802728, 0.250404, -0.541185,
-	-0.802728, 0.250404, -0.541185,
-	-0.090182, -0.761254, -0.642109,
-	-0.499130, -0.602252, -0.623005,
-	0.781549, 0.119419, -0.612262,
-	0.551195, -0.603168, -0.576495,
-	0.259468, 0.788629, -0.557390,
-	0.002472, -0.008332, 0.999939,
-	-0.002594, -0.008087, 0.999939,
-};
-
-unsigned char thrust_flare_colors[] = {
-	255, 255, 255,
-	255, 255, 255,
-	255, 255, 255,
-	255, 255, 255,
-	255, 255, 255,
-	255, 255, 255,
-	255, 255, 255,
-	255, 255, 255,
-	255, 255, 255,
-	255, 255, 255,
-	255, 255, 255,
-	255, 255, 255,
-	65, 131, 255,
-	65, 131, 255,
-};
-
-GLuint thrust_flare_indices_adjacent[] = {
-	0, 3, 1, 13, 2, 13,
-	3, 13, 4, 13, 1, 0,
-	0, 13, 5, 13, 3, 1,
-	0, 5, 3, 4, 1, 2,
-	6, 9, 7, 12, 8, 12,
-	9, 12, 10, 12, 7, 6,
-	6, 12, 11, 12, 9, 7,
-	6, 11, 9, 10, 7, 8,
-	9, 6, 11, 6, 12, 10,
-	6, 7, 8, 7, 12, 11,
-	8, 6, 7, 10, 12, 6,
-	10, 7, 9, 11, 12, 7,
-	7, 9, 10, 9, 12, 8,
-	11, 9, 6, 8, 12, 9,
-	0, 1, 2, 1, 13, 5,
-	3, 0, 5, 0, 13, 4,
-	4, 1, 3, 5, 13, 1,
-	2, 0, 1, 4, 13, 0,
-	1, 3, 4, 3, 13, 2,
-	5, 3, 0, 2, 13, 3,
-};
-
-GLuint thrust_flare_indices[] = {
-	0, 1, 2,
-	3, 4, 1,
-	0, 5, 3,
-	0, 3, 1,
-	6, 7, 8,
-	9, 10, 7,
-	6, 11, 9,
-	6, 9, 7,
-	9, 11, 12,
-	6, 8, 12,
-	8, 7, 12,
-	10, 9, 12,
-	7, 10, 12,
-	11, 6, 12,
-	0, 2, 13,
-	3, 5, 13,
-	4, 3, 13,
-	2, 1, 13,
-	1, 4, 13,
-	5, 0, 13,
-};
-
-int buffer_thrust_flare(struct buffer_group bg)
-{
-	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(thrust_flare_positions), thrust_flare_positions, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(thrust_flare_colors), thrust_flare_colors, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(thrust_flare_normals), thrust_flare_normals, GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(thrust_flare_indices_adjacent), thrust_flare_indices_adjacent, GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(thrust_flare_indices), thrust_flare_indices, GL_STATIC_DRAW);
-	return sizeof(thrust_flare_indices)/sizeof(thrust_flare_indices[0]);
-}
-
 GLfloat thrust_flare_forward_positions[] = {
 	0.523936, -0.139464, 2.257980,
 	0.423095, -0.200889, 2.257980,
@@ -76322,6 +76210,118 @@ int buffer_thrust_flare_forward(struct buffer_group bg)
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(thrust_flare_forward_indices), thrust_flare_forward_indices, GL_STATIC_DRAW);
 	return sizeof(thrust_flare_forward_indices)/sizeof(thrust_flare_forward_indices[0]);
+}
+
+GLfloat thrust_flare_positions[] = {
+	0.477647, -0.018501, 3.215790,
+	0.434526, -0.202746, 3.215790,
+	0.416799, -0.123805, 3.215790,
+	0.604458, -0.185031, 3.215790,
+	0.526868, -0.214137, 3.215790,
+	0.658535, -0.097557, 3.215790,
+	-0.658535, -0.097557, 3.215790,
+	-0.526868, -0.214137, 3.215790,
+	-0.604458, -0.185031, 3.215790,
+	-0.416799, -0.123805, 3.215790,
+	-0.434526, -0.202746, 3.215790,
+	-0.477647, -0.018501, 3.215790,
+	-0.519806, -0.140296, 5.057219,
+	0.519805, -0.140296, 5.057219,
+};
+
+GLfloat thrust_flare_normals[] = {
+	-0.259468, 0.788629, -0.557390,
+	-0.551195, -0.603168, -0.576495,
+	-0.781549, 0.119419, -0.612262,
+	0.499130, -0.602252, -0.623005,
+	0.090182, -0.761254, -0.642109,
+	0.802728, 0.250404, -0.541185,
+	-0.802728, 0.250404, -0.541185,
+	-0.090182, -0.761254, -0.642109,
+	-0.499130, -0.602252, -0.623005,
+	0.781549, 0.119419, -0.612262,
+	0.551195, -0.603168, -0.576495,
+	0.259468, 0.788629, -0.557390,
+	0.002472, -0.008332, 0.999939,
+	-0.002594, -0.008087, 0.999939,
+};
+
+unsigned char thrust_flare_colors[] = {
+	255, 255, 255,
+	255, 255, 255,
+	255, 255, 255,
+	255, 255, 255,
+	255, 255, 255,
+	255, 255, 255,
+	255, 255, 255,
+	255, 255, 255,
+	255, 255, 255,
+	255, 255, 255,
+	255, 255, 255,
+	255, 255, 255,
+	65, 131, 255,
+	65, 131, 255,
+};
+
+GLuint thrust_flare_indices_adjacent[] = {
+	0, 3, 1, 13, 2, 13,
+	3, 13, 4, 13, 1, 0,
+	0, 13, 5, 13, 3, 1,
+	0, 5, 3, 4, 1, 2,
+	6, 9, 7, 12, 8, 12,
+	9, 12, 10, 12, 7, 6,
+	6, 12, 11, 12, 9, 7,
+	6, 11, 9, 10, 7, 8,
+	9, 6, 11, 6, 12, 10,
+	6, 7, 8, 7, 12, 11,
+	8, 6, 7, 10, 12, 6,
+	10, 7, 9, 11, 12, 7,
+	7, 9, 10, 9, 12, 8,
+	11, 9, 6, 8, 12, 9,
+	0, 1, 2, 1, 13, 5,
+	3, 0, 5, 0, 13, 4,
+	4, 1, 3, 5, 13, 1,
+	2, 0, 1, 4, 13, 0,
+	1, 3, 4, 3, 13, 2,
+	5, 3, 0, 2, 13, 3,
+};
+
+GLuint thrust_flare_indices[] = {
+	0, 1, 2,
+	3, 4, 1,
+	0, 5, 3,
+	0, 3, 1,
+	6, 7, 8,
+	9, 10, 7,
+	6, 11, 9,
+	6, 9, 7,
+	9, 11, 12,
+	6, 8, 12,
+	8, 7, 12,
+	10, 9, 12,
+	7, 10, 12,
+	11, 6, 12,
+	0, 2, 13,
+	3, 5, 13,
+	4, 3, 13,
+	2, 1, 13,
+	1, 4, 13,
+	5, 0, 13,
+};
+
+int buffer_thrust_flare(struct buffer_group bg)
+{
+	glBindBuffer(GL_ARRAY_BUFFER, bg.vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(thrust_flare_positions), thrust_flare_positions, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.cbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(thrust_flare_colors), thrust_flare_colors, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, bg.nbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(thrust_flare_normals), thrust_flare_normals, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.aibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(thrust_flare_indices_adjacent), thrust_flare_indices_adjacent, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bg.ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(thrust_flare_indices), thrust_flare_indices, GL_STATIC_DRAW);
+	return sizeof(thrust_flare_indices)/sizeof(thrust_flare_indices[0]);
 }
 
 #endif

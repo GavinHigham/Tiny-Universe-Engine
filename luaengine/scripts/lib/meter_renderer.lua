@@ -70,10 +70,10 @@ function meter_ogl_renderer_buffers_setup(meters)
 		--Create vertex buffer.
 		float scale = meter_fraction(m);
 		float positions[] = {
-			m->x,                                                 m->y,            
-			m->x + s.padding,                                     m->y + s.padding,            
-			m->x + s.width,                                       m->y,            
-			m->x + s.padding + (s.width - 2 * s.padding) * scale, m->y + s.padding,            
+			m->x,                                                 m->y,
+			m->x + s.padding,                                     m->y + s.padding,
+			m->x + s.width,                                       m->y,
+			m->x + s.padding + (s.width - 2 * s.padding) * scale, m->y + s.padding,
 			m->x + s.width,                                       m->y + s.height,
 			m->x + s.padding + (s.width - 2 * s.padding) * scale, m->y - s.padding + s.height,
 			m->x,                                                 m->y + s.height,
@@ -144,7 +144,7 @@ function meter_ogl_renderer_draw_all(--[[meter_ctx *]]M)
 
 	--Draw meters
 	glUniform1i(ogl->textured_unif, false);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ogl->ibo);	
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ogl->ibo);
 	glDrawElements(GL_TRIANGLE_STRIP, ogl->meters_num_indices, GL_UNSIGNED_INT, NULL);
 
 	--Draw labels

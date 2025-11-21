@@ -1,3 +1,17 @@
+Graphical Effect Ideas:
+  ☐ Framebuffer blur, "Shadow of the Colossus" effect on particles
+    ☐ Bloom (might need to do a bright pass and blur that)
+  ☐ Texture-based heightmap planet tiles
+    Each tile is a triangular region in a texture
+    Terrain is generated with a draw call, rendering height data into the region
+    Different shader variations can handle special cases (added mountain, river, etc.)
+
+
+
+
+Everything below here is pretty old, and maybe a little ambitious in places
+--------------------
+
 Planets:
   ☐ Parametrize:
     ☐ Radius
@@ -52,7 +66,7 @@ Lua:
       value.index = (address - ctype[0]) - offset
       value.eid = itoh(index) (don't keep index, it's not stable)
     ☐ Automatically parse out uniforms? (See if I can find a library?)
-    ☐ Enough OpenGL bindings to make scenes in Lua instead of C (Use moongl?)
+    ✔ Enough OpenGL bindings to make scenes in Lua instead of C (Use moongl?) @done (25-05-25 14:50)
     ☐ Automatic creation of sliders
 
 Galaxy Raymarch:
@@ -102,7 +116,7 @@ Cleanup:
   ☐ Break text rendering into its own module
   ☐ Make quadtree and octree intrusive, to reduce allocations.
   ☐ Remove dependency on ceffectpp, or convert it to a script
-  ☐ Use GLAD instead of GLEW
+  ✔ Use GLAD instead of GLEW @done (25-05-25 14:50)
   ☐ Remove test code on release build
 
 Ideas:
