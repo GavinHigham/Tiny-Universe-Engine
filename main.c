@@ -7,6 +7,7 @@
 #include <lua-5.4.4/src/lua.h>
 #include <lua-5.4.4/src/lauxlib.h>
 #include <lua-5.4.4/src/lualib.h>
+#include "luaengine/scripts/lib/debug/debugger_lua.h"
 //Project headers.
 #include "graphics.h"
 #include "init.h"
@@ -28,25 +29,27 @@
 //Configuration
 #include "luaengine/lua_configuration.h"
 
-static const int MS_PER_SECOND = 1000;
-static const int FRAMES_PER_SECOND = 60; //Frames per second.
-//static const int MS_PER_UPDATE = MS_PER_SECOND / FRAMES_PER_SECOND;
-static int wake_early_ms = 2; //How many ms early should the main loop wake from sleep to avoid oversleeping.
-static int loop_iter_ave = 0; //Average number loop iterations we burn after sleep, waiting to run update and render.
 static bool testmode = false; //If true, skip creating the window and just run the tests.
 static SDL_Window *window = NULL;
 static uint32_t windowID = 0;
 static const char *luaconf_path = "conf.lua";
 static bool ffmpeg_recording = false;
+static bool fullscreen = false;
+static bool floating = false;
 static int *ffmpeg_buffer = NULL;
 static FILE *ffmpeg_file;
+extern void tu_lua_sdl_input_onevent(lua_State *L, SDL_Event e);
 
 lua_State *L = NULL;
 const char *data_path = NULL;
 
+enum timestep_mode_t {
+	TIMESTEP_FIXED = 0,
+	TIMESTEP_VARIABLE = 1,
+};
+
 void global_keys(SDL_Keycode code, SDL_EventType type)
 {
-	static bool fullscreen = false;
 	switch (code) {
 	case SDL_SCANCODE_ESCAPE:
 		SDL_PushEvent(&(SDL_Event){.type = SDL_EVENT_QUIT}); //If it fails, the quit keypress was just eaten ¯\_(ツ)_/¯
@@ -82,30 +85,55 @@ void global_keys(SDL_Keycode code, SDL_EventType type)
 		if (key_pressed(code))
 			scene_reload();
 		break;
+	case SDL_SCANCODE_2:
+		//TODO: Check for conflics with space_scene.c
+		if (key_pressed(code)) {
+			floating = !floating;
+			SDL_SetWindowAlwaysOnTop(window, floating);
+		}
+		break;
 	default:
 		break;
 	}
 }
 
 //Returns false if there has been a quit event, otherwise returns true
-bool drain_event_queue()
+bool handle_events()
 {
 	mousewheelreset();
 	SDL_Event e;
 	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
-		case SDL_EVENT_QUIT :                 return false;
-		case SDL_EVENT_KEY_DOWN :             global_keys(e.key.scancode, (SDL_EventType)e.type); break;
-		case SDL_EVENT_KEY_UP :               global_keys(e.key.scancode, (SDL_EventType)e.type); break;
-		case SDL_EVENT_GAMEPAD_AXIS_MOTION :  caxisevent(e); break;
-		case SDL_EVENT_JOYSTICK_AXIS_MOTION : jaxisevent(e); break;
-		case SDL_EVENT_JOYSTICK_BUTTON_DOWN : jbuttonevent(e); break;
-		case SDL_EVENT_JOYSTICK_BUTTON_UP :   jbuttonevent(e); break;
-		case SDL_EVENT_MOUSE_WHEEL :          mousewheelevent(e); break;
-		case SDL_EVENT_GAMEPAD_ADDED : //Fall-through
-		case SDL_EVENT_JOYSTICK_ADDED :       input_event_device_arrival(e.jdevice.which); break;
+		case SDL_EVENT_QUIT:                      return false;
+		case SDL_EVENT_KEY_DOWN:                  global_keys(e.key.scancode, (SDL_EventType)e.type); break;
+		case SDL_EVENT_KEY_UP:                    global_keys(e.key.scancode, (SDL_EventType)e.type); break;
+		case SDL_EVENT_MOUSE_WHEEL:               mousewheelevent(e); break;
 		case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED: if (e.window.windowID == windowID) scene_resize(e.window.data1, e.window.data2); break;
-		case SDL_EVENT_DROP_FILE :            scene_filedrop(e.drop.data);
+		case SDL_EVENT_DROP_FILE:                 scene_filedrop(e.drop.data);
+		case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+			caxisevent(e);
+			tu_lua_sdl_input_onevent(L, e);
+			break;
+		case SDL_EVENT_JOYSTICK_AXIS_MOTION:
+			jaxisevent(e);
+			tu_lua_sdl_input_onevent(L, e);
+			break;
+		case SDL_EVENT_JOYSTICK_BUTTON_DOWN:
+			jbuttonevent(e);
+			tu_lua_sdl_input_onevent(L, e);
+			break;
+		case SDL_EVENT_JOYSTICK_BUTTON_UP:
+			jbuttonevent(e);
+			tu_lua_sdl_input_onevent(L, e);
+			break;
+		case SDL_EVENT_GAMEPAD_ADDED:
+			input_event_device_arrival(e.gdevice.which);
+			tu_lua_sdl_input_onevent(L, e);
+			break;
+		case SDL_EVENT_JOYSTICK_ADDED:
+			input_event_device_arrival(e.jdevice.which);
+			tu_lua_sdl_input_onevent(L, e);
+			break;
 		}
 	}
 	return true;
@@ -128,7 +156,7 @@ int main(int argc, char **argv)
 		testmode = true;
 
 	int result = 0;
-	SDL_InitFlags init_flags = SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_GAMEPAD;
+	SDL_InitFlags init_flags = SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD;
 	if (!SDL_Init(init_flags)) {
 		fprintf(stderr, "SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
 		return -1;
@@ -141,6 +169,7 @@ int main(int argc, char **argv)
 
 	L = luaL_newstate();
 	luaL_openlibs(L);
+	dbg_setup(L, "dbg", NULL, NULL, NULL);
 	lua_pushstring(L, data_path);
 	lua_setglobal(L, "data_path");
 	if (arg1) {
@@ -150,20 +179,34 @@ int main(int argc, char **argv)
 	luaconf_run(L, data_path, luaconf_path);
 	luaconf_run(L, data_path, "libraries.lua");
 
+	const char embed_test[] = {
+		#embed "embed_test.lua"
+		, 0
+	};
+	printf("embed_test[] = %s\n", embed_test);
+	luaL_dostring(L, embed_test);
+
 	char *screen_title = getglob(L, "screen_title", "Creative Title");
 	char *default_scene = getglob(L, "default_scene", "icosphere_scene");
 	float screen_width = getglob(L, "screen_width", 800);
 	float screen_height = getglob(L, "screen_height", 600);
-	bool fullscreen = getglobbool(L, "fullscreen", false);
+	fullscreen = getglobbool(L, "fullscreen", false);
+	floating = getglobbool(L, "floating", false);
 	bool highdpi = getglobbool(L, "allow_highdpi", false);
+	bool variable_timestep = getglobbool(L, "variable_timestep", false);
+	uint32_t frames_per_second = getglob(L, "fps", 60);
 
 	SDL_GLContext context = NULL;
 	if (!testmode) { //Skip window creation, OpenGL init, and and GLEW init in test mode.
-		window = SDL_CreateWindow(
-			screen_title,
-			screen_width,
-			screen_height,
-			SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | (highdpi ? SDL_WINDOW_HIGH_PIXEL_DENSITY : 0));
+		SDL_WindowFlags window_flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
+		if (highdpi)
+			window_flags |= SDL_WINDOW_HIGH_PIXEL_DENSITY;
+		if (fullscreen)
+			window_flags |= SDL_WINDOW_FULLSCREEN;
+		if (floating)
+			window_flags |= SDL_WINDOW_ALWAYS_ON_TOP;
+
+		window = SDL_CreateWindow(screen_title, screen_width, screen_height, window_flags);
 
 		if (window == NULL) {
 			fprintf(stderr, "Window could not be created! SDL_Error: %s\n", SDL_GetError());
@@ -221,64 +264,40 @@ int main(int argc, char **argv)
 	scene_resize(drawable_width, drawable_height);
 	//Does this cause a SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED event?
 	//If so, I can skip the scene_resize above
-	SDL_SetWindowFullscreen(window, fullscreen);
+	// SDL_SetWindowFullscreen(window, fullscreen);
 
 	windowID = SDL_GetWindowID(window);
-	uint32_t last_swap_timestamp = SDL_GetTicks();
-	int loop_iter = 0;
-	while (drain_event_queue()) { //Loop until quit event detected
-		loop_iter++; //Count how many times we loop per frame.
+	uint64_t ns_per_frame = SDL_NS_PER_SECOND / frames_per_second;
+	uint64_t last_swap_ns = SDL_GetTicksNS();
+	uint64_t next_swap_ns = last_swap_ns + ns_per_frame;
+	float timestep = 1.0 / frames_per_second;
+	while (handle_events()) { //Loop until quit event detected
+		uint64_t current_ns = SDL_GetTicksNS();
+		uint64_t elapsed_ns = (current_ns - last_swap_ns);
 
-		int frame_time_ms = MS_PER_SECOND/FRAMES_PER_SECOND;
-		uint32_t since_update_ms = (SDL_GetTicks() - last_swap_timestamp);
+		if (variable_timestep)
+			timestep = elapsed_ns / SDL_NS_PER_SECOND;
 
-		if (since_update_ms >= frame_time_ms - 1) {
-				//Since user input is handled above, game state is "locked" when we enter this block.
-				scene_update(1.0/FRAMES_PER_SECOND); //At 16 ms intervals, begin an update. HOPEFULLY DOESN'T TAKE MORE THAN 16 MS.
-				scene_render(); //This will be a picture of the state as of (hopefully exactly) 16 ms ago.
-		 		SDL_GL_SwapWindow(window); //Display a new screen to the user every 16 ms, on the dot.
-				last_swap_timestamp = SDL_GetTicks();
+		scene_update(timestep);
+		scene_render(); //TODO: Pass timestep to render as well, for interpolation
+		SDL_GL_SwapWindow(window);
+		last_swap_ns = SDL_GetTicksNS();
 
-		 		if (ffmpeg_recording && ffmpeg_buffer && ffmpeg_file) {
-		 			int width = getglob(L, "screen_width", screen_width), height = getglob(L, "screen_height", screen_height);
-			 		glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, ffmpeg_buffer);
-			 		fwrite(ffmpeg_buffer, sizeof(int)*width*height, 1, ffmpeg_file);
-			 		printf(".");
-		 		}
-				//Get a rolling average of the number of tight loop iterations per frame.
-				loop_iter_ave = (loop_iter_ave + loop_iter)/2; //Average the current number of loop iterations with the average.
-				loop_iter = 0;
-
-				//Needs to be done before the call to SDL_PollEvent (which implicitly calls SDL_PumpEvents)
-				//WARNING: This modifies the input state.
-				//Done here because there are sometimes issues detecting "pressed" edges from rapid keypresses if it's placed after the SDL_Delay
-				input_event_save_prev_key_state();
-				input_event_save_prev_mouse_state();
-		} else if ((frame_time_ms - since_update_ms) > wake_early_ms) { //If there's more than wake_early_ms milliseconds left...
-			SDL_Delay(frame_time_ms - since_update_ms - wake_early_ms); //Sleep up until wake_early_ms milliseconds left. (Busywait the rest)
+		if (ffmpeg_recording && ffmpeg_buffer && ffmpeg_file) {
+			int width = getglob(L, "screen_width", screen_width), height = getglob(L, "screen_height", screen_height);
+			glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, ffmpeg_buffer);
+			fwrite(ffmpeg_buffer, sizeof(int)*width*height, 1, ffmpeg_file);
+			printf(".");
 		}
+
+		//Needs to be done before the call to SDL_PollEvent (which implicitly calls SDL_PumpEvents)
+		//WARNING: This modifies the input state.
+		//Done here because there are sometimes issues detecting "pressed" edges from rapid keypresses if it's placed after the SDL_Delay
+		input_event_save_prev_key_state();
+		input_event_save_prev_mouse_state();
+
+		SDL_DelayPrecise(next_swap_ns - SDL_GetTicksNS());
 	}
-
-	// From http://gameprogrammingpatterns.com/game-loop.html
-	// uint32_t previous = SDL_GetTicks();
-	// double lag = 0.0;
-	// while (!quit)
-	// {
-	// 	uint32_t current = SDL_GetTicks();
-	// 	uint32_t elapsed = current - previous;
-	// 	previous = current;
-	// 	lag += elapsed;
-
-	// 	drain_event_queue();
-
-	// 	while (lag >= MS_PER_UPDATE)
-	// 	{
-	// 		update(MS_PER_UPDATE/MS_PER_SECOND);
-	// 		lag -= MS_PER_UPDATE;
-	// 	}
-	// 	render();
-	// 	SDL_GL_SwapWindow(window);
-	// }
 
 error:
 	scene_set(NULL);

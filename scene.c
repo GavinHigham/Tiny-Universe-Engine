@@ -39,6 +39,7 @@ static void scene_swap()
 			SAFE_CALL(next_scene->deinit);
 			scene_error("current_scene.init", error);
 		} else {
+			next_scene->reloaded = true;
 			current_scene = *next_scene;
 			//If we successfully got out of the empty scene, clear the error scene
 			if (next_scene == error_scene)

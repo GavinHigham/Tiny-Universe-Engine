@@ -16,62 +16,36 @@ SDL_Event input_mouse_wheel_sum;
 Sint16 axes[NUM_HANDLED_AXES] = {0};
 bool nes30_buttons[16] = {false};
 
-SDL_Gamepad *input_controller = NULL;
+SDL_Gamepad *input_gamepad = NULL;
 SDL_Joystick *input_joystick = NULL;
 
 void controller_init()
 {
-	/* Open the first available controller. */
-	// SDL_Gamepad *controller = NULL;
-	// SDL_Joystick *joystick = NULL;
-	// for (int i = 0; i < SDL_NumJoysticks(); ++i) {
-	// 	printf("Testing controller %i\n", i);
-	// 	if (/* FIXME MIGRATION: check for valid instance */
-	// 		SDL_IsGamepad(GetJoystickInstanceFromIndex(i))) {
-	// 		controller = SDL_OpenGamepad(i);
-	// 		if (controller) {
-	// 			printf("Successfully opened controller %i\n", i);
-	// 			break;
-	// 		} else {
-	// 			printf("Could not open gamecontroller %i: %s\n", i, SDL_GetError());
-	// 		}
-	// 	} else {
-	// 		joystick = SDL_OpenJoystick(i);
-	// 		printf("Controller %i is not a controller?\n", i);
-	// 	}
-	// }
-	bool joystick_exists = false;
+	int num_joysticks;
+	SDL_JoystickID *joysticks = SDL_GetJoysticks(&num_joysticks);
+	if (!joysticks)
+		return;
+	for (int i = 0; i < num_joysticks; i++) {
+		SDL_JoystickID instance_id = joysticks[i];
+		if (SDL_IsGamepad(instance_id))
+			input_gamepad = input_gamepad ? input_gamepad : SDL_OpenGamepad(instance_id);
+		else
+			input_joystick = input_joystick ? input_joystick : SDL_OpenJoystick(instance_id);
 
-	if (SDL_InitSubSystem(SDL_INIT_JOYSTICK)) {
-		int i, num_joysticks;
-		SDL_JoystickID *joysticks = SDL_GetJoysticks(&num_joysticks);
-		if (joysticks) {
-			for (i = 0; i < num_joysticks; ++i) {
-				joystick_exists = true;
-				SDL_JoystickID instance_id = joysticks[i];
-				const char *name = SDL_GetJoystickNameForID(instance_id);
-				const char *path = SDL_GetJoystickPathForID(instance_id);
-
-				SDL_Log("Joystick %" SDL_PRIu32 ": %s%s%s VID 0x%.4x, PID 0x%.4x",
-						instance_id, name ? name : "Unknown", path ? ", " : "", path ? path : "", SDL_GetJoystickVendorForID(instance_id), SDL_GetJoystickProductForID(instance_id));
-			}
-			SDL_free(joysticks);
-		}
-		SDL_QuitSubSystem(SDL_INIT_JOYSTICK);
+		const char *name = SDL_GetJoystickNameForID(instance_id);
+		const char *path = SDL_GetJoystickPathForID(instance_id);
+		SDL_Log("Joystick %" SDL_PRIu32 ": %s%s%s VID 0x%.4x, PID 0x%.4x",
+				instance_id, name ? name : "Unknown", path ? ", " : "", path ? path : "", SDL_GetJoystickVendorForID(instance_id), SDL_GetJoystickProductForID(instance_id));
 	}
-
-	if (joystick_exists)
-		printf("Joystick/gamepad detected, warning: joystick/gamepad support is currently nonexistent (as of SDL3)\n");
+	SDL_free(joysticks);
 }
 
 void input_event_device_arrival(int which)
 {
-	printf("Device Arrived, warning: joystick/gamepad support is currently nonexistent (as of SDL3)\n");
-	// if (/* FIXME MIGRATION: check for valid instance */
-	// 	SDL_IsGamepad(GetJoystickInstanceFromIndex(which)))
-	// 	input_controller = input_controller ? input_controller : SDL_OpenGamepad(which);
-	// else
-	// 	input_joystick = input_joystick ? input_joystick : SDL_OpenJoystick(which);
+	if (SDL_IsGamepad(which))
+		input_gamepad = input_gamepad ? input_gamepad : SDL_OpenGamepad(which);
+	else
+		input_joystick = input_joystick ? input_joystick : SDL_OpenJoystick(which);
 }
 
 void input_event_init()

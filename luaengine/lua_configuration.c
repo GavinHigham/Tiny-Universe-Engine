@@ -36,6 +36,26 @@ void luaconf_error(lua_State *L, const char *fmt, ...)
 	//exit(EXIT_FAILURE);
 }
 
+/*
+TODO: Assess if all this complexity is actually needed.
+
+This function registers a loader which searches our table of "builtin" libs, allowing us to register libraries
+to arbitrary module names (skipping parent directories, for example).
+This allows us to do `require 'somelib' and be sure it will find it without needing to fuss with the real path.
+However, this may be accomplished more easily by using luaL_requiref to preload the library.
+Subsequent calls to require will find the library in package.loaded.
+The only downside is that doing `package.loaded['somelib']` = nil will wipe out the library,
+and we won't be able to require it again using the same simple modname.
+
+The most likely reason to nil out the module is to make sure we get any changes when hot reloading,
+in which case we're calling lua_scene_init again, which re-registers all the libs.
+
+However, something like this would fail to find the library on the second require:
+local lib = require 'somelib'
+package.loaded['somelib'] = nil
+lib = require 'somelib'
+
+*/
 int luaconf_register_builtin_lib(lua_State *L, lua_CFunction luaopen_fn, const char *name)
 {
 	int top = lua_gettop(L);
