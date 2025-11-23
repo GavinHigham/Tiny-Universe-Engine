@@ -87,7 +87,10 @@ test_main.o: $(wildcard test/*.test.c)
 test: $(OBJECTS) test_main.o Makefile
 	./$(EXE) test
 
-.PHONY: clean
+run: $(EXE)
+	./$(EXE)
+
+.PHONY: clean run
 
 # Generate dependencies from all .c files, searching recursively.
 .depend:
