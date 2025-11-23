@@ -11,10 +11,11 @@ LUA_MAKEFLAGS =
 CLEAN_CMD = rm -f
 CEFFECTPP = effects/ceffectpp/ceffectpp
 SDL_LIBS ?= -lSDL3_image -lSDL3
+LUA_LIBRARY = lua-5.4.4/src/liblua.a
 
 MAIN_OBJ = main.o
 LIBTU_OBJ = libtu.o
-CLEAN_TARGETS = $(MAIN_OBJ) $(OBJECTS) $(EXE) $(DEPEND_FILE)
+CLEAN_TARGETS = $(MAIN_OBJ) $(LIBTU_OBJ) $(OBJECTS) $(EXE) $(LIB) $(DEPEND_FILE)
 
 # Windows build overrides
 WINDOWS_BUILDS ?= $(filter Windows_NT,$(OS))
@@ -29,6 +30,7 @@ ifeq ($(WINDOWS_BUILDS),Windows_NT)
 	LUA_MAKEFLAGS = LUA_A=lua.lib CC="$(CC)" AR="zig ar --format=coff rcs" RANLIB="zig ranlib"
 	CLEAN_CMD = cmd /C del /F /Q
 	CEFFECTPP = effects\ceffectpp\ceffectpp.exe
+	LUA_LIBRARY = lua-5.4.4/src/lua.lib
 	CLEAN_TARGETS := $(subst /,\,$(CLEAN_TARGETS))
 endif
 
@@ -67,9 +69,17 @@ include effects/effects.mk
 include test/test.mk
 
 CFLAGS = -Wall -c -std=c23 -g $(INCLUDES) $(SDL_CFLAGS) $(PLATFORM_CFLAGS) #-march=native -O3
-all: $(OBJECTS) $(MAIN_OBJ) $(LIBTU_OBJ) lua-5.4.4 #ceffectpp/ceffectpp
+
+all: $(EXE) $(LIB)
+
+$(EXE): $(OBJECTS) $(MAIN_OBJ) $(LUA_LIBRARY)
 	$(CC) $(LDFLAGS) $(OBJECTS) $(MAIN_OBJ) -o $(EXE)
+
+$(LIB): $(OBJECTS) $(LIBTU_OBJ) $(LUA_LIBRARY)
 	$(CC) $(LIBFLAGS) $(OBJECTS) $(LIBTU_OBJ) -o $(LIB)
+
+$(LUA_LIBRARY):
+	$(MAKE) -C lua-5.4.4 $(LUA_TARGET) $(LUA_MAKEFLAGS)
 
 
 test_main.o: $(wildcard test/*.test.c)
@@ -95,8 +105,7 @@ effects/effects.h: $(SHADERS) lua-5.4.4 effects/ceffectpp/ceffectpp
 effects/ceffectpp/ceffectpp:
 	$(MAKE) -C effects/ceffectpp CC="$(CC)"
 
-lua-5.4.4:
-	$(MAKE) -C lua-5.4.4 $(LUA_TARGET) $(LUA_MAKEFLAGS)
+lua-5.4.4: $(LUA_LIBRARY)
 
 clean:
 	-$(CLEAN_CMD) $(CLEAN_TARGETS)
