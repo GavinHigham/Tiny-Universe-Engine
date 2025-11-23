@@ -979,10 +979,17 @@ static void send_lua_value_as_uniform(lua_State *L, int value_idx, int type_idx)
 		case TULUA_TTEX:
 			// Could be a texture unit integer, or a Lua-wrapped texture object ("tu.image.texture").
 			// If it's an integer, just do glActiveTexture(GL_TEXTURE0 + unit) and glUniform1i(location, unit)
-			// If it's an object, find an unused texture unit, bind the texture to it, and glUniform1i(location, unit)
 
 			if (lua_isinteger(L, value_idx)) {
 				glUniform1i(location, lua_tointeger(L, value_idx));
+				break;
+			}
+
+			//If it's a "tu.image.texture" userdata, just call the "active" method to set up everything.
+			if (luaL_checkudata(L, value_idx, "tu.image.texture")) {
+				luaL_callmeta(L, value_idx, "active");
+				glUniform1i(location, lua_tointeger(L, -1));
+				lua_pop(L, 1);
 				break;
 			}
 
@@ -1347,6 +1354,7 @@ int luaopen_l_opengl(lua_State *L)
 	#define STRINGIFY(x) #x
 	#define VAL_AS_STR(x) STRINGIFY(x)
 	
+	//Source for any builtin functions, which will be compiled once then assigned into the registry
 	lua_pushliteral(L,
 		"local VERTEX_SHADER_TYPE = "VAL_AS_STR(GL_VERTEX_SHADER)"\n"
 		"local SHADER_TYPES = {float = "VAL_AS_STR(TULUA_TFLOAT)", int = "VAL_AS_STR(TULUA_TINT)", bool = "VAL_AS_STR(TULUA_TBOOL)", vec2 = "VAL_AS_STR(TULUA_TVEC2)", vec3 = "VAL_AS_STR(TULUA_TVEC3)", vec4 = "VAL_AS_STR(TULUA_TVEC4)", mat3 = "VAL_AS_STR(TULUA_TMAT3)", mat4 = "VAL_AS_STR(TULUA_TMAT4)", sampler2D = "VAL_AS_STR(TULUA_TTEX)"}\n");
@@ -1356,87 +1364,7 @@ int luaopen_l_opengl(lua_State *L)
 	lua_concat(L, 2);
 	luaL_loadstring(L, lua_tostring(L, -1));
 	lua_call(L, 0, LUA_MULTRET);
-	//Might be possible to do the concat at compile time? Both strings are literals.
 
-	//Source for any builtin functions, which will be compiled once then assigned into the registry
-	const char *builtin_fns =
-		"local types = {float = true, int = true, bool = true, vec2 = true, vec3 = true, vec4 = true}\n"
-		"function attributesFromShaderStrings(shaderStrings, shaderTypes, program)\n"
-			"--print('shaderStrings='..type(shaderStrings)..', shaderTypes='..type(shaderTypes)..', program='..type(program))\n"
-			"--print('shaderStrings[1]='..type(shaderStrings[1])..', shaderTypes[1]='..tostring(shaderTypes[1]))\n"
-			"local attributes, sortedAttributes = {}, {}\n"
-			"local name = '[%a_][%w_]*'\n"
-			"for i,s in ipairs(shaderStrings) do\n"
-				"if shaderTypes[i] == "VAL_AS_STR(GL_VERTEX_SHADER)" then\n"
-					"for attribute_type, attribute_name, count in s:gmatch('%s*in%s+('..name..')%s+('..name..')([%[%d%]]*)') do\n"
-						"if count then\n"
-							"count = tonumber(count:match('%[(%d+)%]'))\n"
-						"end\n"
-						"count = count or 1\n"
-						"if not attributes[attribute_name] and types[attribute_type] then\n"
-							"local attribute = {name = attribute_name, type = attribute_type, count = count}\n"
-							"attributes[attribute_name] = attribute\n"
-							"table.insert(sortedAttributes, attribute)\n"
-						"end\n"
-						"local arraySuffix = ''\n"
-						"if count > 1 then arraySuffix = '['..count..']' end\n"
-						"--print(table.concat({'attribute', attribute_type, attribute_name}, ' ')..arraySuffix..';')\n"
-					"end\n"
-				"end\n"
-			"end\n"
-
-			"local gl = require 'OpenGL'\n"
-			"for i, attribute in ipairs(sortedAttributes) do\n"
-				"attribute.location = gl.GetAttribLocation(program, attribute.name)\n"
-			"end\n"
-			"table.sort(sortedAttributes, function(a,b) return a.location > b.location end)\n"
-			"local attributeString = {}\n"
-			"for i, attribute in ipairs(sortedAttributes) do\n"
-				"local arraySuffix = ''\n"
-				"if attribute.count > 1 then arraySuffix = '['..attribute.count..']' end\n"
-				"table.insert(attributeString, attribute.type..' '..attribute.name..arraySuffix)\n"
-			"end\n"
-			"attributeString = table.concat(attributeString, ', ')\n"
-			"--print(attributeString)\n"
-			"return sortedAttributes, attributeString\n"
-		"end\n"
-
-		"local function uniformsFromShaderString(shaderStrings, uniforms)\n"
-			"--print('shaderStrings='..type(shaderStrings)..', uniforms='..type(uniforms))\n"
-			"--print('shaderStrings[1]='..type(shaderStrings[1]))\n"
-			"uniforms = uniforms or {}\n"
-			"--Placeholder enum values for each type\n"
-			"local enums = {float = "VAL_AS_STR(TULUA_TFLOAT)", int = "VAL_AS_STR(TULUA_TINT)", bool = "VAL_AS_STR(TULUA_TBOOL)", vec2 = "VAL_AS_STR(TULUA_TVEC2)", vec3 = "VAL_AS_STR(TULUA_TVEC3)", vec4 = "VAL_AS_STR(TULUA_TVEC4)", mat3 = "VAL_AS_STR(TULUA_TMAT3)", mat4 = "VAL_AS_STR(TULUA_TMAT4)", sampler2D = "VAL_AS_STR(TULUA_TTEX)"}\n"
-			"local name = '[%a_][%w_]*'\n"
-			"for i,s in ipairs(shaderStrings) do\n"
-				"for uniform_type, uniform_name, count in s:gmatch('%s*uniform%s+('..name..')%s+('..name..')([%[%d%]]*)') do\n"
-					"if count then\n"
-						"count = count:match('%[(%d+)%]')\n"
-					"end\n"
-					"uniforms[uniform_name] = {type = uniform_type, count = tonumber(count or 1), enumtype = enums[uniform_type]}\n"
-					"--local un = uniforms[uniform_name]; print(string.format('uniforms[%s]: type=%s, count=%s, enumtype=%s', uniform_name, un.type, un.count, un.enumtype))\n"
-				"end\n"
-			"end\n"
-			"return uniforms\n"
-		"end\n"
-
-		"local function shaderSourceError(shader, errorline, errorstring)\n"
-			"local currentline = 0\n"
-			"errorline = errorline or tonumber(errorstring:match('%d+:(%d+)'))\n"
-			"return string.gsub(shader, '[^\\r\\n]*', function (line)\n"
-				"currentline = currentline + 1\n"
-				"local linenumber = string.format('%03d: ', currentline)\n"
-				"if currentline == errorline then\n"
-					"return '\\27[31m'..linenumber..line..'\\27[0m'\n"
-				"else\n"
-					"return linenumber..line\n"
-				"end\n"
-			"end)\n"
-		"end\n"
-		"return attributesFromShaderStrings, uniformsFromShaderString, shaderSourceError\n";
-
-	// luaL_loadstring(L, builtin_fns);
-	// lua_call(L, 0, LUA_MULTRET);
 	//We're popping these off the stack, so reverse the order from above!
 	lua_setfield(L, LUA_REGISTRYINDEX, "tu_builtin_shaderSourceError");
 	lua_setfield(L, LUA_REGISTRYINDEX, "tu_builtin_uniformsFromShaderString");
