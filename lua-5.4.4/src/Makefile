@@ -145,13 +145,13 @@ SunOS solaris:
 
 # Compiler modules may use special flags.
 llex.o:
-	$(CC) $(CFLAGS) $(CMCFLAGS) -c llex.c
+	$(CC) $(CFLAGS) $(CMCFLAGS) -c -o $@ llex.c
 
 lparser.o:
-	$(CC) $(CFLAGS) $(CMCFLAGS) -c lparser.c
+	$(CC) $(CFLAGS) $(CMCFLAGS) -c -o $@ lparser.c
 
 lcode.o:
-	$(CC) $(CFLAGS) $(CMCFLAGS) -c lcode.c
+	$(CC) $(CFLAGS) $(CMCFLAGS) -c -o $@ lcode.c
 
 # DO NOT DELETE
 

@@ -4,7 +4,9 @@
 
 struct glsw_shaders {
 	GLuint forward;
-} glsw;
+};
+
+extern struct glsw_shaders glsw;
 
 void glsw_shaders_init();
 GLuint shader_from_strs(GLenum type, const char **strs, int count);

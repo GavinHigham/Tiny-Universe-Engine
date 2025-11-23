@@ -1,4 +1,5 @@
 #include <math.h>
+#include <stdio.h>
 #include "entity/entity_components.h"
 #include "space/star_box.h"
 #include "space/solar_system.h"

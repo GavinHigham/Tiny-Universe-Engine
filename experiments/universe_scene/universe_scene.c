@@ -13,6 +13,7 @@
 #include "systems/ply_mesh_renderer.h"
 #include <math.h>
 #include <assert.h>
+#include <stdio.h>
 SCENE_IMPLEMENT(universe)
 
 struct game_scene universe_scene;
