@@ -12,15 +12,14 @@ If you're reading this sometime in the far future, there may be development blog
 ## Compiling ##
 Extract to a directory, cd in, and run make.
 
-The executable will be "tu". You can change this in the Makefile.
+The executable will be "tu" or "tu.exe". You can change this in the Makefile.
 
 ## Dependencies ##
-I try to keep TU light on dependencies, but there are a few things that can't be avoided.
 
 ### SDL3 ###
 SDL3 is a framework that creates the window context, OpenGL context, handles input, etc.
 
-### SDL_image ###
+### SDL3_image ###
 SDL_image is used for loading different image formats into the engine to be used as textures.
 
 ### OpenGL (3.3 minimum) ###

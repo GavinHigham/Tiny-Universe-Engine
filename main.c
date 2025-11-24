@@ -179,13 +179,6 @@ int main(int argc, char **argv)
 	luaconf_run(L, data_path, luaconf_path);
 	luaconf_run(L, data_path, "libraries.lua");
 
-	const char embed_test[] = {
-		#embed "embed_test.lua"
-		, 0
-	};
-	printf("embed_test[] = %s\n", embed_test);
-	luaL_dostring(L, embed_test);
-
 	char *screen_title = getglob(L, "screen_title", "Creative Title");
 	char *default_scene = getglob(L, "default_scene", "icosphere_scene");
 	float screen_width = getglob(L, "screen_width", 800);

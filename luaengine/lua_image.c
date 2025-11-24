@@ -243,6 +243,11 @@ static GLenum l_image_texture_format_stoi(lua_State *L, int internal_format_i)
 		"RGBA",
 		"RGBA8",
 		"RGBA16",
+		"RGBA32F",
+		"RGB32F",
+		"RG32F",
+		"R32F",
+		NULL,
 	};
 
 	const GLenum internal_formats[] = {
@@ -254,6 +259,10 @@ static GLenum l_image_texture_format_stoi(lua_State *L, int internal_format_i)
 		GL_RGBA,
 		GL_RGBA8,
 		GL_RGBA16,
+		GL_RGBA32F,
+		GL_RGB32F,
+		GL_RG32F,
+		GL_R32F,
 	};
 
 	int format_i = luaL_checkoption(L, internal_format_i, "RGBA", internal_format_strs);
@@ -354,6 +363,7 @@ static int l_image_texture_getSize(lua_State *L)
 static int l_image_texture_active(lua_State *L)
 {
 	//TODO: Replace this extremely dumb, brittle code.
+	//TODO 2: Investigate bindless textures to optimize this
 	static int unused_texture_unit = 0;
 	int texture_unit = luaL_optinteger(L, 2, unused_texture_unit);
 	//Pick the next texture unit, wrapping around after 80.
@@ -529,7 +539,16 @@ static int l_image_Texture(lua_State *L)
 	lua_pushinteger(L, format);
 	lua_setiuservalue(L, texidx, 2);
 
-	glTexImage2D(target, 0, internal_format, width, height, 0, format, GL_UNSIGNED_BYTE, NULL);
+	//Float formats should use GL_FLOAT
+	switch(internal_format) {
+	case GL_RGBA32F: //fall-through
+	case GL_RGB32F: //fall-through
+	case GL_RG32F: //fall-through
+	case GL_R32F:
+		glTexImage2D(target, 0, internal_format, width, height, 0, format, GL_FLOAT, NULL);
+	default:
+		glTexImage2D(target, 0, internal_format, width, height, 0, format, GL_UNSIGNED_BYTE, NULL);
+	}
 	return 1;
 }
 
