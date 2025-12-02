@@ -344,8 +344,8 @@ function scene.init(reload)
 	shadow_tex = image.Texture(1024, 1024, {
 		format = 'DEPTH_COMPONENT',
 		border_color = {1.0, 1.0, 1.0, 1.0},
-		wrap_s = 0x812D,--[['CLAMP_TO_BORDER']]
-		wrap_t = 0x812D,--[['CLAMP_TO_BORDER']]
+		wrap_s = 'clamp_to_border',
+		wrap_t = 'clamp_to_border',
 	})
 
 	softshadow_tex = image.Texture(512, 512, {
@@ -364,7 +364,7 @@ function scene.init(reload)
 	orthoDebugScaleMatrix = glla.mat4.orthographic_inverse(l, r, b, t, n, f)
 
 
-	test_tex = image.fromFile('4x7.png'):toTexture({min_filter = 0x2600, mag_filter = 0x2600})
+	test_tex = image.fromFile('4x7.png'):toTexture({min_filter = 'nearest', mag_filter = 'nearest'})
 	grasstex = image.fromFile('grass.png'):toTexture()
 
 	terrain = {

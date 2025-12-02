@@ -173,6 +173,51 @@ static void l_image_texture_setParameter(lua_State *L, GLenum target, int key, i
 		0,
 	};
 
+	const char *texture_wrap_options[] = {
+		"clamp_to_edge",
+		"clamp_to_border",
+		"repeat",
+		"mirrored_repeat",
+		NULL,
+	};
+
+	const GLenum texture_wrap_enums[] = {
+		GL_CLAMP_TO_EDGE,
+		GL_CLAMP_TO_BORDER,
+		GL_REPEAT,
+		GL_MIRRORED_REPEAT,
+	};
+
+	const char *texture_min_filter_options[] = {
+		"nearest",
+		"linear",
+		"nearest_mipmap_nearest",
+		"linear_mipmap_nearest",
+		"nearest_mipmap_linear",
+		"linear_mipmap_linear",
+		NULL,
+	};
+
+	const GLenum texture_min_filter_enums[] = {
+		GL_NEAREST,
+		GL_LINEAR,
+		GL_NEAREST_MIPMAP_NEAREST,
+		GL_LINEAR_MIPMAP_NEAREST,
+		GL_NEAREST_MIPMAP_LINEAR,
+		GL_LINEAR_MIPMAP_LINEAR,
+	};
+
+	const char *texture_mag_filter_options[] = {
+		"nearest",
+		"linear",
+		NULL,
+	};
+
+	const GLenum texture_mag_filter_enums[] = {
+		GL_NEAREST,
+		GL_LINEAR,
+	};
+
 	//Index in the string / enum arrays above
 	int idx = luaL_checkoption(L, key, "invalid", pnamestrs);
 	GLenum pname = pnames[idx];
@@ -220,6 +265,44 @@ static void l_image_texture_setParameter(lua_State *L, GLenum target, int key, i
 		glTexParameteriv(target, pname, i4);
 		lua_pop(L, 4);
 		return;
+	case 13:
+	{
+		GLint param = 0;
+		if (lua_type(L, val) == LUA_TSTRING) {
+			int opt = luaL_checkoption(L, val, "nearest", texture_min_filter_options);
+			param = texture_min_filter_enums[opt];
+		} else {
+			param = luaL_checkinteger(L, val);
+		}
+		glTexParameteri(target, pname, param);
+		return;
+	}
+	case 14:
+	{
+		GLint param = 0;
+		if (lua_type(L, val) == LUA_TSTRING) {
+			int opt = luaL_checkoption(L, val, "nearest", texture_mag_filter_options);
+			param = texture_mag_filter_enums[opt];
+		} else {
+			param = luaL_checkinteger(L, val);
+		}
+		glTexParameteri(target, pname, param);
+		return;
+	}
+	case 20:
+	case 21:
+	case 22:
+	{
+		GLint param = 0;
+		if (lua_type(L, val) == LUA_TSTRING) {
+			int opt = luaL_checkoption(L, val, "clamp_to_edge", texture_wrap_options);
+			param = texture_wrap_enums[opt];
+		} else {
+			param = luaL_checkinteger(L, val);
+		}
+		glTexParameteri(target, pname, param);
+		return;
+	}
 	default:
 		glTexParameteri(target, pname, luaL_checkinteger(L, val));
 		return;
